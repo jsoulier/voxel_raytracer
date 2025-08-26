@@ -20,8 +20,10 @@ add_subdirectory(lib/sqlite3)
 add_subdirectory(lib/stb)
 
 add_executable(voxel_ray_tracer
-    src/main.cpp
     src/camera.cpp
+    src/chunk.cpp
+    src/main.cpp
+    src/world.cpp
 )
 target_link_libraries(voxel_ray_tracer PRIVATE
     FastNoiseLite
@@ -38,6 +40,7 @@ target_precompile_headers(voxel_ray_tracer PRIVATE
     <glm/glm.hpp>
     <algorithm>
     <cmath>
+    <utility>
 )
 
 function(add_shader FILE)

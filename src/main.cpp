@@ -3,12 +3,15 @@
 
 #include <cstdint>
 
+#include "camera.hpp"
 #include "profile.hpp"
+#include "world.hpp"
 
 static SDL_Window* window;
 static SDL_GPUDevice* device;
 static uint32_t oldWidth;
 static uint32_t oldHeight;
+static World world;
 
 static bool Init()
 {
@@ -44,12 +47,19 @@ static bool Init()
         SDL_Log("Failed to claim window: %s", SDL_GetError());
         return false;
     }
+    if (!world.Init(device))
+    {
+        SDL_Log("Failed to initialize world");
+        return false;
+    }
     return true;
 }
 
 static void Quit()
 {
     Profile();
+    SDL_HideWindow(window);
+    world.Quit(device);
     SDL_ReleaseWindowFromGPUDevice(device, window);
     SDL_DestroyGPUDevice(device);
     SDL_DestroyWindow(window);
@@ -88,11 +98,14 @@ static void Render()
     SDL_GPUTexture* swapchainTexture;
     uint32_t newWidth;
     uint32_t newHeight;
-    if (!SDL_AcquireGPUSwapchainTexture(commandBuffer, window, &swapchainTexture, &newWidth, &newHeight))
     {
-        SDL_Log("Failed to acquire command buffer: %s", SDL_GetError());
-        SDL_CancelGPUCommandBuffer(commandBuffer);
-        return;
+        ProfileBlock("Render::AcquireSwapchainTexture");
+        if (!SDL_WaitAndAcquireGPUSwapchainTexture(commandBuffer, window, &swapchainTexture, &newWidth, &newHeight))
+        {
+            SDL_Log("Failed to acquire command buffer: %s", SDL_GetError());
+            SDL_CancelGPUCommandBuffer(commandBuffer);
+            return;
+        }
     }
     if (!swapchainTexture || !newWidth || !newHeight)
     {
@@ -116,6 +129,7 @@ int main(int argc, char** argv)
     }
     while (true)
     {
+        ProfileBlock("main::Loop");
         if (!Poll())
         {
             break;
