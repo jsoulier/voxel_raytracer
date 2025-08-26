@@ -9,14 +9,14 @@
 #include "profile.hpp"
 
 template<typename T, SDL_GPUBufferUsageFlags U = SDL_GPU_BUFFERUSAGE_COMPUTE_STORAGE_READ>
-class Buffer
+class DynamicBuffer
 {
 public:
     static constexpr int kStartingCapacity = 10;
     static constexpr int kGrowthRate = 2;
 
-    Buffer()
-        : Handle{nullptr}
+    DynamicBuffer()
+        : Buffer{nullptr}
         , TransferBuffer{nullptr}
         , BufferSize{0}
         , TransferBufferSize{0}
@@ -28,9 +28,9 @@ public:
 
     void Destroy(SDL_GPUDevice* device)
     {
-        SDL_ReleaseGPUBuffer(device, Handle);
+        SDL_ReleaseGPUBuffer(device, Buffer);
         SDL_ReleaseGPUTransferBuffer(device, TransferBuffer);
-        Handle = nullptr;
+        Buffer = nullptr;
         TransferBuffer = nullptr;
     }
 
@@ -103,14 +103,14 @@ public:
         if (TransferBufferCapacity > BufferCapacity)
         {
             ProfileBlock("Buffer::Upload::Reallocate");
-            SDL_ReleaseGPUBuffer(device, Handle);
-            Handle = nullptr;
+            SDL_ReleaseGPUBuffer(device, Buffer);
+            Buffer = nullptr;
             BufferCapacity = 0;
             SDL_GPUBufferCreateInfo info{};
             info.usage = U;
             info.size = TransferBufferCapacity * sizeof(T);
-            Handle = SDL_CreateGPUBuffer(device, &info);
-            if (!Handle)
+            Buffer = SDL_CreateGPUBuffer(device, &info);
+            if (!Buffer)
             {
                 SDL_Log("Failed to create buffer: %s", SDL_GetError());
                 return;
@@ -120,15 +120,15 @@ public:
         SDL_GPUTransferBufferLocation location{};
         SDL_GPUBufferRegion region{};
         location.transfer_buffer = TransferBuffer;
-        region.buffer = Handle;
+        region.buffer = Buffer;
         region.size = size * sizeof(T);
         SDL_UploadToGPUBuffer(copyPass, &location, &region, true);
         BufferSize = size;
     }
 
-    SDL_GPUBuffer* GetHandle() const
+    SDL_GPUBuffer* GetBuffer() const
     {
-        return Handle;
+        return Buffer;
     }
 
     uint32_t GetSize() const
@@ -136,11 +136,18 @@ public:
         return BufferSize;
     }
 private:
-    SDL_GPUBuffer* Handle;
+    SDL_GPUBuffer* Buffer;
     SDL_GPUTransferBuffer* TransferBuffer;
     int BufferSize;
     int TransferBufferSize;
     int BufferCapacity;
     int TransferBufferCapacity;
     T* Data;
+};
+
+template<typename T, SDL_GPUBufferUsageFlags U = SDL_GPU_BUFFERUSAGE_COMPUTE_STORAGE_READ>
+class FixedBuffer
+{
+public:
+
 };

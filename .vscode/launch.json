@@ -6,7 +6,7 @@
             "type": "cppvsdbg",
             "request": "launch",
             "program": "${workspaceFolder}/build/bin/voxel_ray_tracer.exe",
-            "cwd": "${workspaceFolder}/build/bin",
+            "cwd": "${workspaceFolder}",
             "preLaunchTask": "CMake: build"
         },
     ]

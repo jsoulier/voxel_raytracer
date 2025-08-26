@@ -22,6 +22,7 @@ add_subdirectory(lib/stb)
 add_executable(voxel_ray_tracer
     src/camera.cpp
     src/chunk.cpp
+    src/helpers.cpp
     src/main.cpp
     src/world.cpp
 )
@@ -40,6 +41,13 @@ target_precompile_headers(voxel_ray_tracer PRIVATE
     <glm/glm.hpp>
     <algorithm>
     <cmath>
+    <cstdint>
+    <exception>
+    <format>
+    <fstream>
+    <iterator>
+    <string>
+    <string_view>
     <utility>
 )
 
@@ -88,11 +96,13 @@ function(add_shader FILE)
         add_custom_target(${NAME} DEPENDS ${BINARY})
         add_dependencies(voxel_ray_tracer ${NAME})
     endfunction()
-    package(${SPV})
-    if(WIN32)
-        package(${DXIL})
-    elseif(APPLE)
+    if(APPLE)
         package(${MSL})
+    else()
+        package(${SPV})
     endif()
     package(${JSON})
 endfunction()
+add_shader(update_blocks.comp src/config.h)
+add_shader(update_chunks.comp src/config.h)
+add_shader(update_heightmap.comp src/config.h)

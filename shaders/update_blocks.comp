@@ -1,0 +1,7 @@
+#include "config.h"
+
+[numthreads(UPDATE_BLOCKS_THREADS_X, 1, 1)]
+void main(uint3 id : SV_DispatchThreadID)
+{
+
+}

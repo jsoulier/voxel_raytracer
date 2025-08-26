@@ -35,9 +35,9 @@ bool World::Init(SDL_GPUDevice* device)
         info.format = SDL_GPU_TEXTUREFORMAT_R8G8B8A8_UINT;
         info.type = SDL_GPU_TEXTURETYPE_3D;
         info.usage = SDL_GPU_TEXTUREUSAGE_COMPUTE_STORAGE_READ | SDL_GPU_TEXTUREUSAGE_COMPUTE_STORAGE_WRITE;
-        info.width = Chunk::kWidth;
-        info.height = Chunk::kHeight;
-        info.layer_count_or_depth = Chunk::kWidth;
+        info.width = kWidth;
+        info.height = kHeight;
+        info.layer_count_or_depth = kWidth;
         ChunkTexture = SDL_CreateGPUTexture(device, &info);
         if (!ChunkTexture)
         {
