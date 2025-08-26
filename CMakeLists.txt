@@ -36,6 +36,8 @@ set_target_properties(voxel_ray_tracer PROPERTIES CXX_STANDARD 23)
 target_precompile_headers(voxel_ray_tracer PRIVATE
     <nlohmann/json.hpp>
     <glm/glm.hpp>
+    <algorithm>
+    <cmath>
 )
 
 function(add_shader FILE)
