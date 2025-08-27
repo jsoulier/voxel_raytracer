@@ -59,14 +59,14 @@ static bool Init()
         SDL_Log("Failed to claim window: %s", SDL_GetError());
         return false;
     }
-    SDL_ShowWindow(window);
-    SDL_SetWindowResizable(window, true);
-    SDL_FlashWindow(window, SDL_FLASH_BRIEFLY);
     if (!world.Init(device))
     {
         SDL_Log("Failed to initialize world");
         return false;
     }
+    SDL_ShowWindow(window);
+    SDL_SetWindowResizable(window, true);
+    SDL_FlashWindow(window, SDL_FLASH_BRIEFLY);
     return true;
 }
 

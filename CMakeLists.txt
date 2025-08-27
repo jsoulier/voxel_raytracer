@@ -25,6 +25,7 @@ add_executable(voxel_ray_tracer
     src/debug_group.cpp
     src/helpers.cpp
     src/main.cpp
+    src/worker.cpp
     src/world.cpp
 )
 target_link_libraries(voxel_ray_tracer PRIVATE
@@ -47,6 +48,7 @@ target_precompile_headers(voxel_ray_tracer PRIVATE
     <format>
     <fstream>
     <iterator>
+    <limits>
     <string>
     <string_view>
     <utility>

@@ -28,6 +28,11 @@ public:
 
     void Destroy(SDL_GPUDevice* device)
     {
+        if (Data)
+        {
+            SDL_UnmapGPUTransferBuffer(device, TransferBuffer);
+            Data = nullptr;
+        }
         SDL_ReleaseGPUBuffer(device, Buffer);
         SDL_ReleaseGPUTransferBuffer(device, TransferBuffer);
         Buffer = nullptr;
@@ -149,5 +154,92 @@ template<typename T, SDL_GPUBufferUsageFlags U = SDL_GPU_BUFFERUSAGE_COMPUTE_STO
 class FixedBuffer
 {
 public:
+    FixedBuffer()
+        : Buffer{nullptr}
+        , TransferBuffer{nullptr}
+        , Data{nullptr}
+    {
+    }
 
+    bool Init(SDL_GPUDevice* device)
+    {
+        Profile();
+        {
+            SDL_GPUTransferBufferCreateInfo info{};
+            info.usage = SDL_GPU_TRANSFERBUFFERUSAGE_UPLOAD;
+            info.size = sizeof(T);
+            TransferBuffer = SDL_CreateGPUTransferBuffer(device, &info);
+            if (!TransferBuffer)
+            {
+                SDL_Log("Failed to create transfer buffer: %s", SDL_GetError());
+                return false;
+            }
+        }
+        {
+            SDL_GPUBufferCreateInfo info{};
+            info.usage = U;
+            info.size = sizeof(T);
+            Buffer = SDL_CreateGPUBuffer(device, &info);
+            if (!Buffer)
+            {
+                SDL_Log("Failed to create buffer: %s", SDL_GetError());
+                return false;
+            }
+        }
+        Data = static_cast<T*>(SDL_MapGPUTransferBuffer(device, TransferBuffer, false));
+        if (!Data)
+        {
+            SDL_Log("Failed to map transfer buffer: %s", SDL_GetError());
+            return false;
+        }
+        return true;
+    }
+
+    void Destroy(SDL_GPUDevice* device)
+    {
+        SDL_UnmapGPUTransferBuffer(device, TransferBuffer);
+        SDL_ReleaseGPUBuffer(device, Buffer);
+        SDL_ReleaseGPUTransferBuffer(device, TransferBuffer);
+        Buffer = nullptr;
+        TransferBuffer = nullptr;
+        Data = nullptr;
+    }
+
+    void Upload(SDL_GPUDevice* device, SDL_GPUCopyPass* copyPass)
+    {
+        Profile();
+        SDL_UnmapGPUTransferBuffer(device, TransferBuffer);
+        SDL_GPUTransferBufferLocation location{};
+        SDL_GPUBufferRegion region{};
+        location.transfer_buffer = TransferBuffer;
+        region.buffer = Buffer;
+        region.size = sizeof(T);
+        SDL_UploadToGPUBuffer(copyPass, &location, &region, true);
+        Data = static_cast<T*>(SDL_MapGPUTransferBuffer(device, TransferBuffer, false));
+        if (!Data)
+        {
+            SDL_Log("Failed to map transfer buffer: %s", SDL_GetError());
+            SDL_assert(false);
+        }
+    }
+
+    SDL_GPUBuffer* GetBuffer() const
+    {
+        return Buffer;
+    }
+
+    T* operator->()
+    {
+        return Data;
+    }
+
+    const T* operator->() const
+    {
+        return Data;
+    }
+
+private:
+    SDL_GPUBuffer* Buffer;
+    SDL_GPUTransferBuffer* TransferBuffer;
+    T* Data;
 };

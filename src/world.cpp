@@ -4,6 +4,20 @@
 #include "profile.hpp"
 #include "world.hpp"
 
+World::World()
+    : Blocks{}
+    , Heightmap{}
+    , Chunks{}
+    , Workers{}
+    , BlockBuffer{}
+    , HeightmapBuffer{}
+    , State{}
+    , BlockTexture{nullptr}
+    , HeightmapTexture{nullptr}
+    , ChunkTexture{nullptr}
+{
+}
+
 bool World::Init(SDL_GPUDevice* device)
 {
     Profile();
@@ -14,7 +28,7 @@ bool World::Init(SDL_GPUDevice* device)
         info.type = SDL_GPU_TEXTURETYPE_3D;
         info.usage = SDL_GPU_TEXTUREUSAGE_COMPUTE_STORAGE_READ | SDL_GPU_TEXTUREUSAGE_COMPUTE_STORAGE_WRITE;
         info.width = kWidth * Chunk::kWidth;
-        info.height = kHeight * Chunk::kHeight;
+        info.height = Chunk::kHeight;
         info.layer_count_or_depth = kWidth * Chunk::kWidth;
         info.num_levels = 1;
         BlockTexture = SDL_CreateGPUTexture(device, &info);
@@ -36,7 +50,7 @@ bool World::Init(SDL_GPUDevice* device)
         info.type = SDL_GPU_TEXTURETYPE_3D;
         info.usage = SDL_GPU_TEXTUREUSAGE_COMPUTE_STORAGE_READ | SDL_GPU_TEXTUREUSAGE_COMPUTE_STORAGE_WRITE;
         info.width = kWidth;
-        info.height = kHeight;
+        info.height = 1;
         info.layer_count_or_depth = kWidth;
         ChunkTexture = SDL_CreateGPUTexture(device, &info);
         if (!ChunkTexture)
@@ -45,12 +59,22 @@ bool World::Init(SDL_GPUDevice* device)
             return false;
         }
     }
+    if (!State.Init(device))
+    {
+        SDL_Log("Failed to initialize state");
+        return false;
+    }
+    State->X = 0.0f;
+    State->Z = 0.0f;
     return true;
 }
 
 void World::Quit(SDL_GPUDevice* device)
 {
     Profile();
+    State.Destroy(device);
+    BlockBuffer.Destroy(device);
+    HeightmapBuffer.Destroy(device);
     SDL_ReleaseGPUTexture(device, ChunkTexture);
     SDL_ReleaseGPUTexture(device, HeightmapTexture);
     SDL_ReleaseGPUTexture(device, BlockTexture);
