@@ -4,14 +4,26 @@
 #include <cstdint>
 
 #include "camera.hpp"
+#include "debug_group.hpp"
 #include "profile.hpp"
 #include "world.hpp"
 
+static constexpr float kSpeed = 1.0f;
+static constexpr float kSensitivity = 1.0f;
+static constexpr float kWidth = 640.0f;
+
 static SDL_Window* window;
 static SDL_GPUDevice* device;
-static uint32_t oldWidth;
-static uint32_t oldHeight;
+static SDL_GPUTexture* colorTexture;
+static uint32_t swapchainWidth;
+static uint32_t swapchainHeight;
+static float renderWidth;
+static float renderHeight;
+static Camera camera;
 static World world;
+static uint64_t time1;
+static uint64_t time2;
+static float dt;
 
 static bool Init()
 {
@@ -25,7 +37,7 @@ static bool Init()
         SDL_Log("Failed to initialize SDL: %s", SDL_GetError());
         return false;
     }
-    window = SDL_CreateWindow("Voxel Ray Tracer", 960, 720, SDL_WINDOW_RESIZABLE);
+    window = SDL_CreateWindow("Voxel Ray Tracer", 960, 720, SDL_WINDOW_HIDDEN);
     if (!window)
     {
         SDL_Log("Failed to create window: %s", SDL_GetError());
@@ -47,6 +59,9 @@ static bool Init()
         SDL_Log("Failed to claim window: %s", SDL_GetError());
         return false;
     }
+    SDL_ShowWindow(window);
+    SDL_SetWindowResizable(window, true);
+    SDL_FlashWindow(window, SDL_FLASH_BRIEFLY);
     if (!world.Init(device))
     {
         SDL_Log("Failed to initialize world");
@@ -60,6 +75,7 @@ static void Quit()
     Profile();
     SDL_HideWindow(window);
     world.Quit(device);
+    SDL_ReleaseGPUTexture(device, colorTexture);
     SDL_ReleaseWindowFromGPUDevice(device, window);
     SDL_DestroyGPUDevice(device);
     SDL_DestroyWindow(window);
@@ -76,6 +92,52 @@ static bool Poll()
         {
         case SDL_EVENT_QUIT:
             return false;
+        case SDL_EVENT_MOUSE_BUTTON_DOWN:
+            if (event.button.button & SDL_BUTTON_LMASK)
+            {
+                if (!SDL_GetWindowRelativeMouseMode(window))
+                {
+                    SDL_SetWindowRelativeMouseMode(window, true);
+                }
+            }
+            break;
+        case SDL_EVENT_MOUSE_MOTION:
+            if (SDL_GetWindowRelativeMouseMode(window))
+            {
+                camera.Rotate(event.motion.xrel * kSensitivity, event.motion.yrel * kSensitivity);
+            }
+            break;
+        case SDL_EVENT_KEY_DOWN:
+            if (event.key.scancode == SDL_SCANCODE_ESCAPE)
+            {
+                SDL_SetWindowRelativeMouseMode(window, false);
+                if (SDL_GetWindowFlags(window) & SDL_WINDOW_FULLSCREEN)
+                {
+                    SDL_SetWindowFullscreen(window, false);
+                }
+            }
+            else if (event.key.scancode == SDL_SCANCODE_F11)
+            {
+                if (SDL_GetWindowFlags(window) & SDL_WINDOW_FULLSCREEN)
+                {
+                    SDL_SetWindowFullscreen(window, false);
+                }
+                else
+                {
+                    SDL_SetWindowFullscreen(window, true);
+                    if (!SDL_GetWindowRelativeMouseMode(window))
+                    {
+                        SDL_SetWindowRelativeMouseMode(window, true);
+                    }
+                }
+            }
+            break;
+        case SDL_EVENT_WINDOW_FOCUS_LOST:
+            if (SDL_GetWindowRelativeMouseMode(window))
+            {
+                SDL_SetWindowRelativeMouseMode(window, false);
+            }
+            break;
         }
     }
     return true;
@@ -84,6 +146,49 @@ static bool Poll()
 static void Update()
 {
     Profile();
+    if (SDL_GetWindowRelativeMouseMode(window))
+    {
+        float dx = 0.0f;
+        float dy = 0.0f;
+        float dz = 0.0f;
+        const bool* keys = SDL_GetKeyboardState(nullptr);
+        dx += keys[SDL_SCANCODE_D];
+        dx += keys[SDL_SCANCODE_A];
+        dy += keys[SDL_SCANCODE_E];
+        dy += keys[SDL_SCANCODE_Q];
+        dz += keys[SDL_SCANCODE_W];
+        dz += keys[SDL_SCANCODE_S];
+        dx *= kSpeed * dt;
+        dy *= kSpeed * dt;
+        dz *= kSpeed * dt;
+        camera.Move(dx, dy, dz);
+    }
+}
+
+static bool Resize(uint32_t width, uint32_t height)
+{
+    Profile();
+    float aspectRatio = float(width) / float(height);
+    renderWidth = kWidth;
+    renderHeight = kWidth / aspectRatio;
+    SDL_ReleaseGPUTexture(device, colorTexture);
+    SDL_GPUTextureCreateInfo info{};
+    info.format = SDL_GPU_TEXTUREFORMAT_R8G8B8A8_UNORM;
+    info.type = SDL_GPU_TEXTURETYPE_2D;
+    info.usage = SDL_GPU_TEXTUREUSAGE_COMPUTE_STORAGE_WRITE | SDL_GPU_TEXTUREUSAGE_SAMPLER;
+    info.width = renderWidth;
+    info.height = renderHeight;
+    info.layer_count_or_depth = 1;
+    info.num_levels = 1;
+    colorTexture = SDL_CreateGPUTexture(device, &info);
+    if (!colorTexture)
+    {
+        return false;
+    }
+    camera.Resize(renderWidth, renderHeight);
+    swapchainWidth = width;
+    swapchainHeight = height;
+    return true;
 }
 
 static void Render()
@@ -96,26 +201,40 @@ static void Render()
         return;
     }
     SDL_GPUTexture* swapchainTexture;
-    uint32_t newWidth;
-    uint32_t newHeight;
+    uint32_t width;
+    uint32_t height;
     {
         ProfileBlock("Render::AcquireSwapchainTexture");
-        if (!SDL_WaitAndAcquireGPUSwapchainTexture(commandBuffer, window, &swapchainTexture, &newWidth, &newHeight))
+        if (!SDL_WaitAndAcquireGPUSwapchainTexture(commandBuffer, window, &swapchainTexture, &width, &height))
         {
             SDL_Log("Failed to acquire command buffer: %s", SDL_GetError());
             SDL_CancelGPUCommandBuffer(commandBuffer);
             return;
         }
     }
-    if (!swapchainTexture || !newWidth || !newHeight)
+    if (!swapchainTexture || !width || !height)
     {
         // Not an error
         SDL_SubmitGPUCommandBuffer(commandBuffer);
         return;
     }
-    if (oldWidth != newWidth || oldHeight != newHeight)
+    if ((swapchainWidth != width || swapchainHeight != height) && !Resize(width, height))
     {
-        // TODO:
+        SDL_Log("Failed to create color texture: %s", SDL_GetError());
+        SDL_SubmitGPUCommandBuffer(commandBuffer);
+        return;
+    }
+    {
+        ProfileBlock("Render::Blit");
+        DebugGroup(commandBuffer);
+        SDL_GPUBlitInfo info{};
+        info.source.texture = colorTexture;
+        info.source.w = renderWidth;
+        info.source.h = renderHeight;
+        info.destination.texture = swapchainTexture;
+        info.destination.w = swapchainWidth;
+        info.destination.h = swapchainHeight;
+        SDL_BlitGPUTexture(commandBuffer, &info);
     }
     SDL_SubmitGPUCommandBuffer(commandBuffer);
 }

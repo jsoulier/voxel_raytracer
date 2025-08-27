@@ -22,6 +22,7 @@ add_subdirectory(lib/stb)
 add_executable(voxel_ray_tracer
     src/camera.cpp
     src/chunk.cpp
+    src/debug_group.cpp
     src/helpers.cpp
     src/main.cpp
     src/world.cpp
@@ -103,6 +104,7 @@ function(add_shader FILE)
     endif()
     package(${JSON})
 endfunction()
-add_shader(update_blocks.comp src/config.h)
-add_shader(update_chunks.comp src/config.h)
-add_shader(update_heightmap.comp src/config.h)
+add_shader(render_blocks.comp src/threads.h)
+add_shader(update_blocks.comp src/threads.h)
+add_shader(update_chunks.comp src/threads.h)
+add_shader(update_heightmap.comp src/threads.h)
