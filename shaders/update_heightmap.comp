@@ -1,7 +1,0 @@
-#include "threads.h"
-
-[numthreads(UPDATE_HEIGHTMAP_THREADS_X, 1, 1)]
-void main(uint3 id : SV_DispatchThreadID)
-{
-
-}

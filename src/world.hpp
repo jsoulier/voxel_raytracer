@@ -10,15 +10,19 @@
 
 struct WorldBlockJob
 {
+    WorldBlockJob(int x, int y, int z, Block block);
+
     uint16_t X;
     uint16_t Y;
     uint16_t Z;
-    uint8_t Value;
+    Block Value;
     uint8_t Padding;
 };
 
 struct WorldHeightmapJob
 {
+    WorldHeightmapJob(int x, int y, int z);
+
     uint16_t X;
     uint16_t Y;
     uint16_t Z;
@@ -30,6 +34,9 @@ struct WorldState
     float X;
     float Z;
 };
+
+static_assert(sizeof(WorldBlockJob) == 8);;
+static_assert(sizeof(WorldHeightmapJob) == 8);;
 
 class World
 {
@@ -43,9 +50,12 @@ public:
     World(World&& other) = delete;
     World& operator=(World&& other) = delete;
     bool Init(SDL_GPUDevice* device);
-    void Quit(SDL_GPUDevice* device);
+    void Quit();
+    void Update(Camera& camera);
+    void SetBlock(int x, int y, int z, Block block);
 
 private:
+    SDL_GPUDevice* Device;
     Block Blocks[kWidth * Chunk::kWidth][Chunk::kHeight][kWidth * Chunk::kWidth];
     uint8_t Heightmap[kWidth * Chunk::kWidth][kWidth * Chunk::kWidth];
     Chunk Chunks[kWidth][kWidth];
@@ -53,13 +63,8 @@ private:
     DynamicBuffer<WorldBlockJob> BlockBuffer;
     DynamicBuffer<WorldHeightmapJob> HeightmapBuffer;
     FixedBuffer<WorldState> State;
-
-    // Contains all blocks
     SDL_GPUTexture* BlockTexture;
-
-    // Contains height of all blocks
     SDL_GPUTexture* HeightmapTexture;
-
-    // Maps world space chunk positions to the BlockTexture
     SDL_GPUTexture* ChunkTexture;
+    SDL_GPUComputePipeline* WorldSetBlocksPipeline;
 };

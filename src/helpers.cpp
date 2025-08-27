@@ -4,6 +4,7 @@
 
 #include <cstdint>
 #include <exception>
+#include <filesystem>
 #include <format>
 #include <fstream>
 #include <iterator>
@@ -39,14 +40,16 @@ static void* LoadShaderInternal(SDL_GPUDevice* device, const std::string_view& n
     {
         assert(false);
     }
-    std::string shaderPath = std::format("{}.{}", name, fileExtension);
+    std::filesystem::path path = SDL_GetBasePath();
+    path /= name;
+    std::string shaderPath = std::format("{}.{}", path.string(), fileExtension);
     std::ifstream shaderFile(shaderPath, std::ios::binary);
     if (shaderFile.fail())
     {
         SDL_Log("Failed to open shader: %s", shaderPath.data());
         return nullptr;
     }
-    std::string jsonPath = std::format("{}.json", name);
+    std::string jsonPath = std::format("{}.json", path.string());
     std::ifstream jsonFile(jsonPath, std::ios::binary);
     if (jsonFile.fail())
     {

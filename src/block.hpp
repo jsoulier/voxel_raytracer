@@ -2,7 +2,9 @@
 
 #include <cstdint>
 
-enum Block
+enum Block : uint8_t
 {
+    BlockGrass,
+    BlockDirt,
     BlockCount,
 };

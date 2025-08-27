@@ -1,7 +1,0 @@
-#include "threads.h"
-
-[numthreads(RENDER_BLOCKS_THREADS_X, RENDER_BLOCKS_THREADS_Y, 1)]
-void main(uint3 id : SV_DispatchThreadID)
-{
-
-}

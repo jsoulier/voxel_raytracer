@@ -19,7 +19,7 @@ add_subdirectory(lib/json)
 add_subdirectory(lib/sqlite3)
 add_subdirectory(lib/stb)
 
-add_executable(voxel_ray_tracer
+add_executable(voxel_ray_tracer WIN32
     src/camera.cpp
     src/chunk.cpp
     src/debug_group.cpp
@@ -39,16 +39,17 @@ target_link_libraries(voxel_ray_tracer PRIVATE
 )
 set_target_properties(voxel_ray_tracer PROPERTIES CXX_STANDARD 23)
 target_precompile_headers(voxel_ray_tracer PRIVATE
-    <nlohmann/json.hpp>
-    <glm/glm.hpp>
     <algorithm>
     <cmath>
     <cstdint>
     <exception>
+    <filesystem>
     <format>
     <fstream>
+    <glm/glm.hpp>
     <iterator>
     <limits>
+    <nlohmann/json.hpp>
     <string>
     <string_view>
     <utility>
@@ -106,7 +107,4 @@ function(add_shader FILE)
     endif()
     package(${JSON})
 endfunction()
-add_shader(render_blocks.comp src/threads.h)
-add_shader(update_blocks.comp src/threads.h)
-add_shader(update_chunks.comp src/threads.h)
-add_shader(update_heightmap.comp src/threads.h)
+add_shader(world_set_blocks.comp shaders/shader.hlsl src/threads.h)

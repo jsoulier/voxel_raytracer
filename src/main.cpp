@@ -74,7 +74,7 @@ static void Quit()
 {
     Profile();
     SDL_HideWindow(window);
-    world.Quit(device);
+    world.Quit();
     SDL_ReleaseGPUTexture(device, colorTexture);
     SDL_ReleaseWindowFromGPUDevice(device, window);
     SDL_DestroyGPUDevice(device);
@@ -163,6 +163,12 @@ static void Update()
         dz *= kSpeed * dt;
         camera.Move(dx, dy, dz);
     }
+    world.SetBlock(0, 0, 0, BlockDirt);
+    world.SetBlock(1, 0, 0, BlockGrass);
+    world.SetBlock(2, 0, 0, BlockDirt);
+    world.SetBlock(3, 0, 0, BlockGrass);
+    world.SetBlock(4, 0, 0, BlockDirt);
+    world.Update(camera);
 }
 
 static bool Resize(uint32_t width, uint32_t height)

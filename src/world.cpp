@@ -1,8 +1,26 @@
 #include <SDL3/SDL.h>
 
 #include "chunk.hpp"
+#include "debug_group.hpp"
+#include "helpers.hpp"
 #include "profile.hpp"
+#include "threads.h"
 #include "world.hpp"
+
+WorldBlockJob::WorldBlockJob(int x, int y, int z, Block block)
+    : X(x)
+    , Y(y)
+    , Z(z)
+    , Value(block)
+{
+}
+
+WorldHeightmapJob::WorldHeightmapJob(int x, int y, int z)
+    : X(x)
+    , Y(y)
+    , Z(z)
+{
+}
 
 World::World()
     : Blocks{}
@@ -15,12 +33,14 @@ World::World()
     , BlockTexture{nullptr}
     , HeightmapTexture{nullptr}
     , ChunkTexture{nullptr}
+    , WorldSetBlocksPipeline{nullptr}
 {
 }
 
 bool World::Init(SDL_GPUDevice* device)
 {
     Profile();
+    Device = device;
     {
         ProfileBlock("World::Init::Textures");
         SDL_GPUTextureCreateInfo info{};
@@ -31,7 +51,7 @@ bool World::Init(SDL_GPUDevice* device)
         info.height = Chunk::kHeight;
         info.layer_count_or_depth = kWidth * Chunk::kWidth;
         info.num_levels = 1;
-        BlockTexture = SDL_CreateGPUTexture(device, &info);
+        BlockTexture = SDL_CreateGPUTexture(Device, &info);
         if (!BlockTexture)
         {
             SDL_Log("Failed to create block texture: %s", SDL_GetError());
@@ -40,7 +60,7 @@ bool World::Init(SDL_GPUDevice* device)
         info.type = SDL_GPU_TEXTURETYPE_2D;
         info.height = kWidth * Chunk::kWidth;
         info.layer_count_or_depth = 1;
-        HeightmapTexture = SDL_CreateGPUTexture(device, &info);
+        HeightmapTexture = SDL_CreateGPUTexture(Device, &info);
         if (!HeightmapTexture)
         {
             SDL_Log("Failed to create heightmap texture: %s", SDL_GetError());
@@ -52,14 +72,23 @@ bool World::Init(SDL_GPUDevice* device)
         info.width = kWidth;
         info.height = 1;
         info.layer_count_or_depth = kWidth;
-        ChunkTexture = SDL_CreateGPUTexture(device, &info);
+        ChunkTexture = SDL_CreateGPUTexture(Device, &info);
         if (!ChunkTexture)
         {
             SDL_Log("Failed to create chunk texture: %s", SDL_GetError());
             return false;
         }
     }
-    if (!State.Init(device))
+    {
+        ProfileBlock("World::Init::Pipelines");
+        WorldSetBlocksPipeline = LoadComputePipeline(Device, "world_set_blocks.comp");
+        if (!WorldSetBlocksPipeline)
+        {
+            SDL_Log("Failed to load world set blocks pipeline");
+            return false;
+        }
+    }
+    if (!State.Init(Device))
     {
         SDL_Log("Failed to initialize state");
         return false;
@@ -69,13 +98,67 @@ bool World::Init(SDL_GPUDevice* device)
     return true;
 }
 
-void World::Quit(SDL_GPUDevice* device)
+void World::Quit()
 {
     Profile();
-    State.Destroy(device);
-    BlockBuffer.Destroy(device);
-    HeightmapBuffer.Destroy(device);
-    SDL_ReleaseGPUTexture(device, ChunkTexture);
-    SDL_ReleaseGPUTexture(device, HeightmapTexture);
-    SDL_ReleaseGPUTexture(device, BlockTexture);
+    State.Destroy(Device);
+    BlockBuffer.Destroy(Device);
+    HeightmapBuffer.Destroy(Device);
+    SDL_ReleaseGPUComputePipeline(Device, WorldSetBlocksPipeline);
+    SDL_ReleaseGPUTexture(Device, ChunkTexture);
+    SDL_ReleaseGPUTexture(Device, HeightmapTexture);
+    SDL_ReleaseGPUTexture(Device, BlockTexture);
+}
+
+void World::Update(Camera& camera)
+{
+    Profile();
+    SDL_GPUCommandBuffer* commandBuffer = SDL_AcquireGPUCommandBuffer(Device);
+    if (!commandBuffer)
+    {
+        SDL_Log("Failed to acquire command buffer: %s", SDL_GetError());
+        return;
+    }
+    {
+        ProfileBlock("World::Update::Upload");
+        DebugGroupBlock(commandBuffer, "World::Update::Upload");
+        SDL_GPUCopyPass* copyPass = SDL_BeginGPUCopyPass(commandBuffer);
+        if (!copyPass)
+        {
+            SDL_Log("Failed to begin copy pass: %s", SDL_GetError());
+            SDL_CancelGPUCommandBuffer(commandBuffer);
+            return;
+        }
+        BlockBuffer.Upload(Device, copyPass);
+        HeightmapBuffer.Upload(Device, copyPass);
+        SDL_EndGPUCopyPass(copyPass);
+    }
+    if (BlockBuffer.GetSize())
+    {
+        ProfileBlock("World::Update::SetBlocks");
+        DebugGroupBlock(commandBuffer, "World::Update::SetBlocks");
+        SDL_GPUStorageTextureReadWriteBinding writeTexture{};
+        writeTexture.texture = BlockTexture;
+        SDL_GPUComputePass* computePass = SDL_BeginGPUComputePass(commandBuffer, &writeTexture, 1, nullptr, 0);
+        if (!computePass)
+        {
+            SDL_Log("Failed to begin compute pass: %s", SDL_GetError());
+            SDL_CancelGPUCommandBuffer(commandBuffer);
+            return;
+        }
+        int groupsX = (BlockBuffer.GetSize() + WORLD_SET_BLOCKS_THREADS_X - 1) / WORLD_SET_BLOCKS_THREADS_X;
+        SDL_GPUBuffer* readBuffers[2]{};
+        readBuffers[0] = BlockBuffer.GetBuffer();
+        readBuffers[1] = State.GetBuffer();
+        SDL_BindGPUComputePipeline(computePass, WorldSetBlocksPipeline);
+        SDL_BindGPUComputeStorageBuffers(computePass, 0, readBuffers, 2);
+        SDL_DispatchGPUCompute(computePass, groupsX, 1, 1);
+        SDL_EndGPUComputePass(computePass);
+    }
+    SDL_SubmitGPUCommandBuffer(commandBuffer);
+}
+
+void World::SetBlock(int x, int y, int z, Block block)
+{
+    BlockBuffer.Emplace(Device, x, y, z, block);
 }

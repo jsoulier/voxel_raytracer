@@ -12,12 +12,8 @@ struct WorkerBlockJob
     uint8_t X;
     uint8_t Y;
     uint8_t Z;
-    uint8_t Value;
+    Block Value;
 };
-
-static_assert(Chunk::kWidth < std::numeric_limits<uint8_t>::max());
-static_assert(Chunk::kHeight < std::numeric_limits<uint8_t>::max());
-static_assert(BlockCount < std::numeric_limits<uint8_t>::max());
 
 struct WorkerHeightmapJob
 {
@@ -26,6 +22,12 @@ struct WorkerHeightmapJob
     uint8_t Z;
     uint8_t Padding;
 };
+
+static_assert(sizeof(WorkerBlockJob) == 4);;
+static_assert(sizeof(WorkerHeightmapJob) == 4);;
+static_assert(Chunk::kWidth < std::numeric_limits<uint8_t>::max());
+static_assert(Chunk::kHeight < std::numeric_limits<uint8_t>::max());
+static_assert(BlockCount < std::numeric_limits<uint8_t>::max());
 
 class Worker
 {
