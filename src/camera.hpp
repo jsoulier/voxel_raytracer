@@ -1,28 +1,39 @@
 #pragma once
 
+#include <SDl3/SDL.h>
 #include <glm/glm.hpp>
+
+#include "buffer.hpp"
+
+struct CameraState
+{
+    glm::vec3 Position;
+    float AspectRatio;
+    glm::vec3 ForwardVector;
+    float TanHalfFov;
+    glm::vec3 RightVector;
+    float Padding;
+};
 
 class Camera
 {
 public:
     Camera();
+    bool Init(SDL_GPUDevice* device);
+    void Destroy(SDL_GPUDevice* device);
     void Resize(float width, float height);
     void Move(float dx, float dy, float dz);
     void Rotate(float dx, float dy);
     void SetFov(float fov);
-    const glm::vec3& GetPosition() const;
-    const glm::vec3& GetForwardVector() const;
-    const glm::vec3& GetRightVector() const;
-    const glm::vec3& GetUpVector() const;
-    float GetAspectRatio() const;
-    float GetTanHalfFov() const;
+    void Upload(SDL_GPUDevice* device, SDL_GPUCopyPass* copyPass);
+    SDL_GPUBuffer* GetBuffer() const;
+    float GetWidth() const;
+    float GetHeight() const;
 
 private:
-    glm::vec3 Position;
-    glm::vec3 ForwardVector;
-    glm::vec3 RightVector;
+    FixedBuffer<CameraState> State;
     float Pitch;
     float Yaw;
-    float AspectRatio;
-    float TanHalfFov;
+    float Width;
+    float Height;
 };

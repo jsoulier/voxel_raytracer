@@ -18,16 +18,16 @@ struct type_StructuredBuffer_WorldState
     WorldState _m0[1];
 };
 
-kernel void main0(constant uint* spvBufferSizeConstants [[buffer(25)]], const device type_StructuredBuffer_v2uint& Jobs [[buffer(0)]], texture3d<uint, access::write> Blocks [[texture(0)]], uint3 gl_GlobalInvocationID [[thread_position_in_grid]])
+kernel void main0(constant uint* spvBufferSizeConstants [[buffer(25)]], const device type_StructuredBuffer_v2uint& jobs [[buffer(0)]], texture3d<uint, access::write> blocks [[texture(0)]], uint3 gl_GlobalInvocationID [[thread_position_in_grid]])
 {
-    constant uint& JobsBufferSize = spvBufferSizeConstants[0];
+    constant uint& jobsBufferSize = spvBufferSizeConstants[0];
     do
     {
-        if (gl_GlobalInvocationID.x >= ((JobsBufferSize - 0) / 8))
+        if (gl_GlobalInvocationID.x >= ((jobsBufferSize - 0) / 8))
         {
             break;
         }
-        Blocks.write(uint4((((device uint*)&Jobs._m0[gl_GlobalInvocationID.x])[1] >> 16u) & 15u), uint3(uint3(((device uint*)&Jobs._m0[gl_GlobalInvocationID.x])[0] & 255u, (((device uint*)&Jobs._m0[gl_GlobalInvocationID.x])[0] >> 16u) & 255u, ((device uint*)&Jobs._m0[gl_GlobalInvocationID.x])[1] & 255u)));
+        blocks.write(uint4((((device uint*)&jobs._m0[gl_GlobalInvocationID.x])[1] >> 16u) & 15u), uint3(uint3(((device uint*)&jobs._m0[gl_GlobalInvocationID.x])[0] & 255u, (((device uint*)&jobs._m0[gl_GlobalInvocationID.x])[0] >> 16u) & 255u, ((device uint*)&jobs._m0[gl_GlobalInvocationID.x])[1] & 255u)));
         break;
     } while(false);
 }

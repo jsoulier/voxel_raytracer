@@ -10,7 +10,8 @@
 
 struct WorldBlockJob
 {
-    WorldBlockJob(int x, int y, int z, Block block);
+    WorldBlockJob(int x, int y, int z, Block block)
+        : X(x), Y(y), Z(z), Value(block) {}
 
     uint16_t X;
     uint16_t Y;
@@ -21,7 +22,8 @@ struct WorldBlockJob
 
 struct WorldHeightmapJob
 {
-    WorldHeightmapJob(int x, int y, int z);
+    WorldHeightmapJob(int x, int y, int z)
+        : X(x), Y(y), Z(z) {}
 
     uint16_t X;
     uint16_t Y;
@@ -50,8 +52,9 @@ public:
     World(World&& other) = delete;
     World& operator=(World&& other) = delete;
     bool Init(SDL_GPUDevice* device);
-    void Quit();
+    void Destroy();
     void Update(Camera& camera);
+    void Dispatch(SDL_GPUCommandBuffer* commandBuffer, SDL_GPUTexture* colorTexture, Camera& camera);
     void SetBlock(int x, int y, int z, Block block);
 
 private:
@@ -67,4 +70,5 @@ private:
     SDL_GPUTexture* HeightmapTexture;
     SDL_GPUTexture* ChunkTexture;
     SDL_GPUComputePipeline* WorldSetBlocksPipeline;
+    SDL_GPUComputePipeline* RayTracePipeline;
 };

@@ -1,0 +1,22 @@
+#include "threads.h"
+#include "shader.hlsl"
+
+Texture3D<uint> blocks : register(t0, space0);
+StructuredBuffer<WorldState> worldState : register(t0, space0);
+StructuredBuffer<CameraState> cameraState : register(t1, space0);
+[[vk::image_format("rgba8")]]
+RWTexture2D<float4> outTexture : register(u0, space1);
+
+[numthreads(RAY_TRACE_THREADS_X, RAY_TRACE_THREADS_Y, 1)]
+void main(uint3 id : SV_DispatchThreadID)
+{
+    uint width, height;
+    outTexture.GetDimensions(width, height);
+    if (id.x >= width || id.y >= height)
+    {
+        return;
+    }
+    float red = float(id.x) / float(width);
+    float green = float(id.y) / float(height);
+    outTexture[id.xy] = float4(red, green, 0.0f, 1.0f);
+}

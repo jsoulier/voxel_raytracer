@@ -1,0 +1,55 @@
+#include <metal_stdlib>
+#include <simd/simd.h>
+
+using namespace metal;
+
+struct WorldState
+{
+    float2 Position;
+};
+
+struct type_StructuredBuffer_WorldState
+{
+    WorldState _m0[1];
+};
+
+struct CameraState
+{
+    float3 Position;
+    float AspectRatio;
+    float3 ForwardVector;
+    float TanHalfFov;
+    float3 RightVector;
+    float Padding;
+};
+
+struct type_StructuredBuffer_CameraState
+{
+    CameraState _m0[1];
+};
+
+kernel void main0(texture2d<float, access::write> outTexture [[texture(1)]], uint3 gl_GlobalInvocationID [[thread_position_in_grid]])
+{
+    do
+    {
+        uint2 _43 = uint2(outTexture.get_width(), outTexture.get_height());
+        uint _44 = _43.x;
+        uint _45 = _43.y;
+        bool _55;
+        if (!(gl_GlobalInvocationID.x >= _44))
+        {
+            _55 = gl_GlobalInvocationID.y >= _45;
+        }
+        else
+        {
+            _55 = true;
+        }
+        if (_55)
+        {
+            break;
+        }
+        outTexture.write(float4(float(gl_GlobalInvocationID.x) / float(_44), float(gl_GlobalInvocationID.y) / float(_45), 0.0, 1.0), uint2(gl_GlobalInvocationID.xy));
+        break;
+    } while(false);
+}
+

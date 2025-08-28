@@ -1,26 +1,12 @@
 #include <SDL3/SDL.h>
 
+#include "camera.hpp"
 #include "chunk.hpp"
 #include "debug_group.hpp"
 #include "helpers.hpp"
 #include "profile.hpp"
 #include "threads.h"
 #include "world.hpp"
-
-WorldBlockJob::WorldBlockJob(int x, int y, int z, Block block)
-    : X(x)
-    , Y(y)
-    , Z(z)
-    , Value(block)
-{
-}
-
-WorldHeightmapJob::WorldHeightmapJob(int x, int y, int z)
-    : X(x)
-    , Y(y)
-    , Z(z)
-{
-}
 
 World::World()
     : Blocks{}
@@ -87,6 +73,12 @@ bool World::Init(SDL_GPUDevice* device)
             SDL_Log("Failed to load world set blocks pipeline");
             return false;
         }
+        RayTracePipeline = LoadComputePipeline(Device, "ray_trace.comp");
+        if (!RayTracePipeline)
+        {
+            SDL_Log("Failed to load ray trace pipeline");
+            return false;
+        }
     }
     if (!State.Init(Device))
     {
@@ -98,12 +90,13 @@ bool World::Init(SDL_GPUDevice* device)
     return true;
 }
 
-void World::Quit()
+void World::Destroy()
 {
     Profile();
     State.Destroy(Device);
     BlockBuffer.Destroy(Device);
     HeightmapBuffer.Destroy(Device);
+    SDL_ReleaseGPUComputePipeline(Device, RayTracePipeline);
     SDL_ReleaseGPUComputePipeline(Device, WorldSetBlocksPipeline);
     SDL_ReleaseGPUTexture(Device, ChunkTexture);
     SDL_ReleaseGPUTexture(Device, HeightmapTexture);
@@ -113,37 +106,36 @@ void World::Quit()
 void World::Update(Camera& camera)
 {
     Profile();
-    SDL_GPUCommandBuffer* commandBuffer = SDL_AcquireGPUCommandBuffer(Device);
-    if (!commandBuffer)
+}
+
+void World::Dispatch(SDL_GPUCommandBuffer* commandBuffer, SDL_GPUTexture* colorTexture, Camera& camera)
+{
+    Profile();
     {
-        SDL_Log("Failed to acquire command buffer: %s", SDL_GetError());
-        return;
-    }
-    {
-        ProfileBlock("World::Update::Upload");
-        DebugGroupBlock(commandBuffer, "World::Update::Upload");
+        ProfileBlock("World::Render::Upload");
+        DebugGroupBlock(commandBuffer, "World::Render::Upload");
         SDL_GPUCopyPass* copyPass = SDL_BeginGPUCopyPass(commandBuffer);
         if (!copyPass)
         {
             SDL_Log("Failed to begin copy pass: %s", SDL_GetError());
-            SDL_CancelGPUCommandBuffer(commandBuffer);
             return;
         }
+        State.Upload(Device, copyPass);
         BlockBuffer.Upload(Device, copyPass);
         HeightmapBuffer.Upload(Device, copyPass);
+        camera.Upload(Device, copyPass);
         SDL_EndGPUCopyPass(copyPass);
     }
     if (BlockBuffer.GetSize())
     {
-        ProfileBlock("World::Update::SetBlocks");
-        DebugGroupBlock(commandBuffer, "World::Update::SetBlocks");
+        ProfileBlock("World::Render::SetBlocks");
+        DebugGroupBlock(commandBuffer, "World::Render::SetBlocks");
         SDL_GPUStorageTextureReadWriteBinding writeTexture{};
         writeTexture.texture = BlockTexture;
         SDL_GPUComputePass* computePass = SDL_BeginGPUComputePass(commandBuffer, &writeTexture, 1, nullptr, 0);
         if (!computePass)
         {
             SDL_Log("Failed to begin compute pass: %s", SDL_GetError());
-            SDL_CancelGPUCommandBuffer(commandBuffer);
             return;
         }
         int groupsX = (BlockBuffer.GetSize() + WORLD_SET_BLOCKS_THREADS_X - 1) / WORLD_SET_BLOCKS_THREADS_X;
@@ -155,7 +147,28 @@ void World::Update(Camera& camera)
         SDL_DispatchGPUCompute(computePass, groupsX, 1, 1);
         SDL_EndGPUComputePass(computePass);
     }
-    SDL_SubmitGPUCommandBuffer(commandBuffer);
+    {
+        ProfileBlock("World::Render::SetBlocks");
+        DebugGroupBlock(commandBuffer, "World::Render::RayTrace");
+        SDL_GPUStorageTextureReadWriteBinding writeTexture{};
+        writeTexture.texture = colorTexture;
+        SDL_GPUComputePass* computePass = SDL_BeginGPUComputePass(commandBuffer, &writeTexture, 1, nullptr, 0);
+        if (!computePass)
+        {
+            SDL_Log("Failed to begin compute pass: %s", SDL_GetError());
+            return;
+        }
+        int groupsX = (camera.GetWidth() + RAY_TRACE_THREADS_X - 1) / RAY_TRACE_THREADS_X;
+        int groupsY = (camera.GetHeight() + RAY_TRACE_THREADS_Y - 1) / RAY_TRACE_THREADS_Y;
+        SDL_GPUBuffer* readBuffers[2]{};
+        readBuffers[0] = State.GetBuffer();
+        readBuffers[1] = camera.GetBuffer();
+        SDL_BindGPUComputePipeline(computePass, RayTracePipeline);
+        SDL_BindGPUComputeStorageTextures(computePass, 0, &BlockTexture, 1);
+        SDL_BindGPUComputeStorageBuffers(computePass, 0, readBuffers, 2);
+        SDL_DispatchGPUCompute(computePass, groupsX, groupsY, 1);
+        SDL_EndGPUComputePass(computePass);
+    }
 }
 
 void World::SetBlock(int x, int y, int z, Block block)

@@ -1,3 +1,4 @@
+#include <SDL3/SDL.h>
 #include <glm/glm.hpp>
 #include <glm/gtc/constants.hpp>
 
@@ -10,74 +11,79 @@ static constexpr float kMaxPitch = glm::pi<float>() / 2.0f - 0.01f;
 static constexpr glm::vec3 kUpVector = glm::vec3{0.0f, 1.0f, 0.0f};
 
 Camera::Camera()
-    : Position{}
-    , ForwardVector{}
-    , RightVector{}
+    : State{}
     , Pitch{0.0f}
     , Yaw{0.0f}
-    , AspectRatio{}
-    , TanHalfFov{}
+    , Width{0.0f}
+    , Height{0.0f}
 {
+}
+
+bool Camera::Init(SDL_GPUDevice* device)
+{
+    if (!State.Init(device))
+    {
+        SDL_Log("Failed to initialize state");
+        return false;
+    }
     Rotate(0.0f, 0.0f);
     Resize(1.0f, 1.0f);
     SetFov(60.0f);
+    return true;
+}
+
+void Camera::Destroy(SDL_GPUDevice* device)
+{
+    State.Destroy(device);
 }
 
 void Camera::Resize(float width, float height)
 {
-    AspectRatio = width / height;
+    Width = width;
+    Height = height;
+    State->AspectRatio = Width / Height;
 }
 
 void Camera::Move(float dx, float dy, float dz)
 {
-    Position += RightVector * glm::vec3(dx);
-    Position += ForwardVector * glm::vec3(dz);
-    Position += kUpVector * glm::vec3(dy);
+    State->Position += State->RightVector * glm::vec3(dx);
+    State->Position += State->ForwardVector * glm::vec3(dz);
+    State->Position += kUpVector * glm::vec3(dy);
 }
 
 void Camera::Rotate(float dx, float dy)
 {
     Yaw += dx;
     Pitch = std::clamp(Pitch + dy, -kMaxPitch, kMaxPitch);
-    ForwardVector.x = std::cos(Pitch) * std::cos(Yaw);
-    ForwardVector.y = std::sin(Pitch);
-    ForwardVector.z = std::cos(Pitch) * std::sin(Yaw);
-    ForwardVector = glm::normalize(ForwardVector);
-    RightVector = glm::cross(ForwardVector, kUpVector);
-    RightVector = glm::normalize(RightVector);
+    State->ForwardVector.x = std::cos(Pitch) * std::cos(Yaw);
+    State->ForwardVector.y = std::sin(Pitch);
+    State->ForwardVector.z = std::cos(Pitch) * std::sin(Yaw);
+    State->ForwardVector = glm::normalize(State->ForwardVector);
+    State->RightVector = glm::cross(State->ForwardVector, kUpVector);
+    State->RightVector = glm::normalize(State->RightVector);
 }
 
 void Camera::SetFov(float fov)
 {
-    TanHalfFov = std::tan(glm::radians(fov) * 0.5f);
+    State->TanHalfFov = std::tan(glm::radians(fov) * 0.5f);
 }
 
-const glm::vec3& Camera::GetPosition() const
+void Camera::Upload(SDL_GPUDevice* device, SDL_GPUCopyPass* copyPass)
 {
-    return Position;
+    State.Upload(device, copyPass);
 }
 
-const glm::vec3& Camera::GetForwardVector() const
+SDL_GPUBuffer* Camera::GetBuffer() const
 {
-    return ForwardVector;
+    return State.GetBuffer();
 }
 
-const glm::vec3& Camera::GetRightVector() const
+float Camera::GetWidth() const
 {
-    return RightVector;
+    return Width;
 }
 
-const glm::vec3& Camera::GetUpVector() const
+float Camera::GetHeight() const
 {
-    return kUpVector;
-}
-
-float Camera::GetAspectRatio() const
-{
-    return AspectRatio;
-}
-
-float Camera::GetTanHalfFov() const
-{
-    return TanHalfFov;
+    return Height;
 }

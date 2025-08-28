@@ -1,6 +1,8 @@
 #ifndef THREADS_H
 #define THREADS_H
 
+#define RAY_TRACE_THREADS_X 16
+#define RAY_TRACE_THREADS_Y 16
 #define WORLD_SET_BLOCKS_THREADS_X 128
 
 #endif

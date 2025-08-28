@@ -17,8 +17,6 @@ static SDL_GPUDevice* device;
 static SDL_GPUTexture* colorTexture;
 static uint32_t swapchainWidth;
 static uint32_t swapchainHeight;
-static float renderWidth;
-static float renderHeight;
 static Camera camera;
 static World world;
 static uint64_t time1;
@@ -64,6 +62,11 @@ static bool Init()
         SDL_Log("Failed to initialize world");
         return false;
     }
+    if (!camera.Init(device))
+    {
+        SDL_Log("Failed to initialize camera");
+        return false;
+    }
     SDL_ShowWindow(window);
     SDL_SetWindowResizable(window, true);
     SDL_FlashWindow(window, SDL_FLASH_BRIEFLY);
@@ -74,7 +77,8 @@ static void Quit()
 {
     Profile();
     SDL_HideWindow(window);
-    world.Quit();
+    camera.Destroy(device);
+    world.Destroy();
     SDL_ReleaseGPUTexture(device, colorTexture);
     SDL_ReleaseWindowFromGPUDevice(device, window);
     SDL_DestroyGPUDevice(device);
@@ -175,15 +179,14 @@ static bool Resize(uint32_t width, uint32_t height)
 {
     Profile();
     float aspectRatio = float(width) / float(height);
-    renderWidth = kWidth;
-    renderHeight = kWidth / aspectRatio;
+    camera.Resize(kWidth, kWidth / aspectRatio);
     SDL_ReleaseGPUTexture(device, colorTexture);
     SDL_GPUTextureCreateInfo info{};
     info.format = SDL_GPU_TEXTUREFORMAT_R8G8B8A8_UNORM;
     info.type = SDL_GPU_TEXTURETYPE_2D;
     info.usage = SDL_GPU_TEXTUREUSAGE_COMPUTE_STORAGE_WRITE | SDL_GPU_TEXTUREUSAGE_SAMPLER;
-    info.width = renderWidth;
-    info.height = renderHeight;
+    info.width = camera.GetWidth();
+    info.height = camera.GetHeight();
     info.layer_count_or_depth = 1;
     info.num_levels = 1;
     colorTexture = SDL_CreateGPUTexture(device, &info);
@@ -191,7 +194,6 @@ static bool Resize(uint32_t width, uint32_t height)
     {
         return false;
     }
-    camera.Resize(renderWidth, renderHeight);
     swapchainWidth = width;
     swapchainHeight = height;
     return true;
@@ -230,13 +232,14 @@ static void Render()
         SDL_SubmitGPUCommandBuffer(commandBuffer);
         return;
     }
+    world.Dispatch(commandBuffer, colorTexture, camera);
     {
         ProfileBlock("Render::Blit");
         DebugGroup(commandBuffer);
         SDL_GPUBlitInfo info{};
         info.source.texture = colorTexture;
-        info.source.w = renderWidth;
-        info.source.h = renderHeight;
+        info.source.w = camera.GetWidth();
+        info.source.h = camera.GetHeight();
         info.destination.texture = swapchainTexture;
         info.destination.w = swapchainWidth;
         info.destination.h = swapchainHeight;
