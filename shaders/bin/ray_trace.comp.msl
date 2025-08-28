@@ -3,6 +3,23 @@
 
 using namespace metal;
 
+struct CameraState
+{
+    packed_float3 Position;
+    float AspectRatio;
+    packed_float3 Forward;
+    float TanHalfFov;
+    packed_float3 Right;
+    float Padding1;
+    packed_float3 Up;
+    float Padding2;
+};
+
+struct type_StructuredBuffer_CameraState
+{
+    CameraState _m0[1];
+};
+
 struct WorldState
 {
     float2 Position;
@@ -13,42 +30,105 @@ struct type_StructuredBuffer_WorldState
     WorldState _m0[1];
 };
 
-struct CameraState
-{
-    float3 Position;
-    float AspectRatio;
-    float3 ForwardVector;
-    float TanHalfFov;
-    float3 RightVector;
-    float Padding;
-};
-
-struct type_StructuredBuffer_CameraState
-{
-    CameraState _m0[1];
-};
-
-kernel void main0(texture2d<float, access::write> outTexture [[texture(1)]], uint3 gl_GlobalInvocationID [[thread_position_in_grid]])
+kernel void main0(const device type_StructuredBuffer_CameraState& cameraState [[buffer(0)]], texture3d<uint> blocks [[texture(0)]], texture2d<float, access::write> outTexture [[texture(1)]], uint3 gl_GlobalInvocationID [[thread_position_in_grid]])
 {
     do
     {
-        uint2 _43 = uint2(outTexture.get_width(), outTexture.get_height());
-        uint _44 = _43.x;
-        uint _45 = _43.y;
-        bool _55;
-        if (!(gl_GlobalInvocationID.x >= _44))
+        uint2 _69 = uint2(outTexture.get_width(), outTexture.get_height());
+        uint _70 = _69.x;
+        uint _71 = _69.y;
+        bool _81;
+        if (!(gl_GlobalInvocationID.x >= _70))
         {
-            _55 = gl_GlobalInvocationID.y >= _45;
+            _81 = gl_GlobalInvocationID.y >= _71;
         }
         else
         {
-            _55 = true;
+            _81 = true;
         }
-        if (_55)
+        if (_81)
         {
             break;
         }
-        outTexture.write(float4(float(gl_GlobalInvocationID.x) / float(_44), float(gl_GlobalInvocationID.y) / float(_45), 0.0, 1.0), uint2(gl_GlobalInvocationID.xy));
+        float3 _116 = fast::normalize(((float3(cameraState._m0[0u].Right) * (((((2.0 * (float(gl_GlobalInvocationID.x) + 0.5)) / float(_70)) - 1.0) * cameraState._m0[0u].AspectRatio) * cameraState._m0[0u].TanHalfFov)) - (float3(cameraState._m0[0u].Up) * ((1.0 - ((2.0 * (float(gl_GlobalInvocationID.y) + 0.5)) / float(_71))) * cameraState._m0[0u].TanHalfFov))) + float3(cameraState._m0[0u].Forward));
+        float3 _59 = _116;
+        float3 _60 = float3(cameraState._m0[0u].Position);
+        int3 _61 = int3(floor(float3(cameraState._m0[0u].Position)));
+        float3 _62 = abs(float3(1.0) / _116);
+        int3 _63;
+        float3 _64;
+        for (int _124 = 0; _124 < 3; _124++)
+        {
+            uint _130 = uint(_124);
+            if (_59[_130] < 0.0)
+            {
+                _63[_130] = -1;
+                _64[_130] = (_60[_130] - float(_61[_130])) * _62[_130];
+            }
+            else
+            {
+                _63[_130] = 1;
+                _64[_130] = ((float(_61[_130]) + 1.0) - _60[_130]) * _62[_130];
+            }
+        }
+        uint _165;
+        uint _234;
+        int _161 = 0;
+        uint _164 = 0u;
+        for (;;)
+        {
+            if (_161 < 512)
+            {
+                _165 = blocks.read(uint3(uint3(_61)), 0u).x;
+                if (_165 != 0u)
+                {
+                    _234 = _165;
+                    break;
+                }
+                if (_64.x < _64.y)
+                {
+                    if (_64.x < _64.z)
+                    {
+                        _64.x += _62.x;
+                        _61.x += _63.x;
+                    }
+                    else
+                    {
+                        _64.z += _62.z;
+                        _61.z += _63.z;
+                    }
+                }
+                else
+                {
+                    if (_64.y < _64.z)
+                    {
+                        _64.y += _62.y;
+                        _61.y += _63.y;
+                    }
+                    else
+                    {
+                        _64.z += _62.z;
+                        _61.z += _63.z;
+                    }
+                }
+                _161++;
+                _164 = _165;
+                continue;
+            }
+            else
+            {
+                _234 = _164;
+                break;
+            }
+        }
+        if (_234 != 0u)
+        {
+            outTexture.write(float4(1.0), uint2(gl_GlobalInvocationID.xy));
+        }
+        else
+        {
+            outTexture.write(float4(0.0), uint2(gl_GlobalInvocationID.xy));
+        }
         break;
     } while(false);
 }

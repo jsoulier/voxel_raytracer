@@ -192,6 +192,7 @@ public:
             SDL_Log("Failed to map transfer buffer: %s", SDL_GetError());
             return false;
         }
+        *Data = T{};
         return true;
     }
 

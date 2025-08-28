@@ -8,7 +8,7 @@
 #include "camera.hpp"
 
 static constexpr float kMaxPitch = glm::pi<float>() / 2.0f - 0.01f;
-static constexpr glm::vec3 kUpVector = glm::vec3{0.0f, 1.0f, 0.0f};
+static constexpr glm::vec3 kUp = glm::vec3{0.0f, 1.0f, 0.0f};
 
 Camera::Camera()
     : State{}
@@ -26,6 +26,7 @@ bool Camera::Init(SDL_GPUDevice* device)
         SDL_Log("Failed to initialize state");
         return false;
     }
+    State->Up = kUp;
     Rotate(0.0f, 0.0f);
     Resize(1.0f, 1.0f);
     SetFov(60.0f);
@@ -46,21 +47,21 @@ void Camera::Resize(float width, float height)
 
 void Camera::Move(float dx, float dy, float dz)
 {
-    State->Position += State->RightVector * glm::vec3(dx);
-    State->Position += State->ForwardVector * glm::vec3(dz);
-    State->Position += kUpVector * glm::vec3(dy);
+    State->Position += State->Right * glm::vec3(dx);
+    State->Position += State->Forward * glm::vec3(dz);
+    State->Position += State->Up * glm::vec3(dy);
 }
 
 void Camera::Rotate(float dx, float dy)
 {
     Yaw += dx;
     Pitch = std::clamp(Pitch + dy, -kMaxPitch, kMaxPitch);
-    State->ForwardVector.x = std::cos(Pitch) * std::cos(Yaw);
-    State->ForwardVector.y = std::sin(Pitch);
-    State->ForwardVector.z = std::cos(Pitch) * std::sin(Yaw);
-    State->ForwardVector = glm::normalize(State->ForwardVector);
-    State->RightVector = glm::cross(State->ForwardVector, kUpVector);
-    State->RightVector = glm::normalize(State->RightVector);
+    State->Forward.x = std::cos(Pitch) * std::cos(Yaw);
+    State->Forward.y = std::sin(Pitch);
+    State->Forward.z = std::cos(Pitch) * std::sin(Yaw);
+    State->Forward = glm::normalize(State->Forward);
+    State->Right = glm::cross(State->Forward, State->Up);
+    State->Right = glm::normalize(State->Right);
 }
 
 void Camera::SetFov(float fov)

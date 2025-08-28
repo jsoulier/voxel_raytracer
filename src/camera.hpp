@@ -9,10 +9,12 @@ struct CameraState
 {
     glm::vec3 Position;
     float AspectRatio;
-    glm::vec3 ForwardVector;
+    glm::vec3 Forward;
     float TanHalfFov;
-    glm::vec3 RightVector;
-    float Padding;
+    glm::vec3 Right;
+    float Padding1;
+    glm::vec3 Up;
+    float Padding2;
 };
 
 class Camera

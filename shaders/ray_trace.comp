@@ -1,9 +1,14 @@
 #include "threads.h"
 #include "shader.hlsl"
 
+static const int kMaxSteps = 512;
+
+// TODO: lookup tables
+static const uint kAir = 0;
+
 Texture3D<uint> blocks : register(t0, space0);
-StructuredBuffer<WorldState> worldState : register(t0, space0);
 StructuredBuffer<CameraState> cameraState : register(t1, space0);
+StructuredBuffer<WorldState> worldState : register(t2, space0);
 [[vk::image_format("rgba8")]]
 RWTexture2D<float4> outTexture : register(u0, space1);
 
@@ -16,7 +21,68 @@ void main(uint3 id : SV_DispatchThreadID)
     {
         return;
     }
-    float red = float(id.x) / float(width);
-    float green = float(id.y) / float(height);
-    outTexture[id.xy] = float4(red, green, 0.0f, 1.0f);
+    float u = (2.0f * (id.x + 0.5f) / width - 1.0f) * cameraState[0].AspectRatio * cameraState[0].TanHalfFov;
+    float v = (1.0f - 2.0f * (id.y + 0.5f) / height) * cameraState[0].TanHalfFov;
+    float3 direction = normalize(u * cameraState[0].Right - v * cameraState[0].Up + cameraState[0].Forward);
+    float3 origin = cameraState[0].Position;
+    int3 voxel = int3(floor(origin));
+    float3 delta = abs(1.0 / direction);
+    int3 step;
+    float3 distance;
+    for (int i = 0; i < 3; i++)
+    {
+        if (direction[i] < 0)
+        {
+            step[i] = -1;
+            distance[i] = (origin[i] - voxel[i]) * delta[i];
+        }
+        else
+        {
+            step[i] = 1;
+            distance[i] = (voxel[i] + 1.0 - origin[i]) * delta[i];
+        }
+    }
+    uint hitBlock = 0;
+    for (int i = 0; i < kMaxSteps; i++)
+    {
+        hitBlock = blocks[voxel];
+        if (hitBlock != kAir)
+        {
+            break;
+        }
+        if (distance.x < distance.y)
+        {
+            if (distance.x < distance.z)
+            {
+                distance.x += delta.x;
+                voxel.x += step.x;
+            }
+            else
+            {
+                distance.z += delta.z;
+                voxel.z += step.z;
+            }
+        }
+        else
+        {
+            if (distance.y < distance.z)
+            {
+                distance.y += delta.y;
+                voxel.y += step.y;
+            }
+            else
+            {
+                distance.z += delta.z;
+                voxel.z += step.z;
+            }
+        }
+    }
+    if (hitBlock != kAir)
+    {
+        outTexture[id.xy] = float4(1.0f, 1.0f, 1.0f, 1.0f);
+    }
+    else
+    {
+        outTexture[id.xy] = float4(0.0f, 0.0f, 0.0f, 0.0f);
+    }
 }

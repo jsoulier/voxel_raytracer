@@ -161,8 +161,8 @@ void World::Dispatch(SDL_GPUCommandBuffer* commandBuffer, SDL_GPUTexture* colorT
         int groupsX = (camera.GetWidth() + RAY_TRACE_THREADS_X - 1) / RAY_TRACE_THREADS_X;
         int groupsY = (camera.GetHeight() + RAY_TRACE_THREADS_Y - 1) / RAY_TRACE_THREADS_Y;
         SDL_GPUBuffer* readBuffers[2]{};
-        readBuffers[0] = State.GetBuffer();
-        readBuffers[1] = camera.GetBuffer();
+        readBuffers[0] = camera.GetBuffer();
+        readBuffers[1] = State.GetBuffer();
         SDL_BindGPUComputePipeline(computePass, RayTracePipeline);
         SDL_BindGPUComputeStorageTextures(computePass, 0, &BlockTexture, 1);
         SDL_BindGPUComputeStorageBuffers(computePass, 0, readBuffers, 2);

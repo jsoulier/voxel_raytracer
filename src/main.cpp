@@ -8,8 +8,8 @@
 #include "profile.hpp"
 #include "world.hpp"
 
-static constexpr float kSpeed = 1.0f;
-static constexpr float kSensitivity = 1.0f;
+static constexpr float kSpeed = 0.015f;
+static constexpr float kSensitivity = 0.001f;
 static constexpr float kWidth = 640.0f;
 
 static SDL_Window* window;
@@ -155,16 +155,25 @@ static void Update()
         float dx = 0.0f;
         float dy = 0.0f;
         float dz = 0.0f;
+        float speed = kSpeed * dt;
         const bool* keys = SDL_GetKeyboardState(nullptr);
         dx += keys[SDL_SCANCODE_D];
-        dx += keys[SDL_SCANCODE_A];
-        dy += keys[SDL_SCANCODE_E];
+        dx -= keys[SDL_SCANCODE_A];
         dy += keys[SDL_SCANCODE_Q];
+        dy -= keys[SDL_SCANCODE_E];
         dz += keys[SDL_SCANCODE_W];
-        dz += keys[SDL_SCANCODE_S];
-        dx *= kSpeed * dt;
-        dy *= kSpeed * dt;
-        dz *= kSpeed * dt;
+        dz -= keys[SDL_SCANCODE_S];
+        if (keys[SDL_SCANCODE_LCTRL])
+        {
+            speed *= 10.0f;
+        }
+        else if (keys[SDL_SCANCODE_LSHIFT])
+        {
+            speed /= 10.0f;
+        }
+        dx *= speed;
+        dy *= speed;
+        dz *= speed;
         camera.Move(dx, dy, dz);
     }
     world.SetBlock(0, 0, 0, BlockDirt);
@@ -255,9 +264,14 @@ int main(int argc, char** argv)
     {
         return 1;
     }
+    time2 = SDL_GetTicks();
+    time1 = time2;
     while (true)
     {
         ProfileBlock("main::Loop");
+        time2 = SDL_GetTicks();
+        dt = time2 - time1;
+        time1 = time2;
         if (!Poll())
         {
             break;
