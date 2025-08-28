@@ -26,7 +26,6 @@ bool Camera::Init(SDL_GPUDevice* device)
         SDL_Log("Failed to initialize state");
         return false;
     }
-    State->Up = kUp;
     Rotate(0.0f, 0.0f);
     Resize(1.0f, 1.0f);
     SetFov(60.0f);
@@ -49,7 +48,7 @@ void Camera::Move(float dx, float dy, float dz)
 {
     State->Position += State->Right * glm::vec3(dx);
     State->Position += State->Forward * glm::vec3(dz);
-    State->Position += State->Up * glm::vec3(dy);
+    State->Position += kUp * glm::vec3(dy);
 }
 
 void Camera::Rotate(float dx, float dy)
@@ -60,8 +59,10 @@ void Camera::Rotate(float dx, float dy)
     State->Forward.y = std::sin(Pitch);
     State->Forward.z = std::cos(Pitch) * std::sin(Yaw);
     State->Forward = glm::normalize(State->Forward);
-    State->Right = glm::cross(State->Forward, State->Up);
+    State->Right = glm::cross(State->Forward, kUp);
     State->Right = glm::normalize(State->Right);
+    State->Up = glm::cross(State->Right, State->Forward);
+    State->Up = glm::normalize(State->Up);
 }
 
 void Camera::SetFov(float fov)
