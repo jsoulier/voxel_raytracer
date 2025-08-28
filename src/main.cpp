@@ -67,6 +67,11 @@ static bool Init()
         SDL_Log("Failed to initialize camera");
         return false;
     }
+    if (SDL_WindowSupportsGPUPresentMode(device, window, SDL_GPU_PRESENTMODE_MAILBOX))
+    {
+        SDL_SetGPUSwapchainParameters(device, window,
+            SDL_GPU_SWAPCHAINCOMPOSITION_SDR, SDL_GPU_PRESENTMODE_MAILBOX);
+    }
     SDL_ShowWindow(window);
     SDL_SetWindowResizable(window, true);
     SDL_FlashWindow(window, SDL_FLASH_BRIEFLY);
@@ -159,8 +164,8 @@ static void Update()
         const bool* keys = SDL_GetKeyboardState(nullptr);
         dx += keys[SDL_SCANCODE_D];
         dx -= keys[SDL_SCANCODE_A];
-        dy += keys[SDL_SCANCODE_Q];
-        dy -= keys[SDL_SCANCODE_E];
+        dy -= keys[SDL_SCANCODE_Q];
+        dy += keys[SDL_SCANCODE_E];
         dz += keys[SDL_SCANCODE_W];
         dz -= keys[SDL_SCANCODE_S];
         if (keys[SDL_SCANCODE_LCTRL])
@@ -181,6 +186,9 @@ static void Update()
     world.SetBlock(2, 0, 0, BlockDirt);
     world.SetBlock(3, 0, 0, BlockGrass);
     world.SetBlock(4, 0, 0, BlockDirt);
+    world.SetBlock(4, 1, 1, BlockDirt);
+    world.SetBlock(4, 2, 2, BlockDirt);
+    world.SetBlock(4, 3, 3, BlockDirt);
     world.Update(camera);
 }
 

@@ -54,14 +54,14 @@ void Camera::Move(float dx, float dy, float dz)
 void Camera::Rotate(float dx, float dy)
 {
     Yaw += dx;
-    Pitch = std::clamp(Pitch + dy, -kMaxPitch, kMaxPitch);
+    Pitch = std::clamp(Pitch - dy, -kMaxPitch, kMaxPitch);
     State->Forward.x = std::cos(Pitch) * std::cos(Yaw);
     State->Forward.y = std::sin(Pitch);
     State->Forward.z = std::cos(Pitch) * std::sin(Yaw);
     State->Forward = glm::normalize(State->Forward);
     State->Right = glm::cross(State->Forward, kUp);
     State->Right = glm::normalize(State->Right);
-    State->Up = glm::cross(State->Right, State->Forward);
+    State->Up = glm::cross(State->Forward, State->Right);
     State->Up = glm::normalize(State->Up);
 }
 

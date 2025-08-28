@@ -28,6 +28,7 @@ bool World::Init(SDL_GPUDevice* device)
     Profile();
     Device = device;
     {
+        // TODO: need to zero out the textures
         ProfileBlock("World::Init::Textures");
         SDL_GPUTextureCreateInfo info{};
         info.format = SDL_GPU_TEXTUREFORMAT_R8_UINT;
