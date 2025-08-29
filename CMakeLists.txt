@@ -25,13 +25,13 @@ add_executable(voxel_ray_tracer WIN32
     src/debug_group.cpp
     src/helpers.cpp
     src/main.cpp
-    src/worker.cpp
+    src/noise.cpp
     src/world.cpp
 )
 target_link_libraries(voxel_ray_tracer PRIVATE
+    $<$<CONFIG:Debug>:TracyClient>
     FastNoiseLite
     SDL3::SDL3
-    TracyClient
     glm
     nlohmann_json
     sqlite3

@@ -33,7 +33,7 @@ public:
     float GetHeight() const;
 
 private:
-    FixedBuffer<CameraState> State;
+    StaticBuffer<CameraState> State;
     float Pitch;
     float Yaw;
     float Width;

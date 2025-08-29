@@ -12,7 +12,7 @@ template<typename T, SDL_GPUBufferUsageFlags U = SDL_GPU_BUFFERUSAGE_COMPUTE_STO
 class DynamicBuffer
 {
 public:
-    static constexpr int kStartingCapacity = 10;
+    static constexpr int kStartingCapacity = 4096;
     static constexpr int kGrowthRate = 2;
 
     DynamicBuffer()
@@ -151,10 +151,10 @@ private:
 };
 
 template<typename T, SDL_GPUBufferUsageFlags U = SDL_GPU_BUFFERUSAGE_COMPUTE_STORAGE_READ>
-class FixedBuffer
+class StaticBuffer
 {
 public:
-    FixedBuffer()
+    StaticBuffer()
         : Buffer{nullptr}
         , TransferBuffer{nullptr}
         , Data{nullptr}

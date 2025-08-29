@@ -1,5 +1,6 @@
 #include <SDL3/SDL.h>
 
+#include "block.hpp"
 #include "camera.hpp"
 #include "chunk.hpp"
 #include "debug_group.hpp"
@@ -8,16 +9,20 @@
 #include "threads.h"
 #include "world.hpp"
 
+WorldBlockJob::WorldBlockJob(int x, int y, int z, Block block)
+    : X(x)
+    , Y(y)
+    , Z(z)
+    , Value{block}
+{
+}
+
 World::World()
     : Blocks{}
-    , Heightmap{}
     , Chunks{}
-    , Workers{}
     , BlockBuffer{}
-    , HeightmapBuffer{}
     , State{}
     , BlockTexture{nullptr}
-    , HeightmapTexture{nullptr}
     , ChunkTexture{nullptr}
     , WorldSetBlocksPipeline{nullptr}
 {
@@ -44,18 +49,7 @@ bool World::Init(SDL_GPUDevice* device)
             SDL_Log("Failed to create block texture: %s", SDL_GetError());
             return false;
         }
-        info.type = SDL_GPU_TEXTURETYPE_2D;
-        info.height = kWidth * Chunk::kWidth;
-        info.layer_count_or_depth = 1;
-        HeightmapTexture = SDL_CreateGPUTexture(Device, &info);
-        if (!HeightmapTexture)
-        {
-            SDL_Log("Failed to create heightmap texture: %s", SDL_GetError());
-            return false;
-        }
         info.format = SDL_GPU_TEXTUREFORMAT_R8G8B8A8_UINT;
-        info.type = SDL_GPU_TEXTURETYPE_3D;
-        info.usage = SDL_GPU_TEXTUREUSAGE_COMPUTE_STORAGE_READ | SDL_GPU_TEXTUREUSAGE_COMPUTE_STORAGE_WRITE;
         info.width = kWidth;
         info.height = 1;
         info.layer_count_or_depth = kWidth;
@@ -96,17 +90,28 @@ void World::Destroy()
     Profile();
     State.Destroy(Device);
     BlockBuffer.Destroy(Device);
-    HeightmapBuffer.Destroy(Device);
     SDL_ReleaseGPUComputePipeline(Device, RayTracePipeline);
     SDL_ReleaseGPUComputePipeline(Device, WorldSetBlocksPipeline);
     SDL_ReleaseGPUTexture(Device, ChunkTexture);
-    SDL_ReleaseGPUTexture(Device, HeightmapTexture);
     SDL_ReleaseGPUTexture(Device, BlockTexture);
 }
 
 void World::Update(Camera& camera)
 {
     Profile();
+    // TODO:
+    // 1. sort chunk indices from the center outwards
+    // 2. hold onto current index and reset to zero when e.g. chunks move, chunks modified, etc
+    for (int i = 0; i < kWidth; i++)
+    for (int j = 0; j < kWidth; j++)
+    {
+        Chunk& chunk = Chunks[i][j];
+        if (chunk.GetFlags() & ChunkFlagsGenerate)
+        {
+            chunk.Generate(*this, i, j);
+            return;
+        }
+    }
 }
 
 void World::Dispatch(SDL_GPUCommandBuffer* commandBuffer, SDL_GPUTexture* colorTexture, Camera& camera)
@@ -123,7 +128,6 @@ void World::Dispatch(SDL_GPUCommandBuffer* commandBuffer, SDL_GPUTexture* colorT
         }
         State.Upload(Device, copyPass);
         BlockBuffer.Upload(Device, copyPass);
-        HeightmapBuffer.Upload(Device, copyPass);
         camera.Upload(Device, copyPass);
         SDL_EndGPUCopyPass(copyPass);
     }
@@ -149,7 +153,7 @@ void World::Dispatch(SDL_GPUCommandBuffer* commandBuffer, SDL_GPUTexture* colorT
         SDL_EndGPUComputePass(computePass);
     }
     {
-        ProfileBlock("World::Render::SetBlocks");
+        ProfileBlock("World::Render::RayTrace");
         DebugGroupBlock(commandBuffer, "World::Render::RayTrace");
         SDL_GPUStorageTextureReadWriteBinding writeTexture{};
         writeTexture.texture = colorTexture;

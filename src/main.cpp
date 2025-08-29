@@ -181,14 +181,6 @@ static void Update()
         dz *= speed;
         camera.Move(dx, dy, dz);
     }
-    world.SetBlock(0, 0, 0, BlockDirt);
-    world.SetBlock(1, 0, 0, BlockGrass);
-    world.SetBlock(2, 0, 0, BlockDirt);
-    world.SetBlock(3, 0, 0, BlockGrass);
-    world.SetBlock(4, 0, 0, BlockDirt);
-    world.SetBlock(4, 1, 1, BlockDirt);
-    world.SetBlock(4, 2, 2, BlockDirt);
-    world.SetBlock(4, 3, 3, BlockDirt);
     world.Update(camera);
 }
 
