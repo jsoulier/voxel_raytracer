@@ -4,7 +4,7 @@
 #include "noise.hpp"
 
 Chunk::Chunk()
-    : Flags{ChunkFlagsGenerate}
+    : Flags{ChunkFlagsNone}
 {
 }
 
@@ -13,6 +13,11 @@ void Chunk::Generate(World& world, int chunkX, int chunkZ)
     SDL_assert(Flags & ChunkFlagsGenerate);
     NoiseGenerate(world, chunkX, chunkZ);
     Flags &= ~ChunkFlagsGenerate;
+}
+
+void Chunk::AddFlags(ChunkFlags flags)
+{
+    Flags |= flags;
 }
 
 ChunkFlags Chunk::GetFlags() const

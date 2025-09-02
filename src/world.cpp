@@ -1,5 +1,7 @@
 #include <SDL3/SDL.h>
 
+#include <vector>
+
 #include "block.hpp"
 #include "camera.hpp"
 #include "chunk.hpp"
@@ -104,6 +106,7 @@ bool World::Init(SDL_GPUDevice* device)
         for (int x = 0; x < kWidth; x++)
         for (int z = 0; z < kWidth; z++)
         {
+            Chunks[x][z].AddFlags(ChunkFlagsGenerate);
             ChunkMap[x][z] = {x, z};
             ChunkBuffer.Emplace(device, x, z, x, z);
         }
@@ -139,9 +142,49 @@ void World::Update(Camera& camera)
     int cameraZ = camera.GetPosition().z / Chunk::kWidth - kWidth / 2;
     if (cameraX != State->X || cameraZ != State->Z)
     {
-        Chunk chunks[kWidth][kWidth];
+        static constexpr int kNull = -1;
+        glm::ivec2 chunkMap[kWidth][kWidth];
+        std::vector<glm::ivec2> outOfBoundsChunks;
+        outOfBoundsChunks.reserve(kWidth * kWidth);
         int offsetX = cameraX - State->X;
         int offsetZ = cameraZ - State->Z;
+        // TODO: refactor
+        for (int x = 0; x < kWidth; x++)
+        for (int z = 0; z < kWidth; z++)
+        {
+            chunkMap[x][z].x = kNull;
+        }
+        for (int x = 0; x < kWidth; x++)
+        for (int z = 0; z < kWidth; z++)
+        {
+            int newX = x - offsetX;
+            int newZ = z - offsetZ;
+            if (newX < 0 || newZ < 0 || newX >= kWidth || newZ >= kWidth)
+            {
+                outOfBoundsChunks.push_back({x, z});
+            }
+            else
+            {
+                chunkMap[newX][newZ] = ChunkMap[x][z];
+            }
+        }
+        for (int x = 0; x < kWidth; x++)
+        for (int z = 0; z < kWidth; z++)
+        {
+            if (chunkMap[x][z].x == kNull)
+            {
+                glm::ivec2 position = outOfBoundsChunks.back();
+                ChunkMap[x][z] = position;
+                Chunk& chunk = Chunks[position.x][position.y];
+                chunk.AddFlags(ChunkFlagsGenerate);
+                outOfBoundsChunks.pop_back();
+            }
+            else
+            {
+                ChunkMap[x][z] = chunkMap[x][z];
+            }
+        }
+        SDL_assert(outOfBoundsChunks.empty());
         State->X = cameraX;
         State->Z = cameraZ;
     }

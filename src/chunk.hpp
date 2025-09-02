@@ -18,6 +18,7 @@ public:
 
     Chunk();
     void Generate(World& world, int chunkX, int chunkZ);
+    void AddFlags(ChunkFlags flags);
     ChunkFlags GetFlags() const;
 
 private:
