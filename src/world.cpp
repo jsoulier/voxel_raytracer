@@ -190,11 +190,10 @@ void World::Dispatch(SDL_GPUCommandBuffer* commandBuffer)
             return;
         }
         int groupsX = (ChunkBuffer.GetSize() + WORLD_SET_CHUNKS_THREADS_X - 1) / WORLD_SET_CHUNKS_THREADS_X;
-        SDL_GPUBuffer* readBuffers[2]{};
+        SDL_GPUBuffer* readBuffers[1]{};
         readBuffers[0] = ChunkBuffer.GetBuffer();
-        readBuffers[1] = State.GetBuffer();
         SDL_BindGPUComputePipeline(computePass, WorldSetChunksPipeline);
-        SDL_BindGPUComputeStorageBuffers(computePass, 0, readBuffers, 2);
+        SDL_BindGPUComputeStorageBuffers(computePass, 0, readBuffers, 1);
         SDL_DispatchGPUCompute(computePass, groupsX, 1, 1);
         SDL_EndGPUComputePass(computePass);
     }
@@ -211,11 +210,10 @@ void World::Dispatch(SDL_GPUCommandBuffer* commandBuffer)
             return;
         }
         int groupsX = (BlockBuffer.GetSize() + WORLD_SET_BLOCKS_THREADS_X - 1) / WORLD_SET_BLOCKS_THREADS_X;
-        SDL_GPUBuffer* readBuffers[2]{};
+        SDL_GPUBuffer* readBuffers[1]{};
         readBuffers[0] = BlockBuffer.GetBuffer();
-        readBuffers[1] = State.GetBuffer();
         SDL_BindGPUComputePipeline(computePass, WorldSetBlocksPipeline);
-        SDL_BindGPUComputeStorageBuffers(computePass, 0, readBuffers, 2);
+        SDL_BindGPUComputeStorageBuffers(computePass, 0, readBuffers, 1);
         SDL_DispatchGPUCompute(computePass, groupsX, 1, 1);
         SDL_EndGPUComputePass(computePass);
     }

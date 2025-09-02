@@ -48,14 +48,14 @@ void main(uint3 id : SV_DispatchThreadID)
     for (int i = 0; i < kMaxSteps; i++)
     {
         int3 position = voxel;
-        // position.x -= worldState[0].Position.x * CHUNK_WIDTH;
-        // position.z -= worldState[0].Position.y * CHUNK_WIDTH;
-        // uint2 chunk = position.xz / CHUNK_WIDTH;
-        // position.x -= chunk.x * CHUNK_WIDTH;
-        // position.z -= chunk.y * CHUNK_WIDTH;
-        // chunk = chunks[chunk];
-        // position.x *= chunk.x * CHUNK_WIDTH;
-        // position.z *= chunk.y * CHUNK_WIDTH;
+        position.x -= worldState[0].Position.x * CHUNK_WIDTH;
+        position.z -= worldState[0].Position.y * CHUNK_WIDTH;
+        int2 chunk = position.xz / CHUNK_WIDTH;
+        position.x -= chunk.x * CHUNK_WIDTH;
+        position.z -= chunk.y * CHUNK_WIDTH;
+        chunk = chunks[chunk];
+        position.x += chunk.x * CHUNK_WIDTH;
+        position.z += chunk.y * CHUNK_WIDTH;
         hitBlock = blocks[position];
         if (hitBlock != kAir)
         {

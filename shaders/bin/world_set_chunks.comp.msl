@@ -8,6 +8,8 @@ struct type_StructuredBuffer_uint
     uint _m0[1];
 };
 
+constant uint2 _112 = {};
+
 kernel void main0(constant uint* spvBufferSizeConstants [[buffer(25)]], const device type_StructuredBuffer_uint& jobs [[buffer(0)]], texture2d<uint, access::write> chunks [[texture(0)]], uint3 gl_GlobalInvocationID [[thread_position_in_grid]])
 {
     constant uint& jobsBufferSize = spvBufferSizeConstants[0];
@@ -17,7 +19,7 @@ kernel void main0(constant uint* spvBufferSizeConstants [[buffer(25)]], const de
         {
             break;
         }
-        chunks.write(uint2((jobs._m0[gl_GlobalInvocationID.x] >> 16u) & 15u, (jobs._m0[gl_GlobalInvocationID.y] >> 24u) & 15u).xyyy, uint2(uint2(jobs._m0[gl_GlobalInvocationID.x] & 15u, (jobs._m0[gl_GlobalInvocationID.x] >> 8u) & 15u)));
+        chunks.write(uint2((jobs._m0[gl_GlobalInvocationID.x] >> 16u) & 255u, (jobs._m0[gl_GlobalInvocationID.x] >> 24u) & 255u).xyyy, uint2(uint2(jobs._m0[gl_GlobalInvocationID.x] & 255u, (jobs._m0[gl_GlobalInvocationID.x] >> 8u) & 255u)));
         break;
     } while(false);
 }
