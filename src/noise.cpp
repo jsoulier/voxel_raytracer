@@ -5,7 +5,7 @@
 #include "profile.hpp"
 #include "world.hpp"
 
-void NoiseGenerate(World& world, int chunkX, int chunkY)
+void NoiseGenerate(World& world, int chunkX, int chunkZ)
 {
     Profile();
     // TODO: zero out chunk
@@ -15,14 +15,14 @@ void NoiseGenerate(World& world, int chunkX, int chunkY)
     for (int j = 0; j < Chunk::kWidth; j++)
     {
         float x = chunkX * Chunk::kWidth + i;
-        float z = chunkY * Chunk::kWidth + j;
+        float z = chunkZ * Chunk::kWidth + j;
         static constexpr float kScale = 10.0f;
         int height = (noise.GetNoise(x, z) + 1.0f) / 2.0f * kScale;
         height = std::min(height, Chunk::kHeight);
         for (int y = 0; y < height; y++)
         {
-            world.SetBlock(x, y, z, BlockDirt);
+            world.SetBlock({x, y, z}, BlockDirt);
         }
-        world.SetBlock(x, height, z, BlockGrass);
+        world.SetBlock({x, height, z}, BlockGrass);
     }
 }

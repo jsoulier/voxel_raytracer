@@ -1,8 +1,7 @@
-#include "threads.h"
+#include "config.h"
 #include "shader.hlsl"
 
 StructuredBuffer<uint2> jobs : register(t0, space0);
-StructuredBuffer<WorldState> worldState : register(t1, space0);
 [[vk::image_format("r8ui")]]
 RWTexture3D<uint> blocks : register(u0, space1);
 

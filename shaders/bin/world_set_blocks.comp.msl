@@ -8,16 +8,6 @@ struct type_StructuredBuffer_v2uint
     uint2 _m0[1];
 };
 
-struct WorldState
-{
-    float2 Position;
-};
-
-struct type_StructuredBuffer_WorldState
-{
-    WorldState _m0[1];
-};
-
 kernel void main0(constant uint* spvBufferSizeConstants [[buffer(25)]], const device type_StructuredBuffer_v2uint& jobs [[buffer(0)]], texture3d<uint, access::write> blocks [[texture(0)]], uint3 gl_GlobalInvocationID [[thread_position_in_grid]])
 {
     constant uint& jobsBufferSize = spvBufferSizeConstants[0];

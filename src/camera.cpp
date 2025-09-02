@@ -70,14 +70,26 @@ void Camera::SetFov(float fov)
     State->TanHalfFov = std::tan(glm::radians(fov) * 0.5f);
 }
 
-void Camera::Upload(SDL_GPUDevice* device, SDL_GPUCopyPass* copyPass)
+void Camera::Upload(SDL_GPUDevice* device, SDL_GPUCommandBuffer* commandBuffer)
 {
+    SDL_GPUCopyPass* copyPass = SDL_BeginGPUCopyPass(commandBuffer);
+    if (!copyPass)
+    {
+        SDL_Log("Failed to begin copy pass: %s", SDL_GetError());
+        return;
+    }
     State.Upload(device, copyPass);
+    SDL_EndGPUCopyPass(copyPass);
 }
 
 SDL_GPUBuffer* Camera::GetBuffer() const
 {
     return State.GetBuffer();
+}
+
+const glm::vec3& Camera::GetPosition() const
+{
+    return State->Position;
 }
 
 float Camera::GetWidth() const

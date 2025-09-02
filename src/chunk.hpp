@@ -2,6 +2,8 @@
 
 #include <cstdint>
 
+#include "config.h"
+
 class World;
 
 using ChunkFlags = uint32_t;
@@ -11,11 +13,11 @@ static constexpr ChunkFlags ChunkFlagsGenerate = 0x01;
 class Chunk
 {
 public:
-    static constexpr int kWidth = 32;
-    static constexpr int kHeight = 128;
+    static constexpr int kWidth = CHUNK_WIDTH;
+    static constexpr int kHeight = CHUNK_HEIGHT;
 
     Chunk();
-    void Generate(World& world, int chunkX, int chunkY);
+    void Generate(World& world, int chunkX, int chunkZ);
     ChunkFlags GetFlags() const;
 
 private:

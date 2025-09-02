@@ -3,7 +3,7 @@
 
 struct WorldState
 {
-    float2 Position;
+    int2 Position;
 };
 
 struct CameraState

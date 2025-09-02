@@ -1,0 +1,25 @@
+#include "config.h"
+#include "shader.hlsl"
+
+StructuredBuffer<uint> jobs : register(t0, space0);
+[[vk::image_format("r8ui")]]
+RWTexture2D<uint2> chunks : register(u0, space1);
+
+[numthreads(WORLD_SET_CHUNKS_THREADS_X, 1, 1)]
+void main(uint3 id : SV_DispatchThreadID)
+{
+    uint numJobs;
+    uint stride;
+    jobs.GetDimensions(numJobs, stride);
+    if (id.x >= numJobs)
+    {
+        return;
+    }
+    uint2 inPosition;
+    uint2 outPosition;
+    inPosition.x = (jobs[id.x] >> 0) & 0xFu;
+    inPosition.y = (jobs[id.x] >> 8) & 0xFu;
+    outPosition.x = (jobs[id.x] >> 16) & 0xFu;
+    outPosition.y = (jobs[id.y] >> 24) & 0xFu;
+    chunks[inPosition] = outPosition;
+}

@@ -133,13 +133,16 @@ public:
 
     SDL_GPUBuffer* GetBuffer() const
     {
+        SDL_assert(!Data);
         return Buffer;
     }
 
     uint32_t GetSize() const
     {
+        SDL_assert(!Data);
         return BufferSize;
     }
+
 private:
     SDL_GPUBuffer* Buffer;
     SDL_GPUTransferBuffer* TransferBuffer;
@@ -226,16 +229,19 @@ public:
 
     SDL_GPUBuffer* GetBuffer() const
     {
+        SDL_assert(Data);
         return Buffer;
     }
 
     T* operator->()
     {
+        SDL_assert(Data);
         return Data;
     }
 
     const T* operator->() const
     {
+        SDL_assert(Data);
         return Data;
     }
 

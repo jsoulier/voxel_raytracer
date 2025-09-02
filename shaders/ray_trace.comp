@@ -1,4 +1,4 @@
-#include "threads.h"
+#include "config.h"
 #include "shader.hlsl"
 
 static const int kMaxSteps = 512;
@@ -7,8 +7,9 @@ static const int kMaxSteps = 512;
 static const uint kAir = 0;
 
 Texture3D<uint> blocks : register(t0, space0);
-StructuredBuffer<CameraState> cameraState : register(t1, space0);
-StructuredBuffer<WorldState> worldState : register(t2, space0);
+Texture2D<uint2> chunks : register(t1, space0);
+StructuredBuffer<CameraState> cameraState : register(t2, space0);
+StructuredBuffer<WorldState> worldState : register(t3, space0);
 [[vk::image_format("rgba8")]]
 RWTexture2D<float4> outTexture : register(u0, space1);
 
@@ -46,7 +47,16 @@ void main(uint3 id : SV_DispatchThreadID)
     uint hitBlock = 0;
     for (int i = 0; i < kMaxSteps; i++)
     {
-        hitBlock = blocks[voxel];
+        int3 position = voxel;
+        // position.x -= worldState[0].Position.x * CHUNK_WIDTH;
+        // position.z -= worldState[0].Position.y * CHUNK_WIDTH;
+        // uint2 chunk = position.xz / CHUNK_WIDTH;
+        // position.x -= chunk.x * CHUNK_WIDTH;
+        // position.z -= chunk.y * CHUNK_WIDTH;
+        // chunk = chunks[chunk];
+        // position.x *= chunk.x * CHUNK_WIDTH;
+        // position.z *= chunk.y * CHUNK_WIDTH;
+        hitBlock = blocks[position];
         if (hitBlock != kAir)
         {
             break;

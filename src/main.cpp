@@ -241,7 +241,9 @@ static void Render()
         SDL_SubmitGPUCommandBuffer(commandBuffer);
         return;
     }
-    world.Dispatch(commandBuffer, colorTexture, camera);
+    camera.Upload(device, commandBuffer);
+    world.Dispatch(commandBuffer);
+    world.Render(commandBuffer, colorTexture, camera);
     {
         ProfileBlock("Render::Blit");
         DebugGroup(commandBuffer);
