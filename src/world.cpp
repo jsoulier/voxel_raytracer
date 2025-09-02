@@ -135,13 +135,15 @@ void World::Destroy()
 void World::Update(Camera& camera)
 {
     Profile();
-    int cameraX = camera.GetPosition().x / Chunk::kWidth;
-    int cameraZ = camera.GetPosition().z / Chunk::kWidth;
+    int cameraX = camera.GetPosition().x / Chunk::kWidth - kWidth / 2;
+    int cameraZ = camera.GetPosition().z / Chunk::kWidth - kWidth / 2;
     if (cameraX != State->X || cameraZ != State->Z)
     {
         Chunk chunks[kWidth][kWidth];
         int offsetX = cameraX - State->X;
         int offsetZ = cameraZ - State->Z;
+        State->X = cameraX;
+        State->Z = cameraZ;
     }
     // TODO:
     // 1. sort chunk indices from the center outwards

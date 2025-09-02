@@ -7,6 +7,7 @@
 #include "buffer.hpp"
 #include "camera.hpp"
 #include "chunk.hpp"
+#include "config.h"
 
 struct WorldBlockJob
 {
@@ -41,7 +42,7 @@ static_assert(sizeof(WorldChunkJob) == 4);;
 class World
 {
 public:
-    static constexpr int kWidth = 32;
+    static constexpr int kWidth = WORLD_WIDTH;
 
     World();
     World(const World& other) = delete;
