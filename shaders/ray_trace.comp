@@ -3,8 +3,8 @@
 
 static const int kMaxSteps = 512;
 
-Texture3D<uint> blocks : register(t0, space0);
-Texture2D<uint2> chunks : register(t1, space0);
+Texture3D<uint> blockTexture : register(t0, space0);
+Texture2D<uint2> chunkTexture : register(t1, space0);
 StructuredBuffer<CameraState> cameraState : register(t2, space0);
 StructuredBuffer<WorldState> worldState : register(t3, space0);
 StructuredBuffer<BlockState> blockState : register(t4, space0);
@@ -59,10 +59,10 @@ void main(uint3 id : SV_DispatchThreadID)
         }
         position.x -= chunk.x * CHUNK_WIDTH;
         position.z -= chunk.y * CHUNK_WIDTH;
-        chunk = chunks[chunk];
+        chunk = chunkTexture[chunk];
         position.x += chunk.x * CHUNK_WIDTH;
         position.z += chunk.y * CHUNK_WIDTH;
-        hitBlock = blocks[position];
+        hitBlock = blockTexture[position];
         if (hitBlock != kAir)
         {
             break;
@@ -94,14 +94,11 @@ void main(uint3 id : SV_DispatchThreadID)
             }
         }
     }
-    if (hitBlock != kAir)
-    {
-        float4 color = float4(0.0f, 0.0f, 0.0f, 1.0f);
-        color[voxel.y % 3] = 1.0f;
-        outTexture[id.xy] = color;
-    }
-    else
-    {
-        outTexture[id.xy] = float4(0.0f, 0.0f, 0.0f, 0.0f);
-    }
+    uint inColor = blockState[hitBlock].Color;
+    float4 outColor;
+    outColor.r = float((inColor >> 24) & 0xFFu) / 255.0f;
+    outColor.g = float((inColor >> 16) & 0xFFu) / 255.0f;
+    outColor.b = float((inColor >> 8) & 0xFFu) / 255.0f;
+    outColor.a = float((inColor >> 0) & 0xFFu) / 255.0f;
+    outTexture[id.xy] = outColor;
 }

@@ -10,6 +10,10 @@ set(CMAKE_LIBRARY_OUTPUT_DIRECTORY_RELEASE ${BINARY_DIR})
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY_DEBUG ${BINARY_DIR})
 make_directory(${BINARY_DIR})
 
+configure_file(LICENSE.txt ${BINARY_DIR} COPYONLY)
+configure_file(README.md ${BINARY_DIR} COPYONLY)
+configure_file(textures/atlas.png ${BINARY_DIR} COPYONLY)
+
 set(GLM_BUILD_LIBRARY OFF)
 add_subdirectory(lib/FastNoiseLite)
 add_subdirectory(lib/SDL)

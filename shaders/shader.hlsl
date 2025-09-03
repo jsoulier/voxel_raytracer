@@ -20,7 +20,7 @@ struct CameraState
 
 struct BlockState
 {
-    float2 TexCoord;
+    uint Color;
 };
 
 // TODO: lookup tables

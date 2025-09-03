@@ -8,7 +8,7 @@ cbuffer UniformBuffer : register(b0, space2)
 
 StructuredBuffer<uint> jobs : register(t0, space0);
 [[vk::image_format("rg8ui")]]
-RWTexture2D<uint2> chunks : register(u0, space1);
+RWTexture2D<uint2> chunkTexture : register(u0, space1);
 
 [numthreads(WORLD_SET_CHUNKS_THREADS_X, 1, 1)]
 void main(uint3 id : SV_DispatchThreadID)
@@ -23,5 +23,5 @@ void main(uint3 id : SV_DispatchThreadID)
     inPosition.y = (jobs[id.x] >> 8) & 0xFFu;
     outPosition.x = (jobs[id.x] >> 16) & 0xFFu;
     outPosition.y = (jobs[id.x] >> 24) & 0xFFu;
-    chunks[inPosition] = outPosition;
+    chunkTexture[inPosition] = outPosition;
 }

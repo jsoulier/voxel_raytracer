@@ -6,3 +6,4 @@
 
 SDL_GPUShader* LoadShader(SDL_GPUDevice* device, const std::string_view& name);
 SDL_GPUComputePipeline* LoadComputePipeline(SDL_GPUDevice* device, const std::string_view& name);
+SDL_GPUTexture* LoadTexture(SDL_GPUDevice* device, const std::string_view& name);

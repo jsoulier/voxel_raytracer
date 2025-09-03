@@ -1,36 +1,37 @@
 #include <SDL3/SDL.h>
-#include <glm/glm.hpp>
 
 #include "block.hpp"
 
-static constexpr int kAtlasWidth = 256;
-static constexpr int kAtlasHeight = 256;
-static constexpr int kBlockWidth = 16;
-
-struct
+static constexpr BlockState kBlocks =
 {
-    glm::ivec2 AtlasIndex;
-}
-static constexpr kBlocks[] =
-{
+    // TODO: need at least 1 member with BlockProperty to deduce the initializer?
+    BlockProperty
     // air
     {
-
+        .Color = 0,
     },
     // grass
     {
-
+        .Color = 0x00FF00FF,
     },
     // dirt
     {
-
-    }
+        .Color = 0xA52A2AFF,
+    },
+    // sand
+    {
+        .Color = 0xFFFF00FF,
+    },
+    // water
+    {
+        .Color = 0x0000FFFF,
+    },
 };
 
 static_assert(BlockAir == 0);
 static_assert(SDL_arraysize(kBlocks) == BlockCount);
 
-BlockState BlockGetState(SDL_GPUDevice* device)
+BlockState BlockGetState()
 {
-    return {};
+    return kBlocks;
 }

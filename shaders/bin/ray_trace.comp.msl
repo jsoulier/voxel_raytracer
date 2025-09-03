@@ -32,7 +32,7 @@ struct type_StructuredBuffer_WorldState
 
 struct BlockState
 {
-    float2 TexCoord;
+    uint Color;
 };
 
 struct type_StructuredBuffer_BlockState
@@ -40,150 +40,143 @@ struct type_StructuredBuffer_BlockState
     BlockState _m0[1];
 };
 
-kernel void main0(const device type_StructuredBuffer_CameraState& cameraState [[buffer(0)]], const device type_StructuredBuffer_WorldState& worldState [[buffer(1)]], texture3d<uint> blocks [[texture(0)]], texture2d<uint> chunks [[texture(1)]], texture2d<float, access::write> outTexture [[texture(2)]], uint3 gl_GlobalInvocationID [[thread_position_in_grid]])
+constant float4 _335 = {};
+
+kernel void main0(const device type_StructuredBuffer_CameraState& cameraState [[buffer(0)]], const device type_StructuredBuffer_WorldState& worldState [[buffer(1)]], const device type_StructuredBuffer_BlockState& blockState [[buffer(2)]], texture3d<uint> blockTexture [[texture(0)]], texture2d<uint> chunkTexture [[texture(1)]], texture2d<float, access::write> outTexture [[texture(2)]], uint3 gl_GlobalInvocationID [[thread_position_in_grid]])
 {
     do
     {
-        uint2 _357 = uint2(outTexture.get_width(), outTexture.get_height());
-        uint _359 = _357.x;
-        uint _363 = _357.y;
-        bool _385;
-        if (!(gl_GlobalInvocationID.x >= _359))
+        uint2 _354 = uint2(outTexture.get_width(), outTexture.get_height());
+        uint _356 = _354.x;
+        uint _360 = _354.y;
+        bool _382;
+        if (!(gl_GlobalInvocationID.x >= _356))
         {
-            _385 = gl_GlobalInvocationID.y >= _363;
+            _382 = gl_GlobalInvocationID.y >= _360;
         }
         else
         {
-            _385 = true;
+            _382 = true;
         }
-        if (_385)
+        if (_382)
         {
             break;
         }
-        float3 _460 = fast::normalize(((float3(cameraState._m0[0u].Right) * (((((2.0 * (float(gl_GlobalInvocationID.x) + 0.5)) / float(_359)) - 1.0) * cameraState._m0[0u].AspectRatio) * cameraState._m0[0u].TanHalfFov)) - (float3(cameraState._m0[0u].Up) * ((1.0 - ((2.0 * (float(gl_GlobalInvocationID.y) + 0.5)) / float(_363))) * cameraState._m0[0u].TanHalfFov))) + float3(cameraState._m0[0u].Forward));
-        float3 _339 = _460;
-        float3 _340 = float3(cameraState._m0[0u].Position);
-        int3 _341 = int3(floor(float3(cameraState._m0[0u].Position)));
-        float3 _342 = abs(float3(1.0) / _460);
-        int3 _343;
-        float3 _344;
-        for (int _493 = 0; _493 < 3; _493++)
+        float3 _457 = fast::normalize(((float3(cameraState._m0[0u].Right) * (((((2.0 * (float(gl_GlobalInvocationID.x) + 0.5)) / float(_356)) - 1.0) * cameraState._m0[0u].AspectRatio) * cameraState._m0[0u].TanHalfFov)) - (float3(cameraState._m0[0u].Up) * ((1.0 - ((2.0 * (float(gl_GlobalInvocationID.y) + 0.5)) / float(_360))) * cameraState._m0[0u].TanHalfFov))) + float3(cameraState._m0[0u].Forward));
+        float3 _337 = _457;
+        float3 _338 = float3(cameraState._m0[0u].Position);
+        int3 _339 = int3(floor(float3(cameraState._m0[0u].Position)));
+        float3 _340 = abs(float3(1.0) / _457);
+        int3 _341;
+        float3 _342;
+        for (int _490 = 0; _490 < 3; _490++)
         {
-            uint _504 = uint(_493);
-            if (_339[_504] < 0.0)
+            uint _501 = uint(_490);
+            if (_337[_501] < 0.0)
             {
-                _343[_504] = -1;
-                _344[_504] = (_340[_504] - float(_341[_504])) * _342[_504];
+                _341[_501] = -1;
+                _342[_501] = (_338[_501] - float(_339[_501])) * _340[_501];
             }
             else
             {
-                _343[_504] = 1;
-                _344[_504] = ((float(_341[_504]) + 1.0) - _340[_504]) * _342[_504];
+                _341[_501] = 1;
+                _342[_501] = ((float(_339[_501]) + 1.0) - _338[_501]) * _340[_501];
             }
         }
-        uint _583;
-        uint _863;
-        int _579 = 0;
-        uint _582 = 0u;
+        uint _580;
+        uint _860;
+        int _576 = 0;
+        uint _579 = 0u;
         for (;;)
         {
-            if (_579 < 512)
+            if (_576 < 512)
             {
-                int3 _593 = _341;
-                int _605 = _593.x - (((device int*)&worldState._m0[0u].Position)[0] * 32);
-                int3 _607 = _593;
-                _607.x = _605;
-                int _619 = _593.z - (((device int*)&worldState._m0[0u].Position)[1] * 32);
-                _607.z = _619;
-                int2 _627 = _607.xz / int2(32);
-                bool _641;
-                if (!(_605 < 0))
+                int3 _590 = _339;
+                int _602 = _590.x - (((device int*)&worldState._m0[0u].Position)[0] * 32);
+                int3 _604 = _590;
+                _604.x = _602;
+                int _616 = _590.z - (((device int*)&worldState._m0[0u].Position)[1] * 32);
+                _604.z = _616;
+                int2 _624 = _604.xz / int2(32);
+                bool _638;
+                if (!(_602 < 0))
                 {
-                    _641 = _619 < 0;
+                    _638 = _616 < 0;
                 }
                 else
                 {
-                    _641 = true;
+                    _638 = true;
                 }
-                bool _653;
-                if (!_641)
+                bool _650;
+                if (!_638)
                 {
-                    _653 = _627.x >= 8;
-                }
-                else
-                {
-                    _653 = true;
-                }
-                bool _665;
-                if (!_653)
-                {
-                    _665 = _627.y >= 8;
+                    _650 = _624.x >= 8;
                 }
                 else
                 {
-                    _665 = true;
+                    _650 = true;
                 }
-                if (_665)
+                bool _662;
+                if (!_650)
                 {
-                    _863 = _582;
+                    _662 = _624.y >= 8;
+                }
+                else
+                {
+                    _662 = true;
+                }
+                if (_662)
+                {
+                    _860 = _579;
                     break;
                 }
-                int2 _692 = int2(chunks.read(uint2(uint2(_627)), 0u).xy);
-                int3 _702 = _607;
-                _702.x = (_605 - (_627.x * 32)) + (_692.x * 32);
-                _702.z = (_619 - (_627.y * 32)) + (_692.y * 32);
-                _583 = blocks.read(uint3(uint3(_702)), 0u).x;
-                if (_583 != 0u)
+                int2 _689 = int2(chunkTexture.read(uint2(uint2(_624)), 0u).xy);
+                int3 _699 = _604;
+                _699.x = (_602 - (_624.x * 32)) + (_689.x * 32);
+                _699.z = (_616 - (_624.y * 32)) + (_689.y * 32);
+                _580 = blockTexture.read(uint3(uint3(_699)), 0u).x;
+                if (_580 != 0u)
                 {
-                    _863 = _583;
+                    _860 = _580;
                     break;
                 }
-                if (_344.x < _344.y)
+                if (_342.x < _342.y)
                 {
-                    if (_344.x < _344.z)
+                    if (_342.x < _342.z)
                     {
-                        _344.x += _342.x;
-                        _341.x += _343.x;
+                        _342.x += _340.x;
+                        _339.x += _341.x;
                     }
                     else
                     {
-                        _344.z += _342.z;
-                        _341.z += _343.z;
+                        _342.z += _340.z;
+                        _339.z += _341.z;
                     }
                 }
                 else
                 {
-                    if (_344.y < _344.z)
+                    if (_342.y < _342.z)
                     {
-                        _344.y += _342.y;
-                        _341.y += _343.y;
+                        _342.y += _340.y;
+                        _339.y += _341.y;
                     }
                     else
                     {
-                        _344.z += _342.z;
-                        _341.z += _343.z;
+                        _342.z += _340.z;
+                        _339.z += _341.z;
                     }
                 }
-                _579++;
-                _582 = _583;
+                _576++;
+                _579 = _580;
                 continue;
             }
             else
             {
-                _863 = _582;
+                _860 = _579;
                 break;
             }
         }
-        if (_863 != 0u)
-        {
-            float4 _345 = float4(0.0, 0.0, 0.0, 1.0);
-            _345[uint(_341.y - 3 * (_341.y / 3))] = 1.0;
-            outTexture.write(_345, uint2(gl_GlobalInvocationID.xy));
-        }
-        else
-        {
-            outTexture.write(float4(0.0), uint2(gl_GlobalInvocationID.xy));
-        }
+        outTexture.write(float4(float((blockState._m0[_860].Color >> 24u) & 255u) * 0.0039215688593685626983642578125, float((blockState._m0[_860].Color >> 16u) & 255u) * 0.0039215688593685626983642578125, float((blockState._m0[_860].Color >> 8u) & 255u) * 0.0039215688593685626983642578125, float(blockState._m0[_860].Color & 255u) * 0.0039215688593685626983642578125), uint2(gl_GlobalInvocationID.xy));
         break;
     } while(false);
 }

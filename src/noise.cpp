@@ -13,21 +13,33 @@
 void NoiseSetChunk(World& world, int chunkX, int chunkZ)
 {
     Profile();
-    // TODO: zero out chunk
     FastNoiseLite noise;
     noise.SetFrequency(0.02f);
     for (int i = 0; i < Chunk::kWidth; i++)
     for (int j = 0; j < Chunk::kWidth; j++)
     {
+        static constexpr float kScale = 10.0f;
+        static constexpr int kWaterLevel = 5;
+        static constexpr int kSandLevel = 6;
         float x = chunkX * Chunk::kWidth + i;
         float z = chunkZ * Chunk::kWidth + j;
-        static constexpr float kScale = 10.0f;
         int height = (noise.GetNoise(x, z) + 1.0f) / 2.0f * kScale;
         height = std::clamp(height, 1, Chunk::kHeight);
-        for (int y = 0; y < height; y++)
+        for (int y = 0; y < std::min(height, kWaterLevel); y++)
+        {
+            world.SetBlock({x, y, z}, BlockWater);
+        }
+        for (int y = kWaterLevel; y < std::min(height, kSandLevel); y++)
+        {
+            world.SetBlock({x, y, z}, BlockSand);
+        }
+        for (int y = kSandLevel; y < height; y++)
         {
             world.SetBlock({x, y, z}, BlockDirt);
         }
-        world.SetBlock({x, height, z}, BlockGrass);
+        if (height > kSandLevel)
+        {
+            world.SetBlock({x, height, z}, BlockGrass);
+        }
     }
 }

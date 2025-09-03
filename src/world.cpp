@@ -131,7 +131,7 @@ bool World::Init(SDL_GPUDevice* device)
             SDL_Log("Failed to initialize block state");
             return false;
         }
-        BlockStateBuffer.Get() = BlockGetState(device);
+        BlockStateBuffer.Get() = BlockGetState();
         WorldStateBuffer.Get().X = 0;
         WorldStateBuffer.Get().Z = 0;
         for (int x = 0; x < kWidth; x++)
@@ -140,6 +140,12 @@ bool World::Init(SDL_GPUDevice* device)
             Chunks[x][z].AddFlags(ChunkFlagsGenerate);
             ChunkMap[x][z] = {x, z};
             SetChunksBuffer.Emplace(device, x, z, x, z);
+        }
+        AtlasTexture = LoadTexture(Device, "atlas.png");
+        if (!AtlasTexture)
+        {
+            SDL_Log("Failed to load atlas texture");
+            return false;
         }
         SDL_GPUCommandBuffer* commandBuffer = SDL_AcquireGPUCommandBuffer(device);
         if (!commandBuffer)
@@ -166,6 +172,7 @@ void World::Destroy()
     SDL_ReleaseGPUComputePipeline(Device, WorldClearBlocksPipeline);
     SDL_ReleaseGPUTexture(Device, ChunkTexture);
     SDL_ReleaseGPUTexture(Device, BlockTexture);
+    SDL_ReleaseGPUTexture(Device, AtlasTexture);
 }
 
 void World::Update(Camera& camera)
@@ -319,12 +326,9 @@ void World::Dispatch(SDL_GPUCommandBuffer* commandBuffer)
         }
         int numJobs = SetBlocksBuffer.GetSize();
         int groupsX = (numJobs + WORLD_SET_BLOCKS_THREADS_X - 1) / WORLD_SET_BLOCKS_THREADS_X;
-        SDL_GPUTexture* readTextures[1]{};
         SDL_GPUBuffer* readBuffers[1]{};
-        readTextures[0] = ChunkTexture;
         readBuffers[0] = SetBlocksBuffer.GetBuffer();
         SDL_BindGPUComputePipeline(computePass, WorldSetBlocksPipeline);
-        SDL_BindGPUComputeStorageTextures(computePass, 0, readTextures, 1);
         SDL_BindGPUComputeStorageBuffers(computePass, 0, readBuffers, 1);
         SDL_PushGPUComputeUniformData(commandBuffer, 0, &numJobs, sizeof(numJobs));
         SDL_DispatchGPUCompute(computePass, groupsX, 1, 1);

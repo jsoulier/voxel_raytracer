@@ -70,6 +70,7 @@ private:
     StaticBuffer<BlockState> BlockStateBuffer;
     SDL_GPUTexture* BlockTexture;
     SDL_GPUTexture* ChunkTexture;
+    SDL_GPUTexture* AtlasTexture;
     SDL_GPUComputePipeline* WorldSetBlocksPipeline;
     SDL_GPUComputePipeline* WorldSetChunksPipeline;
     SDL_GPUComputePipeline* WorldClearBlocksPipeline;

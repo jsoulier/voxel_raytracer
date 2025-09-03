@@ -6,10 +6,9 @@ cbuffer UniformBuffer : register(b0, space2)
     int NumJobs;
 };
 
-Texture2D<uint2> chunks : register(t0, space0);
-StructuredBuffer<uint2> jobs : register(t1, space0);
+StructuredBuffer<uint2> jobs : register(t0, space0);
 [[vk::image_format("r8ui")]]
-RWTexture3D<uint> blocks : register(u0, space1);
+RWTexture3D<uint> blockTexture : register(u0, space1);
 
 [numthreads(WORLD_SET_BLOCKS_THREADS_X, 1, 1)]
 void main(uint3 id : SV_DispatchThreadID)
@@ -23,5 +22,5 @@ void main(uint3 id : SV_DispatchThreadID)
     position.y = (jobs[id.x].x >> 16) & 0xFFFFu;
     position.z = (jobs[id.x].y >> 0) & 0xFFFFu;
     uint value = (jobs[id.x].y >> 16) & 0xFFu;
-    blocks[position] = value;
+    blockTexture[position] = value;
 }

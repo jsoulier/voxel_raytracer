@@ -1,7 +1,5 @@
 #pragma once
 
-#include <SDL3/SDL.h>
-
 #include <array>
 #include <cstdint>
 
@@ -12,14 +10,16 @@ enum Block : uint8_t
     BlockAir,
     BlockGrass,
     BlockDirt,
+    BlockSand,
+    BlockWater,
     BlockCount,
 };
 
 struct BlockProperty
 {
-    glm::vec2 TexCoord;
+    uint32_t Color;
 };
 
 using BlockState = std::array<BlockProperty, BlockCount>;
 
-BlockState BlockGetState(SDL_GPUDevice* device);
+BlockState BlockGetState();

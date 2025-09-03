@@ -124,3 +124,90 @@ SDL_GPUComputePipeline* LoadComputePipeline(SDL_GPUDevice* device, const std::st
 {
     return static_cast<SDL_GPUComputePipeline*>(LoadShaderInternal(device, name));
 }
+
+SDL_GPUTexture* LoadTexture(SDL_GPUDevice* device, const std::string_view& name)
+{
+    std::filesystem::path path = SDL_GetBasePath();
+    path /= name;
+    int width;
+    int height;
+    int channels;
+    void* srcData = stbi_load(path.string().data(), &width, &height, &channels, 4);
+    if (!srcData)
+    {
+        SDL_Log("Failed to load image: %s, %s", path.string().data(), stbi_failure_reason());
+        return nullptr;
+    }
+    SDL_GPUTexture* texture;
+    SDL_GPUTransferBuffer* transferBuffer;
+    {
+        SDL_GPUTextureCreateInfo info{};
+        info.usage = SDL_GPU_TEXTUREUSAGE_SAMPLER;
+        info.type = SDL_GPU_TEXTURETYPE_2D;
+        info.format = SDL_GPU_TEXTUREFORMAT_R8G8B8A8_UNORM;
+        info.width = width;
+        info.height = height;
+        info.layer_count_or_depth = 1;
+        info.num_levels = 1;
+        texture = SDL_CreateGPUTexture(device, &info);
+        if (!texture)
+        {
+            SDL_Log("Failed to create texture: %s", SDL_GetError());
+            stbi_image_free(srcData);
+            return nullptr;
+        }
+    }
+    {
+        SDL_GPUTransferBufferCreateInfo info{};
+        info.usage = SDL_GPU_TRANSFERBUFFERUSAGE_UPLOAD;
+        info.size = width * height * 4;
+        transferBuffer = SDL_CreateGPUTransferBuffer(device, &info);
+        if (!transferBuffer)
+        {
+            SDL_Log("Failed to create transfer buffer: %s", SDL_GetError());
+            stbi_image_free(srcData);
+            SDL_ReleaseGPUTexture(device, texture);
+            return nullptr;
+        }
+    }
+    void* dstData = SDL_MapGPUTransferBuffer(device, transferBuffer, false);
+    if (!dstData)
+    {
+        SDL_Log("Failed to map transfer buffer: %s", SDL_GetError());
+        stbi_image_free(srcData);
+        SDL_ReleaseGPUTexture(device, texture);
+        return nullptr;
+    }
+    std::memcpy(dstData, srcData, width * height * 4);
+    stbi_image_free(srcData);
+    SDL_GPUCommandBuffer* commandBuffer = SDL_AcquireGPUCommandBuffer(device);
+    if (!commandBuffer)
+    {
+        SDL_Log("Failed to acquire command buffer: %s", SDL_GetError());
+        SDL_ReleaseGPUTexture(device, texture);
+        SDL_ReleaseGPUTransferBuffer(device, transferBuffer);
+        return nullptr;
+    }
+    SDL_GPUCopyPass* copyPass = SDL_BeginGPUCopyPass(commandBuffer);
+    if (!copyPass)
+    {
+        SDL_Log("Failed to begin copy pass: %s", SDL_GetError());
+        SDL_ReleaseGPUTexture(device, texture);
+        SDL_ReleaseGPUTransferBuffer(device, transferBuffer);
+        SDL_CancelGPUCommandBuffer(commandBuffer);
+        return nullptr;
+    }
+    SDL_GPUTextureTransferInfo info{};
+    SDL_GPUTextureRegion region{};
+    info.transfer_buffer = transferBuffer;
+    region.texture = texture;
+    region.w = width;
+    region.h = height;
+    region.d = 1;
+    SDL_UnmapGPUTransferBuffer(device, transferBuffer);
+    SDL_UploadToGPUTexture(copyPass, &info, &region, true);
+    SDL_ReleaseGPUTransferBuffer(device, transferBuffer);
+    SDL_EndGPUCopyPass(copyPass);
+    SDL_SubmitGPUCommandBuffer(commandBuffer);
+    return texture;
+}
