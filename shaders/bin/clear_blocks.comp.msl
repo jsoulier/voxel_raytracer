@@ -3,44 +3,43 @@
 
 using namespace metal;
 
-struct type_Chunk
+struct type_UniformBuffer
 {
     int2 Position;
 };
 
-kernel void main0(constant type_Chunk& Chunk [[buffer(0)]], texture2d<uint> chunks [[texture(0)]], texture3d<uint, access::write> blocks [[texture(1)]], uint3 gl_GlobalInvocationID [[thread_position_in_grid]])
+kernel void main0(constant type_UniformBuffer& UniformBuffer [[buffer(0)]], texture2d<uint> chunks [[texture(0)]], texture3d<uint, access::write> blocks [[texture(1)]], uint3 gl_GlobalInvocationID [[thread_position_in_grid]])
 {
     do
     {
-        int3 _131 = int3(gl_GlobalInvocationID);
-        int _135 = _131.x;
-        bool _149;
-        if (!(_135 >= 32))
+        bool _153;
+        if (!(gl_GlobalInvocationID.x >= 32u))
         {
-            _149 = _131.y >= 128;
+            _153 = gl_GlobalInvocationID.y >= 128u;
         }
         else
         {
-            _149 = true;
+            _153 = true;
         }
-        bool _161;
-        if (!_149)
+        bool _167;
+        if (!_153)
         {
-            _161 = _131.z >= 32;
+            _167 = gl_GlobalInvocationID.z >= 32u;
         }
         else
         {
-            _161 = true;
+            _167 = true;
         }
-        if (_161)
+        if (_167)
         {
             break;
         }
-        uint2 _172 = uint2(Chunk.Position);
-        int3 _188 = _131;
-        _188.x = int(uint(_135) + (chunks.read(uint2(_172), 0u).x * 32u));
-        _188.z = int(uint(_131.z) + (chunks.read(uint2(_172), 0u).y * 32u));
-        blocks.write(uint4(0u), uint3(uint3(_188)));
+        int3 _174 = int3(gl_GlobalInvocationID);
+        uint2 _182 = uint2(UniformBuffer.Position);
+        int3 _200 = _174;
+        _200.x = int(uint(_174.x) + (chunks.read(uint2(_182), 0u).x * 32u));
+        _200.z = int(uint(_174.z) + (chunks.read(uint2(_182), 0u).y * 32u));
+        blocks.write(uint4(0u), uint3(uint3(_200)));
         break;
     } while(false);
 }

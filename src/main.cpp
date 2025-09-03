@@ -9,7 +9,7 @@
 #include "profile.hpp"
 #include "world.hpp"
 
-static constexpr float kSpeed = 0.015f;
+static constexpr float kSpeed = 0.035f;
 static constexpr float kSensitivity = 0.001f;
 static constexpr float kWidth = 640.0f;
 

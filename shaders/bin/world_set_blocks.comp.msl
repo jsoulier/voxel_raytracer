@@ -3,19 +3,23 @@
 
 using namespace metal;
 
+struct type_UniformBuffer
+{
+    int NumJobs;
+};
+
 struct type_StructuredBuffer_v2uint
 {
     uint2 _m0[1];
 };
 
-constant uint3 _126 = {};
+constant uint3 _129 = {};
 
-kernel void main0(constant uint* spvBufferSizeConstants [[buffer(25)]], const device type_StructuredBuffer_v2uint& jobs [[buffer(0)]], texture3d<uint, access::write> blocks [[texture(1)]], uint3 gl_GlobalInvocationID [[thread_position_in_grid]])
+kernel void main0(constant type_UniformBuffer& UniformBuffer [[buffer(0)]], const device type_StructuredBuffer_v2uint& jobs [[buffer(1)]], texture3d<uint, access::write> blocks [[texture(1)]], uint3 gl_GlobalInvocationID [[thread_position_in_grid]])
 {
-    constant uint& jobsBufferSize = spvBufferSizeConstants[0];
     do
     {
-        if (gl_GlobalInvocationID.x >= ((jobsBufferSize - 0) / 8))
+        if (gl_GlobalInvocationID.x >= uint(UniformBuffer.NumJobs))
         {
             break;
         }

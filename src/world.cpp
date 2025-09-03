@@ -1,5 +1,6 @@
 #include <SDL3/SDL.h>
 
+#include <cmath>
 #include <cstring>
 #include <vector>
 
@@ -11,6 +12,23 @@
 #include "helpers.hpp"
 #include "profile.hpp"
 #include "world.hpp"
+
+static int FloorChunkIndex(int index)
+{
+    return std::floorf(float(index) / float(Chunk::kWidth));
+}
+
+static void TestFloorChunkIndex()
+{
+    SDL_assert(FloorChunkIndex(0) == 0);
+    SDL_assert(FloorChunkIndex(Chunk::kWidth - 1) == 0);
+    SDL_assert(FloorChunkIndex(Chunk::kWidth) == 1);
+    SDL_assert(FloorChunkIndex(Chunk::kWidth + 1) == 1);
+    SDL_assert(FloorChunkIndex(-1) == -1);
+    SDL_assert(FloorChunkIndex(-Chunk::kWidth + 1) == -1);
+    SDL_assert(FloorChunkIndex(-Chunk::kWidth) == -1);
+    SDL_assert(FloorChunkIndex(-Chunk::kWidth - 1) == -2);
+}
 
 WorldSetBlockJob::WorldSetBlockJob(const glm::ivec3& position, Block block)
     : X(position.x)
@@ -243,11 +261,13 @@ void World::Dispatch(SDL_GPUCommandBuffer* commandBuffer)
             SDL_Log("Failed to begin compute pass: %s", SDL_GetError());
             return;
         }
-        int groupsX = (SetChunksBuffer.GetSize() + WORLD_SET_CHUNKS_THREADS_X - 1) / WORLD_SET_CHUNKS_THREADS_X;
+        int numJobs = SetChunksBuffer.GetSize();
+        int groupsX = (numJobs + WORLD_SET_CHUNKS_THREADS_X - 1) / WORLD_SET_CHUNKS_THREADS_X;
         SDL_GPUBuffer* readBuffers[1]{};
         readBuffers[0] = SetChunksBuffer.GetBuffer();
         SDL_BindGPUComputePipeline(computePass, WorldSetChunksPipeline);
         SDL_BindGPUComputeStorageBuffers(computePass, 0, readBuffers, 1);
+        SDL_PushGPUComputeUniformData(commandBuffer, 0, &numJobs, sizeof(numJobs));
         SDL_DispatchGPUCompute(computePass, groupsX, 1, 1);
         SDL_EndGPUComputePass(computePass);
     }
@@ -265,7 +285,6 @@ void World::Dispatch(SDL_GPUCommandBuffer* commandBuffer)
         }
         int groupsX = (Chunk::kWidth + CLEAR_BLOCKS_THREADS_X - 1) / CLEAR_BLOCKS_THREADS_X;
         int groupsY = (Chunk::kHeight + CLEAR_BLOCKS_THREADS_Y - 1) / CLEAR_BLOCKS_THREADS_Y;
-        int groupsZ = (Chunk::kWidth + CLEAR_BLOCKS_THREADS_X - 1) / CLEAR_BLOCKS_THREADS_X;
         SDL_GPUTexture* readTextures[1]{};
         readTextures[0] = ChunkTexture;
         SDL_BindGPUComputePipeline(computePass, WorldClearBlocksPipeline);
@@ -273,7 +292,7 @@ void World::Dispatch(SDL_GPUCommandBuffer* commandBuffer)
         for (glm::ivec2 position : ClearChunks)
         {
             SDL_PushGPUComputeUniformData(commandBuffer, 0, &position, sizeof(position));
-            SDL_DispatchGPUCompute(computePass, groupsX, groupsY, groupsZ);
+            SDL_DispatchGPUCompute(computePass, groupsX, groupsY, groupsX);
         }
         ClearChunks.clear();
         SDL_EndGPUComputePass(computePass);
@@ -290,14 +309,16 @@ void World::Dispatch(SDL_GPUCommandBuffer* commandBuffer)
             SDL_Log("Failed to begin compute pass: %s", SDL_GetError());
             return;
         }
-        int groupsX = (SetBlocksBuffer.GetSize() + WORLD_SET_BLOCKS_THREADS_X - 1) / WORLD_SET_BLOCKS_THREADS_X;
+        int numJobs = SetBlocksBuffer.GetSize();
+        int groupsX = (numJobs + WORLD_SET_BLOCKS_THREADS_X - 1) / WORLD_SET_BLOCKS_THREADS_X;
         SDL_GPUTexture* readTextures[1]{};
-        readTextures[0] = ChunkTexture;
         SDL_GPUBuffer* readBuffers[1]{};
+        readTextures[0] = ChunkTexture;
         readBuffers[0] = SetBlocksBuffer.GetBuffer();
         SDL_BindGPUComputePipeline(computePass, WorldSetBlocksPipeline);
         SDL_BindGPUComputeStorageTextures(computePass, 0, readTextures, 1);
         SDL_BindGPUComputeStorageBuffers(computePass, 0, readBuffers, 1);
+        SDL_PushGPUComputeUniformData(commandBuffer, 0, &numJobs, sizeof(numJobs));
         SDL_DispatchGPUCompute(computePass, groupsX, 1, 1);
         SDL_EndGPUComputePass(computePass);
     }
@@ -335,9 +356,8 @@ void World::SetBlock(glm::ivec3 position, Block block)
     position.x -= State->X * Chunk::kWidth;
     position.z -= State->Z * Chunk::kWidth;
     glm::ivec2 chunk = {position.x, position.z};
-    // TODO: bug with the negative thing again. believe it's causing the artifacts
-    chunk.x /= Chunk::kWidth;
-    chunk.y /= Chunk::kWidth;
+    chunk.x = FloorChunkIndex(chunk.x);
+    chunk.y = FloorChunkIndex(chunk.y);
     position.x -= chunk.x * Chunk::kWidth;
     position.z -= chunk.y * Chunk::kWidth;
     chunk = ChunkMap[chunk.x][chunk.y];
