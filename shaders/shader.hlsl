@@ -18,4 +18,7 @@ struct CameraState
     float Padding2;
 };
 
+// TODO: lookup tables
+static const uint kAir = 0;
+
 #endif

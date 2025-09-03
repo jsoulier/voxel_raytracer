@@ -9,6 +9,7 @@
 #include "profile.hpp"
 #include "world.hpp"
 
+// TODO: avoid using SetBlock and have a fast path that precalculates the chunk
 void NoiseSetChunk(World& world, int chunkX, int chunkZ)
 {
     Profile();

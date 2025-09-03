@@ -1,0 +1,47 @@
+#include <metal_stdlib>
+#include <simd/simd.h>
+
+using namespace metal;
+
+struct type_Chunk
+{
+    int2 Position;
+};
+
+kernel void main0(constant type_Chunk& Chunk [[buffer(0)]], texture2d<uint> chunks [[texture(0)]], texture3d<uint, access::write> blocks [[texture(1)]], uint3 gl_GlobalInvocationID [[thread_position_in_grid]])
+{
+    do
+    {
+        int3 _131 = int3(gl_GlobalInvocationID);
+        int _135 = _131.x;
+        bool _149;
+        if (!(_135 >= 32))
+        {
+            _149 = _131.y >= 128;
+        }
+        else
+        {
+            _149 = true;
+        }
+        bool _161;
+        if (!_149)
+        {
+            _161 = _131.z >= 32;
+        }
+        else
+        {
+            _161 = true;
+        }
+        if (_161)
+        {
+            break;
+        }
+        uint2 _172 = uint2(Chunk.Position);
+        int3 _188 = _131;
+        _188.x = int(uint(_135) + (chunks.read(uint2(_172), 0u).x * 32u));
+        _188.z = int(uint(_131.z) + (chunks.read(uint2(_172), 0u).y * 32u));
+        blocks.write(uint4(0u), uint3(uint3(_188)));
+        break;
+    } while(false);
+}
+

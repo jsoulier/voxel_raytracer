@@ -8,9 +8,9 @@ struct type_StructuredBuffer_v2uint
     uint2 _m0[1];
 };
 
-constant uint3 _111 = {};
+constant uint3 _126 = {};
 
-kernel void main0(constant uint* spvBufferSizeConstants [[buffer(25)]], const device type_StructuredBuffer_v2uint& jobs [[buffer(0)]], texture3d<uint, access::write> blocks [[texture(0)]], uint3 gl_GlobalInvocationID [[thread_position_in_grid]])
+kernel void main0(constant uint* spvBufferSizeConstants [[buffer(25)]], const device type_StructuredBuffer_v2uint& jobs [[buffer(0)]], texture3d<uint, access::write> blocks [[texture(1)]], uint3 gl_GlobalInvocationID [[thread_position_in_grid]])
 {
     constant uint& jobsBufferSize = spvBufferSizeConstants[0];
     do

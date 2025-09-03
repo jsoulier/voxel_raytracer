@@ -12,7 +12,7 @@
 #include "profile.hpp"
 #include "world.hpp"
 
-WorldBlockJob::WorldBlockJob(const glm::ivec3& position, Block block)
+WorldSetBlockJob::WorldSetBlockJob(const glm::ivec3& position, Block block)
     : X(position.x)
     , Y(position.y)
     , Z(position.z)
@@ -20,7 +20,7 @@ WorldBlockJob::WorldBlockJob(const glm::ivec3& position, Block block)
 {
 }
 
-WorldChunkJob::WorldChunkJob(int inX, int inZ, int outX, int outZ)
+WorldSetChunkJob::WorldSetChunkJob(int inX, int inZ, int outX, int outZ)
     : InX(inX)
     , InZ(inZ)
     , OutX(outX)
@@ -31,7 +31,7 @@ WorldChunkJob::WorldChunkJob(int inX, int inZ, int outX, int outZ)
 World::World()
     : Blocks{}
     , Chunks{}
-    , BlockBuffer{}
+    , SetBlocksBuffer{}
     , State{}
     , BlockTexture{nullptr}
     , ChunkTexture{nullptr}
@@ -88,6 +88,12 @@ bool World::Init(SDL_GPUDevice* device)
             SDL_Log("Failed to load world set chunks pipeline");
             return false;
         }
+        WorldClearBlocksPipeline = LoadComputePipeline(Device, "clear_blocks.comp");
+        if (!WorldClearBlocksPipeline)
+        {
+            SDL_Log("Failed to load world clear blocks pipeline");
+            return false;
+        }
         RayTracePipeline = LoadComputePipeline(Device, "ray_trace.comp");
         if (!RayTracePipeline)
         {
@@ -109,7 +115,7 @@ bool World::Init(SDL_GPUDevice* device)
         {
             Chunks[x][z].AddFlags(ChunkFlagsGenerate);
             ChunkMap[x][z] = {x, z};
-            ChunkBuffer.Emplace(device, x, z, x, z);
+            SetChunksBuffer.Emplace(device, x, z, x, z);
         }
         SDL_GPUCommandBuffer* commandBuffer = SDL_AcquireGPUCommandBuffer(device);
         if (!commandBuffer)
@@ -127,11 +133,12 @@ void World::Destroy()
 {
     Profile();
     State.Destroy(Device);
-    ChunkBuffer.Destroy(Device);
-    BlockBuffer.Destroy(Device);
+    SetChunksBuffer.Destroy(Device);
+    SetBlocksBuffer.Destroy(Device);
     SDL_ReleaseGPUComputePipeline(Device, RayTracePipeline);
     SDL_ReleaseGPUComputePipeline(Device, WorldSetBlocksPipeline);
     SDL_ReleaseGPUComputePipeline(Device, WorldSetChunksPipeline);
+    SDL_ReleaseGPUComputePipeline(Device, WorldClearBlocksPipeline);
     SDL_ReleaseGPUTexture(Device, ChunkTexture);
     SDL_ReleaseGPUTexture(Device, BlockTexture);
 }
@@ -177,7 +184,7 @@ void World::Update(Camera& camera)
         {
             if (ChunkMap[x][z].x != kNull)
             {
-                ChunkBuffer.Emplace(Device, x, z, ChunkMap[x][z].x, ChunkMap[x][z].y);
+                SetChunksBuffer.Emplace(Device, x, z, ChunkMap[x][z].x, ChunkMap[x][z].y);
                 continue;
             }
             glm::ivec2 position = outOfBoundsChunks.back();
@@ -185,7 +192,7 @@ void World::Update(Camera& camera)
             ChunkMap[x][z] = position;
             Chunk& chunk = Chunks[position.x][position.y];
             chunk.AddFlags(ChunkFlagsGenerate);
-            ChunkBuffer.Emplace(Device, x, z, position.x, position.y);
+            SetChunksBuffer.Emplace(Device, x, z, position.x, position.y);
         }
         SDL_assert(outOfBoundsChunks.empty());
     }
@@ -200,6 +207,7 @@ void World::Update(Camera& camera)
         Chunk& chunk = Chunks[outX][outZ];
         if (chunk.GetFlags() & ChunkFlagsGenerate)
         {
+            ClearChunks.emplace_back(inX, inZ);
             chunk.Generate(*this, State->X + inX, State->Z + inZ);
             return;
         }
@@ -219,11 +227,11 @@ void World::Dispatch(SDL_GPUCommandBuffer* commandBuffer)
             return;
         }
         State.Upload(Device, copyPass);
-        BlockBuffer.Upload(Device, copyPass);
-        ChunkBuffer.Upload(Device, copyPass);
+        SetBlocksBuffer.Upload(Device, copyPass);
+        SetChunksBuffer.Upload(Device, copyPass);
         SDL_EndGPUCopyPass(copyPass);
     }
-    if (ChunkBuffer.GetSize())
+    if (SetChunksBuffer.GetSize())
     {
         ProfileBlock("World::Render::SetChunks");
         DebugGroupBlock(commandBuffer, "World::Render::SetChunks");
@@ -235,15 +243,42 @@ void World::Dispatch(SDL_GPUCommandBuffer* commandBuffer)
             SDL_Log("Failed to begin compute pass: %s", SDL_GetError());
             return;
         }
-        int groupsX = (ChunkBuffer.GetSize() + WORLD_SET_CHUNKS_THREADS_X - 1) / WORLD_SET_CHUNKS_THREADS_X;
+        int groupsX = (SetChunksBuffer.GetSize() + WORLD_SET_CHUNKS_THREADS_X - 1) / WORLD_SET_CHUNKS_THREADS_X;
         SDL_GPUBuffer* readBuffers[1]{};
-        readBuffers[0] = ChunkBuffer.GetBuffer();
+        readBuffers[0] = SetChunksBuffer.GetBuffer();
         SDL_BindGPUComputePipeline(computePass, WorldSetChunksPipeline);
         SDL_BindGPUComputeStorageBuffers(computePass, 0, readBuffers, 1);
         SDL_DispatchGPUCompute(computePass, groupsX, 1, 1);
         SDL_EndGPUComputePass(computePass);
     }
-    if (BlockBuffer.GetSize())
+    if (!ClearChunks.empty())
+    {
+        ProfileBlock("World::Render::ClearBlocks");
+        DebugGroupBlock(commandBuffer, "World::Render::ClearBlocks");
+        SDL_GPUStorageTextureReadWriteBinding writeTexture{};
+        writeTexture.texture = BlockTexture;
+        SDL_GPUComputePass* computePass = SDL_BeginGPUComputePass(commandBuffer, &writeTexture, 1, nullptr, 0);
+        if (!computePass)
+        {
+            SDL_Log("Failed to begin compute pass: %s", SDL_GetError());
+            return;
+        }
+        int groupsX = (Chunk::kWidth + CLEAR_BLOCKS_THREADS_X - 1) / CLEAR_BLOCKS_THREADS_X;
+        int groupsY = (Chunk::kHeight + CLEAR_BLOCKS_THREADS_Y - 1) / CLEAR_BLOCKS_THREADS_Y;
+        int groupsZ = (Chunk::kWidth + CLEAR_BLOCKS_THREADS_X - 1) / CLEAR_BLOCKS_THREADS_X;
+        SDL_GPUTexture* readTextures[1]{};
+        readTextures[0] = ChunkTexture;
+        SDL_BindGPUComputePipeline(computePass, WorldClearBlocksPipeline);
+        SDL_BindGPUComputeStorageTextures(computePass, 0, readTextures, 1);
+        for (glm::ivec2 position : ClearChunks)
+        {
+            SDL_PushGPUComputeUniformData(commandBuffer, 0, &position, sizeof(position));
+            SDL_DispatchGPUCompute(computePass, groupsX, groupsY, groupsZ);
+        }
+        ClearChunks.clear();
+        SDL_EndGPUComputePass(computePass);
+    }
+    if (SetBlocksBuffer.GetSize())
     {
         ProfileBlock("World::Render::SetBlocks");
         DebugGroupBlock(commandBuffer, "World::Render::SetBlocks");
@@ -255,10 +290,13 @@ void World::Dispatch(SDL_GPUCommandBuffer* commandBuffer)
             SDL_Log("Failed to begin compute pass: %s", SDL_GetError());
             return;
         }
-        int groupsX = (BlockBuffer.GetSize() + WORLD_SET_BLOCKS_THREADS_X - 1) / WORLD_SET_BLOCKS_THREADS_X;
+        int groupsX = (SetBlocksBuffer.GetSize() + WORLD_SET_BLOCKS_THREADS_X - 1) / WORLD_SET_BLOCKS_THREADS_X;
+        SDL_GPUTexture* readTextures[1]{};
+        readTextures[0] = ChunkTexture;
         SDL_GPUBuffer* readBuffers[1]{};
-        readBuffers[0] = BlockBuffer.GetBuffer();
+        readBuffers[0] = SetBlocksBuffer.GetBuffer();
         SDL_BindGPUComputePipeline(computePass, WorldSetBlocksPipeline);
+        SDL_BindGPUComputeStorageTextures(computePass, 0, readTextures, 1);
         SDL_BindGPUComputeStorageBuffers(computePass, 0, readBuffers, 1);
         SDL_DispatchGPUCompute(computePass, groupsX, 1, 1);
         SDL_EndGPUComputePass(computePass);
@@ -296,5 +334,15 @@ void World::SetBlock(glm::ivec3 position, Block block)
 {
     position.x -= State->X * Chunk::kWidth;
     position.z -= State->Z * Chunk::kWidth;
-    BlockBuffer.Emplace(Device, position, block);
+    glm::ivec2 chunk = {position.x, position.z};
+    // TODO: bug with the negative thing again. believe it's causing the artifacts
+    chunk.x /= Chunk::kWidth;
+    chunk.y /= Chunk::kWidth;
+    position.x -= chunk.x * Chunk::kWidth;
+    position.z -= chunk.y * Chunk::kWidth;
+    chunk = ChunkMap[chunk.x][chunk.y];
+    position.x += chunk.x * Chunk::kWidth;
+    position.z += chunk.y * Chunk::kWidth;
+    SetBlocksBuffer.Emplace(Device, position, block);
+    // TODO: set CPU-side blocks
 }

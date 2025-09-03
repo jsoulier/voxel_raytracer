@@ -3,9 +3,6 @@
 
 static const int kMaxSteps = 512;
 
-// TODO: lookup tables
-static const uint kAir = 0;
-
 Texture3D<uint> blocks : register(t0, space0);
 Texture2D<uint2> chunks : register(t1, space0);
 StructuredBuffer<CameraState> cameraState : register(t2, space0);

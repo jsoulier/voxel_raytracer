@@ -3,15 +3,17 @@
 #include <SDL3/SDL.h>
 #include <glm/glm.hpp>
 
+#include <vector>
+
 #include "block.hpp"
 #include "buffer.hpp"
 #include "camera.hpp"
 #include "chunk.hpp"
 #include "config.h"
 
-struct WorldBlockJob
+struct WorldSetBlockJob
 {
-    WorldBlockJob(const glm::ivec3& position, Block block);
+    WorldSetBlockJob(const glm::ivec3& position, Block block);
 
     uint16_t X;
     uint16_t Y;
@@ -20,9 +22,9 @@ struct WorldBlockJob
     uint8_t Padding;
 };
 
-struct WorldChunkJob
+struct WorldSetChunkJob
 {
-    WorldChunkJob(int inX, int inZ, int outX, int outZ);
+    WorldSetChunkJob(int inX, int inZ, int outX, int outZ);
 
     uint8_t InX;
     uint8_t InZ;
@@ -36,8 +38,8 @@ struct WorldState
     int32_t Z;
 };
 
-static_assert(sizeof(WorldBlockJob) == 8);;
-static_assert(sizeof(WorldChunkJob) == 4);;
+static_assert(sizeof(WorldSetBlockJob) == 8);;
+static_assert(sizeof(WorldSetChunkJob) == 4);;
 
 class World
 {
@@ -61,12 +63,14 @@ private:
     Block Blocks[kWidth * Chunk::kWidth][Chunk::kHeight][kWidth * Chunk::kWidth];
     Chunk Chunks[kWidth][kWidth];
     glm::ivec2 ChunkMap[kWidth][kWidth];
-    DynamicBuffer<WorldBlockJob> BlockBuffer;
-    DynamicBuffer<WorldChunkJob> ChunkBuffer;
+    DynamicBuffer<WorldSetBlockJob> SetBlocksBuffer;
+    DynamicBuffer<WorldSetChunkJob> SetChunksBuffer;
+    std::vector<glm::ivec2> ClearChunks;
     StaticBuffer<WorldState> State;
     SDL_GPUTexture* BlockTexture;
     SDL_GPUTexture* ChunkTexture;
     SDL_GPUComputePipeline* WorldSetBlocksPipeline;
     SDL_GPUComputePipeline* WorldSetChunksPipeline;
+    SDL_GPUComputePipeline* WorldClearBlocksPipeline;
     SDL_GPUComputePipeline* RayTracePipeline;
 };
