@@ -54,7 +54,7 @@ public:
     void Update(Camera& camera);
     void Dispatch(SDL_GPUCommandBuffer* commandBuffer);
     void Render(SDL_GPUCommandBuffer* commandBuffer, SDL_GPUTexture* colorTexture, Camera& camera);
-    void SetBlock(const glm::ivec3& position, Block block);
+    void SetBlock(glm::ivec3 position, Block block);
 
 private:
     SDL_GPUDevice* Device;

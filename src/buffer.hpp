@@ -133,13 +133,11 @@ public:
 
     SDL_GPUBuffer* GetBuffer() const
     {
-        SDL_assert(!Data);
         return Buffer;
     }
 
     uint32_t GetSize() const
     {
-        SDL_assert(!Data);
         return BufferSize;
     }
 
@@ -160,7 +158,7 @@ public:
     StaticBuffer()
         : Buffer{nullptr}
         , TransferBuffer{nullptr}
-        , Data{nullptr}
+        , Data{}
     {
     }
 
@@ -189,29 +187,27 @@ public:
                 return false;
             }
         }
-        Data = static_cast<T*>(SDL_MapGPUTransferBuffer(device, TransferBuffer, false));
-        if (!Data)
-        {
-            SDL_Log("Failed to map transfer buffer: %s", SDL_GetError());
-            return false;
-        }
-        *Data = T{};
         return true;
     }
 
     void Destroy(SDL_GPUDevice* device)
     {
-        SDL_UnmapGPUTransferBuffer(device, TransferBuffer);
         SDL_ReleaseGPUBuffer(device, Buffer);
         SDL_ReleaseGPUTransferBuffer(device, TransferBuffer);
         Buffer = nullptr;
         TransferBuffer = nullptr;
-        Data = nullptr;
     }
 
     void Upload(SDL_GPUDevice* device, SDL_GPUCopyPass* copyPass)
     {
         Profile();
+        T* data = static_cast<T*>(SDL_MapGPUTransferBuffer(device, TransferBuffer, false));
+        if (!data)
+        {
+            SDL_Log("Failed to map transfer buffer: %s", SDL_GetError());
+            return;
+        }
+        *data = Data;
         SDL_UnmapGPUTransferBuffer(device, TransferBuffer);
         SDL_GPUTransferBufferLocation location{};
         SDL_GPUBufferRegion region{};
@@ -219,34 +215,25 @@ public:
         region.buffer = Buffer;
         region.size = sizeof(T);
         SDL_UploadToGPUBuffer(copyPass, &location, &region, true);
-        Data = static_cast<T*>(SDL_MapGPUTransferBuffer(device, TransferBuffer, false));
-        if (!Data)
-        {
-            SDL_Log("Failed to map transfer buffer: %s", SDL_GetError());
-            SDL_assert(false);
-        }
     }
 
     SDL_GPUBuffer* GetBuffer() const
     {
-        SDL_assert(Data);
         return Buffer;
     }
 
     T* operator->()
     {
-        SDL_assert(Data);
-        return Data;
+        return &Data;
     }
 
     const T* operator->() const
     {
-        SDL_assert(Data);
-        return Data;
+        return &Data;
     }
 
 private:
     SDL_GPUBuffer* Buffer;
     SDL_GPUTransferBuffer* TransferBuffer;
-    T* Data;
+    T Data;
 };

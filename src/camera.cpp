@@ -87,6 +87,11 @@ SDL_GPUBuffer* Camera::GetBuffer() const
     return State.GetBuffer();
 }
 
+void Camera::SetPosition(const glm::vec3& position)
+{
+    State->Position = position;
+}
+
 const glm::vec3& Camera::GetPosition() const
 {
     return State->Position;

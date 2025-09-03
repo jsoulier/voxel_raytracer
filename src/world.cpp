@@ -1,5 +1,6 @@
 #include <SDL3/SDL.h>
 
+#include <cstring>
 #include <vector>
 
 #include "block.hpp"
@@ -140,15 +141,17 @@ void World::Update(Camera& camera)
     Profile();
     int cameraX = camera.GetPosition().x / Chunk::kWidth - kWidth / 2;
     int cameraZ = camera.GetPosition().z / Chunk::kWidth - kWidth / 2;
-    if (cameraX != State->X || cameraZ != State->Z)
+    int offsetX = cameraX - State->X;
+    int offsetZ = cameraZ - State->Z;
+    if (offsetX || offsetZ)
     {
+        // TODO: refactor
+        State->X = cameraX;
+        State->Z = cameraZ;
         static constexpr int kNull = -1;
         glm::ivec2 chunkMap[kWidth][kWidth];
         std::vector<glm::ivec2> outOfBoundsChunks;
         outOfBoundsChunks.reserve(kWidth * kWidth);
-        int offsetX = cameraX - State->X;
-        int offsetZ = cameraZ - State->Z;
-        // TODO: refactor
         for (int x = 0; x < kWidth; x++)
         for (int z = 0; z < kWidth; z++)
         {
@@ -161,32 +164,30 @@ void World::Update(Camera& camera)
             int newZ = z - offsetZ;
             if (newX < 0 || newZ < 0 || newX >= kWidth || newZ >= kWidth)
             {
-                outOfBoundsChunks.push_back({x, z});
+                outOfBoundsChunks.push_back(ChunkMap[x][z]);
             }
             else
             {
                 chunkMap[newX][newZ] = ChunkMap[x][z];
             }
         }
+        std::memcpy(ChunkMap, chunkMap, sizeof(ChunkMap));
         for (int x = 0; x < kWidth; x++)
         for (int z = 0; z < kWidth; z++)
         {
-            if (chunkMap[x][z].x == kNull)
+            if (ChunkMap[x][z].x != kNull)
             {
-                glm::ivec2 position = outOfBoundsChunks.back();
-                ChunkMap[x][z] = position;
-                Chunk& chunk = Chunks[position.x][position.y];
-                chunk.AddFlags(ChunkFlagsGenerate);
-                outOfBoundsChunks.pop_back();
+                ChunkBuffer.Emplace(Device, x, z, ChunkMap[x][z].x, ChunkMap[x][z].y);
+                continue;
             }
-            else
-            {
-                ChunkMap[x][z] = chunkMap[x][z];
-            }
+            glm::ivec2 position = outOfBoundsChunks.back();
+            outOfBoundsChunks.pop_back();
+            ChunkMap[x][z] = position;
+            Chunk& chunk = Chunks[position.x][position.y];
+            chunk.AddFlags(ChunkFlagsGenerate);
+            ChunkBuffer.Emplace(Device, x, z, position.x, position.y);
         }
         SDL_assert(outOfBoundsChunks.empty());
-        State->X = cameraX;
-        State->Z = cameraZ;
     }
     // TODO:
     // 1. sort chunk indices from the center outwards
@@ -199,7 +200,7 @@ void World::Update(Camera& camera)
         Chunk& chunk = Chunks[outX][outZ];
         if (chunk.GetFlags() & ChunkFlagsGenerate)
         {
-            chunk.Generate(*this, inX, inZ);
+            chunk.Generate(*this, State->X + inX, State->Z + inZ);
             return;
         }
     }
@@ -291,7 +292,9 @@ void World::Render(SDL_GPUCommandBuffer* commandBuffer, SDL_GPUTexture* colorTex
     SDL_EndGPUComputePass(computePass);
 }
 
-void World::SetBlock(const glm::ivec3& position, Block block)
+void World::SetBlock(glm::ivec3 position, Block block)
 {
+    position.x -= State->X * Chunk::kWidth;
+    position.z -= State->Z * Chunk::kWidth;
     BlockBuffer.Emplace(Device, position, block);
 }

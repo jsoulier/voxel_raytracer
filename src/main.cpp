@@ -5,6 +5,7 @@
 
 #include "camera.hpp"
 #include "debug_group.hpp"
+#include "noise.hpp"
 #include "profile.hpp"
 #include "world.hpp"
 

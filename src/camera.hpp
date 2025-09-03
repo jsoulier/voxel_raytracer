@@ -29,6 +29,7 @@ public:
     void SetFov(float fov);
     void Upload(SDL_GPUDevice* device, SDL_GPUCommandBuffer* commandBuffer);
     SDL_GPUBuffer* GetBuffer() const;
+    void SetPosition(const glm::vec3& position);
     const glm::vec3& GetPosition() const;
     float GetWidth() const;
     float GetHeight() const;

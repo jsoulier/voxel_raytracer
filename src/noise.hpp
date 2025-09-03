@@ -1,5 +1,7 @@
 #pragma once
 
-#include "world.hpp"
+class Camera;
+class World;
 
-void NoiseGenerate(World& world, int chunkX, int chunkZ);
+void NoiseSetCamera(Camera& camera);
+void NoiseSetChunk(World& world, int chunkX, int chunkZ);

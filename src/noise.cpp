@@ -1,11 +1,15 @@
 #include <FastNoiseLite.h>
 
+#include <algorithm>
+#include <limits>
+
 #include "block.hpp"
+#include "camera.hpp"
 #include "noise.hpp"
 #include "profile.hpp"
 #include "world.hpp"
 
-void NoiseGenerate(World& world, int chunkX, int chunkZ)
+void NoiseSetChunk(World& world, int chunkX, int chunkZ)
 {
     Profile();
     // TODO: zero out chunk
@@ -18,7 +22,7 @@ void NoiseGenerate(World& world, int chunkX, int chunkZ)
         float z = chunkZ * Chunk::kWidth + j;
         static constexpr float kScale = 10.0f;
         int height = (noise.GetNoise(x, z) + 1.0f) / 2.0f * kScale;
-        height = std::min(height, Chunk::kHeight);
+        height = std::clamp(height, 1, Chunk::kHeight);
         for (int y = 0; y < height; y++)
         {
             world.SetBlock({x, y, z}, BlockDirt);

@@ -50,9 +50,11 @@ void main(uint3 id : SV_DispatchThreadID)
         int3 position = voxel;
         position.x -= worldState[0].Position.x * CHUNK_WIDTH;
         position.z -= worldState[0].Position.y * CHUNK_WIDTH;
+        // TODO: -31 / 32 goes to 0 (but should go to -1)
         int2 chunk = position.xz / CHUNK_WIDTH;
         // TODO: remove by computing kMaxSteps correctly
-        if (chunk.x < 0 || chunk.y < 0 || chunk.x >= WORLD_WIDTH || chunk.y >= WORLD_WIDTH)
+        // NOTE: we use position < 0 instead of chunk < 0 because of the aforementioned division bug
+        if (position.x < 0 || position.z < 0 || chunk.x >= WORLD_WIDTH || chunk.y >= WORLD_WIDTH)
         {
             break;
         }

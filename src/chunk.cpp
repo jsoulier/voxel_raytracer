@@ -11,7 +11,7 @@ Chunk::Chunk()
 void Chunk::Generate(World& world, int chunkX, int chunkZ)
 {
     SDL_assert(Flags & ChunkFlagsGenerate);
-    NoiseGenerate(world, chunkX, chunkZ);
+    NoiseSetChunk(world, chunkX, chunkZ);
     Flags &= ~ChunkFlagsGenerate;
 }
 
