@@ -18,6 +18,11 @@ struct CameraState
     float Padding2;
 };
 
+struct BlockState
+{
+    float2 TexCoord;
+};
+
 // TODO: lookup tables
 static const uint kAir = 0;
 

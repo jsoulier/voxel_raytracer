@@ -20,6 +20,7 @@ add_subdirectory(lib/sqlite3)
 add_subdirectory(lib/stb)
 
 add_executable(voxel_ray_tracer WIN32
+    src/block.cpp
     src/camera.cpp
     src/chunk.cpp
     src/debug_group.cpp

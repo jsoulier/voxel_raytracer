@@ -66,7 +66,8 @@ private:
     DynamicBuffer<WorldSetBlockJob> SetBlocksBuffer;
     DynamicBuffer<WorldSetChunkJob> SetChunksBuffer;
     std::vector<glm::ivec2> ClearChunks;
-    StaticBuffer<WorldState> State;
+    StaticBuffer<WorldState> WorldStateBuffer;
+    StaticBuffer<BlockState> BlockStateBuffer;
     SDL_GPUTexture* BlockTexture;
     SDL_GPUTexture* ChunkTexture;
     SDL_GPUComputePipeline* WorldSetBlocksPipeline;

@@ -12,34 +12,34 @@ kernel void main0(constant type_UniformBuffer& UniformBuffer [[buffer(0)]], text
 {
     do
     {
-        bool _153;
+        bool _154;
         if (!(gl_GlobalInvocationID.x >= 32u))
         {
-            _153 = gl_GlobalInvocationID.y >= 128u;
+            _154 = gl_GlobalInvocationID.y >= 128u;
         }
         else
         {
-            _153 = true;
+            _154 = true;
         }
-        bool _167;
-        if (!_153)
+        bool _168;
+        if (!_154)
         {
-            _167 = gl_GlobalInvocationID.z >= 32u;
+            _168 = gl_GlobalInvocationID.z >= 32u;
         }
         else
         {
-            _167 = true;
+            _168 = true;
         }
-        if (_167)
+        if (_168)
         {
             break;
         }
-        int3 _174 = int3(gl_GlobalInvocationID);
-        uint2 _182 = uint2(UniformBuffer.Position);
-        int3 _200 = _174;
-        _200.x = int(uint(_174.x) + (chunks.read(uint2(_182), 0u).x * 32u));
-        _200.z = int(uint(_174.z) + (chunks.read(uint2(_182), 0u).y * 32u));
-        blocks.write(uint4(0u), uint3(uint3(_200)));
+        int3 _175 = int3(gl_GlobalInvocationID);
+        uint2 _183 = uint2(UniformBuffer.Position);
+        int3 _201 = _175;
+        _201.x = int(uint(_175.x) + (chunks.read(uint2(_183), 0u).x * 32u));
+        _201.z = int(uint(_175.z) + (chunks.read(uint2(_183), 0u).y * 32u));
+        blocks.write(uint4(0u), uint3(uint3(_201)));
         break;
     } while(false);
 }

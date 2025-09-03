@@ -133,11 +133,13 @@ public:
 
     SDL_GPUBuffer* GetBuffer() const
     {
+        SDL_assert(!Data);
         return Buffer;
     }
 
     uint32_t GetSize() const
     {
+        SDL_assert(!Data);
         return BufferSize;
     }
 
@@ -159,6 +161,7 @@ public:
         : Buffer{nullptr}
         , TransferBuffer{nullptr}
         , Data{}
+        , Dirty{false}
     {
     }
 
@@ -201,6 +204,10 @@ public:
     void Upload(SDL_GPUDevice* device, SDL_GPUCopyPass* copyPass)
     {
         Profile();
+        if (!Dirty)
+        {
+            return;
+        }
         T* data = static_cast<T*>(SDL_MapGPUTransferBuffer(device, TransferBuffer, false));
         if (!data)
         {
@@ -215,6 +222,7 @@ public:
         region.buffer = Buffer;
         region.size = sizeof(T);
         SDL_UploadToGPUBuffer(copyPass, &location, &region, true);
+        Dirty = false;
     }
 
     SDL_GPUBuffer* GetBuffer() const
@@ -222,8 +230,9 @@ public:
         return Buffer;
     }
 
-    T* operator->()
+    T* GetPointer()
     {
+        Dirty = true;
         return &Data;
     }
 
@@ -232,8 +241,20 @@ public:
         return &Data;
     }
 
+    T& Get()
+    {
+        Dirty = true;
+        return Data;
+    }
+
+    const T& operator*() const
+    {
+        return Data;
+    }
+
 private:
     SDL_GPUBuffer* Buffer;
     SDL_GPUTransferBuffer* TransferBuffer;
     T Data;
+    bool Dirty;
 };

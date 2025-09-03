@@ -50,7 +50,7 @@ World::World()
     : Blocks{}
     , Chunks{}
     , SetBlocksBuffer{}
-    , State{}
+    , WorldStateBuffer{}
     , BlockTexture{nullptr}
     , ChunkTexture{nullptr}
     , WorldSetBlocksPipeline{nullptr}
@@ -121,13 +121,19 @@ bool World::Init(SDL_GPUDevice* device)
     }
     {
         ProfileBlock("World::Init::Other");
-        if (!State.Init(Device))
+        if (!WorldStateBuffer.Init(Device))
         {
-            SDL_Log("Failed to initialize state");
+            SDL_Log("Failed to initialize world state");
             return false;
         }
-        State->X = 0;
-        State->Z = 0;
+        if (!BlockStateBuffer.Init(Device))
+        {
+            SDL_Log("Failed to initialize block state");
+            return false;
+        }
+        BlockStateBuffer.Get() = BlockGetState(device);
+        WorldStateBuffer.Get().X = 0;
+        WorldStateBuffer.Get().Z = 0;
         for (int x = 0; x < kWidth; x++)
         for (int z = 0; z < kWidth; z++)
         {
@@ -150,7 +156,8 @@ bool World::Init(SDL_GPUDevice* device)
 void World::Destroy()
 {
     Profile();
-    State.Destroy(Device);
+    BlockStateBuffer.Destroy(Device);
+    WorldStateBuffer.Destroy(Device);
     SetChunksBuffer.Destroy(Device);
     SetBlocksBuffer.Destroy(Device);
     SDL_ReleaseGPUComputePipeline(Device, RayTracePipeline);
@@ -166,13 +173,13 @@ void World::Update(Camera& camera)
     Profile();
     int cameraX = camera.GetPosition().x / Chunk::kWidth - kWidth / 2;
     int cameraZ = camera.GetPosition().z / Chunk::kWidth - kWidth / 2;
-    int offsetX = cameraX - State->X;
-    int offsetZ = cameraZ - State->Z;
+    int offsetX = cameraX - WorldStateBuffer->X;
+    int offsetZ = cameraZ - WorldStateBuffer->Z;
     if (offsetX || offsetZ)
     {
         // TODO: refactor
-        State->X = cameraX;
-        State->Z = cameraZ;
+        WorldStateBuffer.Get().X = cameraX;
+        WorldStateBuffer.Get().Z = cameraZ;
         static constexpr int kNull = -1;
         glm::ivec2 chunkMap[kWidth][kWidth];
         std::vector<glm::ivec2> outOfBoundsChunks;
@@ -226,7 +233,7 @@ void World::Update(Camera& camera)
         if (chunk.GetFlags() & ChunkFlagsGenerate)
         {
             ClearChunks.emplace_back(inX, inZ);
-            chunk.Generate(*this, State->X + inX, State->Z + inZ);
+            chunk.Generate(*this, WorldStateBuffer->X + inX, WorldStateBuffer->Z + inZ);
             return;
         }
     }
@@ -244,7 +251,8 @@ void World::Dispatch(SDL_GPUCommandBuffer* commandBuffer)
             SDL_Log("Failed to begin copy pass: %s", SDL_GetError());
             return;
         }
-        State.Upload(Device, copyPass);
+        WorldStateBuffer.Upload(Device, copyPass);
+        BlockStateBuffer.Upload(Device, copyPass);
         SetBlocksBuffer.Upload(Device, copyPass);
         SetChunksBuffer.Upload(Device, copyPass);
         SDL_EndGPUCopyPass(copyPass);
@@ -339,22 +347,23 @@ void World::Render(SDL_GPUCommandBuffer* commandBuffer, SDL_GPUTexture* colorTex
     int groupsX = (camera.GetWidth() + RAY_TRACE_THREADS_X - 1) / RAY_TRACE_THREADS_X;
     int groupsY = (camera.GetHeight() + RAY_TRACE_THREADS_Y - 1) / RAY_TRACE_THREADS_Y;
     SDL_GPUTexture* readTextures[2]{};
-    SDL_GPUBuffer* readBuffers[2]{};
+    SDL_GPUBuffer* readBuffers[3]{};
     readTextures[0] = BlockTexture;
     readTextures[1] = ChunkTexture;
     readBuffers[0] = camera.GetBuffer();
-    readBuffers[1] = State.GetBuffer();
+    readBuffers[1] = WorldStateBuffer.GetBuffer();
+    readBuffers[2] = BlockStateBuffer.GetBuffer();
     SDL_BindGPUComputePipeline(computePass, RayTracePipeline);
     SDL_BindGPUComputeStorageTextures(computePass, 0, readTextures, 2);
-    SDL_BindGPUComputeStorageBuffers(computePass, 0, readBuffers, 2);
+    SDL_BindGPUComputeStorageBuffers(computePass, 0, readBuffers, 3);
     SDL_DispatchGPUCompute(computePass, groupsX, groupsY, 1);
     SDL_EndGPUComputePass(computePass);
 }
 
 void World::SetBlock(glm::ivec3 position, Block block)
 {
-    position.x -= State->X * Chunk::kWidth;
-    position.z -= State->Z * Chunk::kWidth;
+    position.x -= WorldStateBuffer->X * Chunk::kWidth;
+    position.z -= WorldStateBuffer->Z * Chunk::kWidth;
     glm::ivec2 chunk = {position.x, position.z};
     chunk.x = FloorChunkIndex(chunk.x);
     chunk.y = FloorChunkIndex(chunk.y);
