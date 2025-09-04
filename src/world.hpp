@@ -78,6 +78,7 @@ public:
     void Render(SDL_GPUCommandBuffer* commandBuffer, SDL_GPUTexture* colorTexture, Camera& camera);
     void SetBlock(glm::ivec3 position, Block block);
     Block GetBlock(glm::ivec3 position) const;
+    Block Raycast(glm::vec3& position, const glm::vec3& vector, float length);
 
 private:
     void WorldToLocalPosition(glm::ivec3& position) const;
@@ -95,7 +96,6 @@ private:
     StaticBuffer<BlockState> BlockStateBuffer;
     SDL_GPUTexture* BlockTexture;
     SDL_GPUTexture* ChunkTexture;
-    SDL_GPUTexture* AtlasTexture;
     SDL_GPUComputePipeline* WorldSetBlocksPipeline;
     SDL_GPUComputePipeline* WorldSetChunksPipeline;
     SDL_GPUComputePipeline* WorldClearBlocksPipeline;

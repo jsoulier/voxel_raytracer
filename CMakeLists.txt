@@ -12,13 +12,13 @@ make_directory(${BINARY_DIR})
 
 configure_file(LICENSE.txt ${BINARY_DIR} COPYONLY)
 configure_file(README.md ${BINARY_DIR} COPYONLY)
-configure_file(textures/atlas.png ${BINARY_DIR} COPYONLY)
 
 set(GLM_BUILD_LIBRARY OFF)
 add_subdirectory(lib/FastNoiseLite)
 add_subdirectory(lib/SDL)
 add_subdirectory(lib/Tracy)
 add_subdirectory(lib/glm)
+add_subdirectory(lib/imgui)
 add_subdirectory(lib/json)
 add_subdirectory(lib/sqlite3)
 add_subdirectory(lib/stb)
@@ -38,12 +38,14 @@ target_link_libraries(voxel_ray_tracer PRIVATE
     FastNoiseLite
     SDL3::SDL3
     glm
+    imgui
     nlohmann_json
     sqlite3
     stb
 )
 set_target_properties(voxel_ray_tracer PROPERTIES CXX_STANDARD 23)
 target_precompile_headers(voxel_ray_tracer PRIVATE
+    <array>
     <algorithm>
     <cmath>
     <cstdint>
@@ -52,12 +54,17 @@ target_precompile_headers(voxel_ray_tracer PRIVATE
     <format>
     <fstream>
     <glm/glm.hpp>
+    <glm/gtc/constants.hpp>
+    <imgui.h>
+    <imgui_impl_sdl3.h>
+    <imgui_impl_sdlgpu3.h>
     <iterator>
     <limits>
     <nlohmann/json.hpp>
     <string>
     <string_view>
     <utility>
+    <vector>
 )
 
 function(add_shader FILE)

@@ -1,5 +1,8 @@
 #include <SDL3/SDL.h>
 #include <SDL3/SDL_main.h>
+#include <imgui.h>
+#include <imgui_impl_sdl3.h>
+#include <imgui_impl_sdlgpu3.h>
 
 #include <cstdint>
 
@@ -23,6 +26,7 @@ static World world;
 static uint64_t time1;
 static uint64_t time2;
 static float dt;
+static bool focus;
 
 static bool Init()
 {
@@ -76,6 +80,15 @@ static bool Init()
     SDL_ShowWindow(window);
     SDL_SetWindowResizable(window, true);
     SDL_FlashWindow(window, SDL_FLASH_BRIEFLY);
+    {
+        IMGUI_CHECKVERSION();
+        ImGui::CreateContext();
+        ImGui_ImplSDL3_InitForSDLGPU(window);
+        ImGui_ImplSDLGPU3_InitInfo info{};
+        info.Device = device;
+        info.ColorTargetFormat = SDL_GetGPUSwapchainTextureFormat(device, window);
+        ImGui_ImplSDLGPU3_Init(&info);
+    }
     return true;
 }
 
@@ -83,6 +96,9 @@ static void Quit()
 {
     Profile();
     SDL_HideWindow(window);
+    ImGui_ImplSDLGPU3_Shutdown();
+    ImGui_ImplSDL3_Shutdown();
+    ImGui::DestroyContext();
     camera.Destroy(device);
     world.Destroy();
     SDL_ReleaseGPUTexture(device, colorTexture);
@@ -98,6 +114,7 @@ static bool Poll()
     SDL_Event event;
     while (SDL_PollEvent(&event))
     {
+        ImGui_ImplSDL3_ProcessEvent(&event);
         switch (event.type)
         {
         case SDL_EVENT_QUIT:
@@ -107,7 +124,7 @@ static bool Poll()
             {
                 if (!SDL_GetWindowRelativeMouseMode(window))
                 {
-                    SDL_SetWindowRelativeMouseMode(window, true);
+                    focus = true;
                 }
             }
             break;
@@ -137,7 +154,7 @@ static bool Poll()
                     SDL_SetWindowFullscreen(window, true);
                     if (!SDL_GetWindowRelativeMouseMode(window))
                     {
-                        SDL_SetWindowRelativeMouseMode(window, true);
+                        focus = true;
                     }
                 }
             }
@@ -242,6 +259,22 @@ static void Render()
         SDL_SubmitGPUCommandBuffer(commandBuffer);
         return;
     }
+    {
+        ProfileBlock("Render::PrepareImGui");
+        ImGuiIO& io = ImGui::GetIO();
+        io.DisplaySize.x = width;
+        io.DisplaySize.y = height;
+        ImGui_ImplSDLGPU3_NewFrame();
+        ImGui::NewFrame();
+        ImGui::ShowDemoWindow();
+        if (focus && !ImGui::IsWindowHovered(ImGuiHoveredFlags_AnyWindow | ImGuiHoveredFlags_AllowWhenBlockedByActiveItem))
+        {
+            SDL_SetWindowRelativeMouseMode(window, true);
+        }
+        focus = false;
+        ImGui::Render();
+        ImGui_ImplSDLGPU3_PrepareDrawData(ImGui::GetDrawData(), commandBuffer);
+    }
     camera.Upload(device, commandBuffer);
     world.Dispatch(commandBuffer);
     world.Render(commandBuffer, colorTexture, camera);
@@ -256,6 +289,22 @@ static void Render()
         info.destination.w = swapchainWidth;
         info.destination.h = swapchainHeight;
         SDL_BlitGPUTexture(commandBuffer, &info);
+    }
+    {
+        ProfileBlock("Render::RenderImGui");
+        SDL_GPUColorTargetInfo info{};
+        info.texture = swapchainTexture;
+        info.load_op = SDL_GPU_LOADOP_LOAD;
+        info.store_op = SDL_GPU_STOREOP_STORE;
+        SDL_GPURenderPass* renderPass = SDL_BeginGPURenderPass(commandBuffer, &info, 1, nullptr);
+        if (!renderPass)
+        {
+            SDL_Log("Failed to begin render pass: %s", SDL_GetError());
+            SDL_SubmitGPUCommandBuffer(commandBuffer);
+            return;
+        }
+        ImGui_ImplSDLGPU3_RenderDrawData(ImGui::GetDrawData(), commandBuffer, renderPass);
+        SDL_EndGPURenderPass(renderPass);
     }
     SDL_SubmitGPUCommandBuffer(commandBuffer);
 }

@@ -159,12 +159,6 @@ bool World::Init(SDL_GPUDevice* device)
             ChunkMap[x][z] = {x, z};
             SetChunksBuffer.Emplace(device, x, z, x, z);
         }
-        AtlasTexture = LoadTexture(Device, "atlas.png");
-        if (!AtlasTexture)
-        {
-            SDL_Log("Failed to load atlas texture");
-            return false;
-        }
         SDL_GPUCommandBuffer* commandBuffer = SDL_AcquireGPUCommandBuffer(device);
         if (!commandBuffer)
         {
@@ -190,7 +184,6 @@ void World::Destroy()
     SDL_ReleaseGPUComputePipeline(Device, WorldClearBlocksPipeline);
     SDL_ReleaseGPUTexture(Device, ChunkTexture);
     SDL_ReleaseGPUTexture(Device, BlockTexture);
-    SDL_ReleaseGPUTexture(Device, AtlasTexture);
 }
 
 void World::Update(Camera& camera)
@@ -417,4 +410,9 @@ Block World::GetBlock(glm::ivec3 position) const
 {
     WorldToLocalPosition(position);
     return Blocks[position.x][position.y][position.z];
+}
+
+Block World::Raycast(glm::vec3& position, const glm::vec3& vector, float length)
+{
+    return {};
 }
