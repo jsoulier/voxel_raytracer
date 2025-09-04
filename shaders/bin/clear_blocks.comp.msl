@@ -8,38 +8,37 @@ struct type_UniformBuffer
     int2 Position;
 };
 
-kernel void main0(constant type_UniformBuffer& UniformBuffer [[buffer(0)]], texture2d<uint> chunks [[texture(0)]], texture3d<uint, access::write> blocks [[texture(1)]], uint3 gl_GlobalInvocationID [[thread_position_in_grid]])
+kernel void main0(constant type_UniformBuffer& UniformBuffer [[buffer(0)]], texture3d<uint, access::write> blocks [[texture(0)]], uint3 gl_GlobalInvocationID [[thread_position_in_grid]])
 {
     do
     {
-        bool _154;
+        bool _140;
         if (!(gl_GlobalInvocationID.x >= 32u))
         {
-            _154 = gl_GlobalInvocationID.y >= 128u;
+            _140 = gl_GlobalInvocationID.y >= 128u;
+        }
+        else
+        {
+            _140 = true;
+        }
+        bool _154;
+        if (!_140)
+        {
+            _154 = gl_GlobalInvocationID.z >= 32u;
         }
         else
         {
             _154 = true;
         }
-        bool _168;
-        if (!_154)
-        {
-            _168 = gl_GlobalInvocationID.z >= 32u;
-        }
-        else
-        {
-            _168 = true;
-        }
-        if (_168)
+        if (_154)
         {
             break;
         }
-        int3 _175 = int3(gl_GlobalInvocationID);
-        uint2 _183 = uint2(UniformBuffer.Position);
-        int3 _201 = _175;
-        _201.x = int(uint(_175.x) + (chunks.read(uint2(_183), 0u).x * 32u));
-        _201.z = int(uint(_175.z) + (chunks.read(uint2(_183), 0u).y * 32u));
-        blocks.write(uint4(0u), uint3(uint3(_201)));
+        int3 _161 = int3(gl_GlobalInvocationID);
+        int3 _175 = _161;
+        _175.x = _161.x + (UniformBuffer.Position.x * 32);
+        _175.z = _161.z + (UniformBuffer.Position.y * 32);
+        blocks.write(uint4(0u), uint3(uint3(_175)));
         break;
     } while(false);
 }

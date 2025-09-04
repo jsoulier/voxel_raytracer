@@ -11,6 +11,8 @@
 #include "chunk.hpp"
 #include "config.h"
 
+class World;
+
 struct WorldSetBlockJob
 {
     WorldSetBlockJob(const glm::ivec3& position, Block block);
@@ -41,8 +43,26 @@ struct WorldState
 static_assert(sizeof(WorldSetBlockJob) == 8);;
 static_assert(sizeof(WorldSetChunkJob) == 4);;
 
+class WorldProxy
+{
+private:
+    using Job = WorldSetBlockJob;
+
+public:
+    WorldProxy(World& Handle, DynamicBuffer<Job>& buffer, int chunkX, int chunkZ);
+    void SetBlock(glm::ivec3 position, Block block);
+
+    World& Handle;
+    DynamicBuffer<Job>& Buffer;
+    int X;
+    int Z;
+};
+
 class World
 {
+private:
+    friend class WorldProxy;
+
 public:
     static constexpr int kWidth = WORLD_WIDTH;
 
@@ -57,6 +77,11 @@ public:
     void Dispatch(SDL_GPUCommandBuffer* commandBuffer);
     void Render(SDL_GPUCommandBuffer* commandBuffer, SDL_GPUTexture* colorTexture, Camera& camera);
     void SetBlock(glm::ivec3 position, Block block);
+    Block GetBlock(glm::ivec3 position) const;
+
+private:
+    void WorldToLocalPosition(glm::ivec3& position) const;
+    bool ValidLocalPosition(const glm::ivec3& position) const;
 
 private:
     SDL_GPUDevice* Device;

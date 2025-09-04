@@ -10,7 +10,7 @@
 #include "world.hpp"
 
 // TODO: avoid using SetBlock and have a fast path that precalculates the chunk
-void NoiseSetChunk(World& world, int chunkX, int chunkZ)
+void NoiseSetChunk(WorldProxy& proxy, int chunkX, int chunkZ)
 {
     Profile();
     FastNoiseLite noise;
@@ -27,19 +27,23 @@ void NoiseSetChunk(World& world, int chunkX, int chunkZ)
         height = std::clamp(height, 1, Chunk::kHeight);
         for (int y = 0; y < std::min(height, kWaterLevel); y++)
         {
-            world.SetBlock({x, y, z}, BlockWater);
+            proxy.SetBlock({i, y, j}, BlockWater);
         }
         for (int y = kWaterLevel; y < std::min(height, kSandLevel); y++)
         {
-            world.SetBlock({x, y, z}, BlockSand);
+            proxy.SetBlock({i, y, j}, BlockSand);
         }
         for (int y = kSandLevel; y < height; y++)
         {
-            world.SetBlock({x, y, z}, BlockDirt);
+            proxy.SetBlock({i, y, j}, BlockDirt);
         }
         if (height > kSandLevel)
         {
-            world.SetBlock({x, height, z}, BlockGrass);
+            proxy.SetBlock({i, height, j}, BlockGrass);
+        }
+        for (int y = height + 1; y < Chunk::kHeight; y++)
+        {
+            proxy.SetBlock({i, height, j}, BlockAir);
         }
     }
 }

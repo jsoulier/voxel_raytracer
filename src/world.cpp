@@ -13,9 +13,9 @@
 #include "profile.hpp"
 #include "world.hpp"
 
-static int FloorChunkIndex(int index)
+static int FloorChunkIndex(float index)
 {
-    return std::floorf(float(index) / float(Chunk::kWidth));
+    return std::floorf(index / Chunk::kWidth);
 }
 
 static void TestFloorChunkIndex()
@@ -46,6 +46,25 @@ WorldSetChunkJob::WorldSetChunkJob(int inX, int inZ, int outX, int outZ)
 {
 }
 
+WorldProxy::WorldProxy(World& handle, DynamicBuffer<Job>& buffer, int chunkX, int chunkZ)
+    : Handle{handle}
+    , Buffer{buffer}
+    , X{chunkX * Chunk::kWidth}
+    , Z{chunkZ * Chunk::kWidth}
+{
+}
+
+void WorldProxy::SetBlock(glm::ivec3 position, Block block)
+{
+    position.x += X;
+    position.z += Z;
+    Handle.Blocks[position.x][position.y][position.z] = block;
+    if (block != BlockAir)
+    {
+        Buffer.Emplace(Handle.Device, position, block);
+    }
+}
+
 World::World()
     : Blocks{}
     , Chunks{}
@@ -64,7 +83,6 @@ bool World::Init(SDL_GPUDevice* device)
     Profile();
     Device = device;
     {
-        // TODO: need to zero out the textures
         ProfileBlock("World::Init::Textures");
         SDL_GPUTextureCreateInfo info{};
         info.format = SDL_GPU_TEXTUREFORMAT_R8_UINT;
@@ -239,8 +257,9 @@ void World::Update(Camera& camera)
         Chunk& chunk = Chunks[outX][outZ];
         if (chunk.GetFlags() & ChunkFlagsGenerate)
         {
-            ClearChunks.emplace_back(inX, inZ);
-            chunk.Generate(*this, WorldStateBuffer->X + inX, WorldStateBuffer->Z + inZ);
+            ClearChunks.emplace_back(outX, outZ);
+            WorldProxy proxy{*this, SetBlocksBuffer, outX, outZ};
+            chunk.Generate(proxy, WorldStateBuffer->X + inX, WorldStateBuffer->Z + inZ);
             return;
         }
     }
@@ -300,10 +319,7 @@ void World::Dispatch(SDL_GPUCommandBuffer* commandBuffer)
         }
         int groupsX = (Chunk::kWidth + CLEAR_BLOCKS_THREADS_X - 1) / CLEAR_BLOCKS_THREADS_X;
         int groupsY = (Chunk::kHeight + CLEAR_BLOCKS_THREADS_Y - 1) / CLEAR_BLOCKS_THREADS_Y;
-        SDL_GPUTexture* readTextures[1]{};
-        readTextures[0] = ChunkTexture;
         SDL_BindGPUComputePipeline(computePass, WorldClearBlocksPipeline);
-        SDL_BindGPUComputeStorageTextures(computePass, 0, readTextures, 1);
         for (glm::ivec2 position : ClearChunks)
         {
             SDL_PushGPUComputeUniformData(commandBuffer, 0, &position, sizeof(position));
@@ -364,18 +380,41 @@ void World::Render(SDL_GPUCommandBuffer* commandBuffer, SDL_GPUTexture* colorTex
     SDL_EndGPUComputePass(computePass);
 }
 
-void World::SetBlock(glm::ivec3 position, Block block)
+void World::WorldToLocalPosition(glm::ivec3& position) const
 {
     position.x -= WorldStateBuffer->X * Chunk::kWidth;
     position.z -= WorldStateBuffer->Z * Chunk::kWidth;
-    glm::ivec2 chunk = {position.x, position.z};
-    chunk.x = FloorChunkIndex(chunk.x);
-    chunk.y = FloorChunkIndex(chunk.y);
+    glm::ivec2 chunk;
+    chunk.x = FloorChunkIndex(position.x);
+    chunk.y = FloorChunkIndex(position.z);
     position.x -= chunk.x * Chunk::kWidth;
     position.z -= chunk.y * Chunk::kWidth;
     chunk = ChunkMap[chunk.x][chunk.y];
     position.x += chunk.x * Chunk::kWidth;
     position.z += chunk.y * Chunk::kWidth;
+    SDL_assert(ValidLocalPosition(position));
+}
+
+bool World::ValidLocalPosition(const glm::ivec3& position) const
+{
+    return
+        position.x >= 0 &&
+        position.y >= 0 &&
+        position.z >= 0 &&
+        position.x < Chunk::kWidth * World::kWidth &&
+        position.y < Chunk::kHeight &&
+        position.z < Chunk::kWidth * World::kWidth;
+}
+
+void World::SetBlock(glm::ivec3 position, Block block)
+{
+    WorldToLocalPosition(position);
     SetBlocksBuffer.Emplace(Device, position, block);
-    // TODO: set CPU-side blocks
+    Blocks[position.x][position.y][position.z] = block;
+}
+
+Block World::GetBlock(glm::ivec3 position) const
+{
+    WorldToLocalPosition(position);
+    return Blocks[position.x][position.y][position.z];
 }

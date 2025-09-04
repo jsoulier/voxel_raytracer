@@ -1,10 +1,11 @@
 #pragma once
 
 #include <cstdint>
+#include <functional>
 
 #include "config.h"
 
-class World;
+class WorldProxy;
 
 using ChunkFlags = uint32_t;
 static constexpr ChunkFlags ChunkFlagsNone = 0;
@@ -17,7 +18,7 @@ public:
     static constexpr int kHeight = CHUNK_HEIGHT;
 
     Chunk();
-    void Generate(World& world, int chunkX, int chunkZ);
+    void Generate(WorldProxy& proxy, int chunkX, int chunkZ);
     void AddFlags(ChunkFlags flags);
     ChunkFlags GetFlags() const;
 

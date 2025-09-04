@@ -6,7 +6,6 @@ cbuffer UniformBuffer : register(b0, space2)
     int2 Position;
 };
 
-Texture2D<uint2> chunks : register(t0, space0);
 [[vk::image_format("r8ui")]]
 RWTexture3D<uint> blocks : register(u0, space1);
 
@@ -18,7 +17,7 @@ void main(uint3 id : SV_DispatchThreadID)
         return;
     }
     int3 position = id;
-    position.x += chunks[Position].x * CHUNK_WIDTH;
-    position.z += chunks[Position].y * CHUNK_WIDTH;
+    position.x += Position.x * CHUNK_WIDTH;
+    position.z += Position.y * CHUNK_WIDTH;
     blocks[position] = kAir;
 }

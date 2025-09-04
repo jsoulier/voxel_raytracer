@@ -1,7 +1,7 @@
 #pragma once
 
 class Camera;
-class World;
+class WorldProxy;
 
 void NoiseSetCamera(Camera& camera);
-void NoiseSetChunk(World& world, int chunkX, int chunkZ);
+void NoiseSetChunk(WorldProxy& proxy, int chunkX, int chunkZ);
