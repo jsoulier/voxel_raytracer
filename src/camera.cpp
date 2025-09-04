@@ -97,6 +97,11 @@ const glm::vec3& Camera::GetPosition() const
     return State->Position;
 }
 
+const glm::vec3& Camera::GetDirection() const
+{
+    return State->Forward;
+}
+
 float Camera::GetWidth() const
 {
     return Width;

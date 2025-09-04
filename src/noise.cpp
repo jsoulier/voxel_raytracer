@@ -9,9 +9,9 @@
 #include "profile.hpp"
 #include "world.hpp"
 
-// TODO: avoid using SetBlock and have a fast path that precalculates the chunk
 void NoiseSetChunk(WorldProxy& proxy, int chunkX, int chunkZ)
 {
+    // NOTE: air is only explicitly set on the CPU 
     Profile();
     FastNoiseLite noise;
     noise.SetFrequency(0.02f);
@@ -37,13 +37,13 @@ void NoiseSetChunk(WorldProxy& proxy, int chunkX, int chunkZ)
         {
             proxy.SetBlock({i, y, j}, BlockDirt);
         }
-        if (height > kSandLevel)
-        {
-            proxy.SetBlock({i, height, j}, BlockGrass);
-        }
         for (int y = height + 1; y < Chunk::kHeight; y++)
         {
             proxy.SetBlock({i, height, j}, BlockAir);
+        }
+        if (height > kSandLevel)
+        {
+            proxy.SetBlock({i, height, j}, BlockGrass);
         }
     }
 }

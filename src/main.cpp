@@ -15,6 +15,7 @@
 static constexpr float kSpeed = 0.035f;
 static constexpr float kSensitivity = 0.001f;
 static constexpr float kWidth = 640.0f;
+static constexpr float kRaycast = 10.0f;
 
 static SDL_Window* window;
 static SDL_GPUDevice* device;
@@ -27,6 +28,7 @@ static uint64_t time1;
 static uint64_t time2;
 static float dt;
 static bool focus;
+static Block hitBlock;
 
 static bool Init()
 {
@@ -125,6 +127,11 @@ static bool Poll()
                 if (!SDL_GetWindowRelativeMouseMode(window))
                 {
                     focus = true;
+                }
+                else
+                {
+                    glm::vec3 position = camera.GetPosition();
+                    hitBlock = world.Raycast(position, camera.GetDirection(), kRaycast);
                 }
             }
             break;
@@ -266,12 +273,15 @@ static void Render()
         io.DisplaySize.y = height;
         ImGui_ImplSDLGPU3_NewFrame();
         ImGui::NewFrame();
-        ImGui::ShowDemoWindow();
-        if (focus && !ImGui::IsWindowHovered(ImGuiHoveredFlags_AnyWindow | ImGuiHoveredFlags_AllowWhenBlockedByActiveItem))
+        ImGui::BeginDisabled(SDL_GetWindowRelativeMouseMode(window));
+        ImGui::Text("Raycast: %s", BlockToString(hitBlock));
+        static constexpr int kFlags = ImGuiHoveredFlags_AnyWindow | ImGuiHoveredFlags_AllowWhenBlockedByActiveItem;
+        if (focus && !ImGui::IsWindowHovered(kFlags))
         {
             SDL_SetWindowRelativeMouseMode(window, true);
         }
         focus = false;
+        ImGui::EndDisabled();
         ImGui::Render();
         ImGui_ImplSDLGPU3_PrepareDrawData(ImGui::GetDrawData(), commandBuffer);
     }

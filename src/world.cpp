@@ -385,7 +385,6 @@ void World::WorldToLocalPosition(glm::ivec3& position) const
     chunk = ChunkMap[chunk.x][chunk.y];
     position.x += chunk.x * Chunk::kWidth;
     position.z += chunk.y * Chunk::kWidth;
-    SDL_assert(ValidLocalPosition(position));
 }
 
 bool World::ValidLocalPosition(const glm::ivec3& position) const
@@ -402,17 +401,89 @@ bool World::ValidLocalPosition(const glm::ivec3& position) const
 void World::SetBlock(glm::ivec3 position, Block block)
 {
     WorldToLocalPosition(position);
-    SetBlocksBuffer.Emplace(Device, position, block);
-    Blocks[position.x][position.y][position.z] = block;
+    if (ValidLocalPosition(position))
+    {
+        SetBlocksBuffer.Emplace(Device, position, block);
+        Blocks[position.x][position.y][position.z] = block;
+    }
+    else
+    {
+        SDL_Log("Bad block position: %d, %d, %d", position.x, position.y, position.z);
+    }
 }
 
 Block World::GetBlock(glm::ivec3 position) const
 {
     WorldToLocalPosition(position);
-    return Blocks[position.x][position.y][position.z];
+    if (ValidLocalPosition(position))
+    {
+        return Blocks[position.x][position.y][position.z];
+    }
+    else
+    {
+        SDL_Log("Bad block position: %d, %d, %d", position.x, position.y, position.z);
+        return BlockAir;
+    }
 }
 
-Block World::Raycast(glm::vec3& position, const glm::vec3& vector, float length)
+Block World::Raycast(glm::vec3& position, const glm::vec3& direction, float length)
 {
-    return {};
+    glm::ivec3 voxel = glm::floor(position);
+    glm::vec3 delta = glm::abs(1.0f / direction);
+    glm::ivec3 step;
+    glm::vec3 distance;
+    for (int i = 0; i < 3; i++)
+    {
+        if (direction[i] < 0.0f)
+        {
+            step[i] = -1;
+            distance[i] = (position[i] - voxel[i]) * delta[i];
+        }
+        else
+        {
+            step[i] = 1;
+            distance[i] = (voxel[i] + 1.0f - position[i]) * delta[i];
+        }
+    }
+    // TODO: travelled should be distance along the ray, not the axis
+    float travelled = 0.0f;
+    while (travelled <= length)
+    {
+        Block block = GetBlock(voxel);
+        if (block != BlockAir)
+        {
+            return block;
+        }
+        if (distance.x < distance.y)
+        {
+            if (distance.x < distance.z)
+            {
+                travelled = distance.x;
+                distance.x += delta.x;
+                voxel.x += step.x;
+            }
+            else
+            {
+                travelled = distance.z;
+                distance.z += delta.z;
+                voxel.z += step.z;
+            }
+        }
+        else
+        {
+            if (distance.y < distance.z)
+            {
+                travelled = distance.y;
+                distance.y += delta.y;
+                voxel.y += step.y;
+            }
+            else
+            {
+                travelled = distance.z;
+                distance.z += delta.z;
+                voxel.z += step.z;
+            }
+        }
+    }
+    return BlockAir;
 }

@@ -5,13 +5,18 @@
 
 #include "buffer.hpp"
 
+#define BLOCKS \
+    X(Air) \
+    X(Grass) \
+    X(Dirt) \
+    X(Sand) \
+    X(Water) \
+
 enum Block : uint8_t
 {
-    BlockAir,
-    BlockGrass,
-    BlockDirt,
-    BlockSand,
-    BlockWater,
+#define X(block) Block##block,
+    BLOCKS
+#undef X
     BlockCount,
 };
 
@@ -23,3 +28,4 @@ struct BlockProperty
 using BlockState = std::array<BlockProperty, BlockCount>;
 
 BlockState BlockGetState();
+const char* BlockToString(Block block);

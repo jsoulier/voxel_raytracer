@@ -35,3 +35,14 @@ BlockState BlockGetState()
 {
     return kBlocks;
 }
+
+const char* BlockToString(Block block)
+{
+    switch (block)
+    {
+#define X(block) case Block##block: return #block;
+    BLOCKS
+#undef X
+    }
+    return "?";
+}

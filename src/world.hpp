@@ -78,7 +78,7 @@ public:
     void Render(SDL_GPUCommandBuffer* commandBuffer, SDL_GPUTexture* colorTexture, Camera& camera);
     void SetBlock(glm::ivec3 position, Block block);
     Block GetBlock(glm::ivec3 position) const;
-    Block Raycast(glm::vec3& position, const glm::vec3& vector, float length);
+    Block Raycast(glm::vec3& position, const glm::vec3& direction, float length);
 
 private:
     void WorldToLocalPosition(glm::ivec3& position) const;

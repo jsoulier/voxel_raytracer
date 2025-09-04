@@ -31,6 +31,7 @@ public:
     SDL_GPUBuffer* GetBuffer() const;
     void SetPosition(const glm::vec3& position);
     const glm::vec3& GetPosition() const;
+    const glm::vec3& GetDirection() const;
     float GetWidth() const;
     float GetHeight() const;
 
