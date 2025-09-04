@@ -122,16 +122,32 @@ static bool Poll()
         case SDL_EVENT_QUIT:
             return false;
         case SDL_EVENT_MOUSE_BUTTON_DOWN:
-            if (event.button.button & SDL_BUTTON_LMASK)
+            if (event.button.button == SDL_BUTTON_LEFT)
             {
-                if (!SDL_GetWindowRelativeMouseMode(window))
+                if (SDL_GetWindowRelativeMouseMode(window))
                 {
-                    focus = true;
+                    WorldQuery query = world.Raycast(camera.GetPosition(), camera.GetDirection(), kRaycast);
+                    world.SetBlock(query.Position, BlockAir);
                 }
                 else
                 {
-                    glm::vec3 position = camera.GetPosition();
-                    hitBlock = world.Raycast(position, camera.GetDirection(), kRaycast);
+                    focus = true;
+                }
+            }
+            else if (event.button.button == SDL_BUTTON_RIGHT)
+            {
+                if (SDL_GetWindowRelativeMouseMode(window))
+                {
+                    WorldQuery query = world.Raycast(camera.GetPosition(), camera.GetDirection(), kRaycast);
+                    world.SetBlock(query.PreviousPosition, BlockDirt);
+                }
+            }
+            else if (event.button.button == SDL_BUTTON_MIDDLE)
+            {
+                if (SDL_GetWindowRelativeMouseMode(window))
+                {
+                    WorldQuery query = world.Raycast(camera.GetPosition(), camera.GetDirection(), kRaycast);
+                    hitBlock = query.HitBlock;
                 }
             }
             break;

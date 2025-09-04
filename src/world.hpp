@@ -40,8 +40,8 @@ struct WorldState
     int32_t Z;
 };
 
-static_assert(sizeof(WorldSetBlockJob) == 8);;
-static_assert(sizeof(WorldSetChunkJob) == 4);;
+static_assert(sizeof(WorldSetBlockJob) == 8);
+static_assert(sizeof(WorldSetChunkJob) == 4);
 
 class WorldProxy
 {
@@ -56,6 +56,13 @@ public:
     DynamicBuffer<Job>& Buffer;
     int X;
     int Z;
+};
+
+struct WorldQuery
+{
+    Block HitBlock;
+    glm::ivec3 Position;
+    glm::ivec3 PreviousPosition;
 };
 
 class World
@@ -78,7 +85,7 @@ public:
     void Render(SDL_GPUCommandBuffer* commandBuffer, SDL_GPUTexture* colorTexture, Camera& camera);
     void SetBlock(glm::ivec3 position, Block block);
     Block GetBlock(glm::ivec3 position) const;
-    Block Raycast(glm::vec3& position, const glm::vec3& direction, float length);
+    WorldQuery Raycast(const glm::vec3& position, const glm::vec3& direction, float length);
 
 private:
     void WorldToLocalPosition(glm::ivec3& position) const;

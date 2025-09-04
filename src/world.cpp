@@ -426,9 +426,11 @@ Block World::GetBlock(glm::ivec3 position) const
     }
 }
 
-Block World::Raycast(glm::vec3& position, const glm::vec3& direction, float length)
+WorldQuery World::Raycast(const glm::vec3& position, const glm::vec3& direction, float length)
 {
-    glm::ivec3 voxel = glm::floor(position);
+    WorldQuery query;
+    query.Position = glm::floor(position);
+    query.PreviousPosition = query.Position;
     glm::vec3 delta = glm::abs(1.0f / direction);
     glm::ivec3 step;
     glm::vec3 distance;
@@ -437,36 +439,38 @@ Block World::Raycast(glm::vec3& position, const glm::vec3& direction, float leng
         if (direction[i] < 0.0f)
         {
             step[i] = -1;
-            distance[i] = (position[i] - voxel[i]) * delta[i];
+            distance[i] = (position[i] - query.Position[i]) * delta[i];
         }
         else
         {
             step[i] = 1;
-            distance[i] = (voxel[i] + 1.0f - position[i]) * delta[i];
+            distance[i] = (query.Position[i] + 1.0f - position[i]) * delta[i];
         }
     }
     // TODO: travelled should be distance along the ray, not the axis
     float travelled = 0.0f;
     while (travelled <= length)
     {
-        Block block = GetBlock(voxel);
+        Block block = GetBlock(query.Position);
         if (block != BlockAir)
         {
-            return block;
+            query.HitBlock = block;
+            return query;
         }
+        query.PreviousPosition = query.Position;
         if (distance.x < distance.y)
         {
             if (distance.x < distance.z)
             {
                 travelled = distance.x;
                 distance.x += delta.x;
-                voxel.x += step.x;
+                query.Position.x += step.x;
             }
             else
             {
                 travelled = distance.z;
                 distance.z += delta.z;
-                voxel.z += step.z;
+                query.Position.z += step.z;
             }
         }
         else
@@ -475,15 +479,16 @@ Block World::Raycast(glm::vec3& position, const glm::vec3& direction, float leng
             {
                 travelled = distance.y;
                 distance.y += delta.y;
-                voxel.y += step.y;
+                query.Position.y += step.y;
             }
             else
             {
                 travelled = distance.z;
                 distance.z += delta.z;
-                voxel.z += step.z;
+                query.Position.z += step.z;
             }
         }
     }
-    return BlockAir;
+    query.HitBlock = BlockAir;
+    return query;
 }
