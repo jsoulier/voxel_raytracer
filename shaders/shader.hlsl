@@ -16,6 +16,7 @@ struct CameraState
     float Padding1;
     float3 Up;
     float Padding2;
+    float4x4 Matrix3D;
 };
 
 struct BlockState

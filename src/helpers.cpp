@@ -3,17 +3,17 @@
 #include <stb_image.h>
 
 #include <cstdint>
+#include <cstring>
 #include <exception>
 #include <filesystem>
 #include <format>
 #include <fstream>
 #include <iterator>
 #include <string>
-#include <string_view>
 
 #include "helpers.hpp"
 
-static void* LoadShaderInternal(SDL_GPUDevice* device, const std::string_view& name)
+static void* LoadShaderInternal(SDL_GPUDevice* device, const char* name)
 {
     SDL_GPUShaderFormat shaderFormat = SDL_GetGPUShaderFormats(device);
     const char* entrypoint;
@@ -68,7 +68,7 @@ static void* LoadShaderInternal(SDL_GPUDevice* device, const std::string_view& n
         return nullptr;
     }
     void* shader = nullptr;
-    if (name.contains(".comp"))
+    if (std::strstr(name, ".comp"))
     {
         SDL_GPUComputePipelineCreateInfo info{};
         info.num_samplers = json["samplers"];
@@ -97,7 +97,7 @@ static void* LoadShaderInternal(SDL_GPUDevice* device, const std::string_view& n
         info.code_size = shaderData.size();
         info.entrypoint = entrypoint;
         info.format = shaderFormat;
-        if (name.contains(".frag"))
+        if (std::strstr(name, ".frag"))
         {
             info.stage = SDL_GPU_SHADERSTAGE_FRAGMENT;
         }
@@ -109,23 +109,23 @@ static void* LoadShaderInternal(SDL_GPUDevice* device, const std::string_view& n
     }
     if (!shader)
     {
-        SDL_Log("Failed to create shader: %s, %s", name.data(), SDL_GetError());
+        SDL_Log("Failed to create shader: %s, %s", name, SDL_GetError());
         return nullptr;
     }
     return shader;
 }
 
-SDL_GPUShader* LoadShader(SDL_GPUDevice* device, const std::string_view& name)
+SDL_GPUShader* LoadShader(SDL_GPUDevice* device, const char* name)
 {
     return static_cast<SDL_GPUShader*>(LoadShaderInternal(device, name));
 }
 
-SDL_GPUComputePipeline* LoadComputePipeline(SDL_GPUDevice* device, const std::string_view& name)
+SDL_GPUComputePipeline* LoadComputePipeline(SDL_GPUDevice* device, const char* name)
 {
     return static_cast<SDL_GPUComputePipeline*>(LoadShaderInternal(device, name));
 }
 
-SDL_GPUTexture* LoadTexture(SDL_GPUDevice* device, const std::string_view& name)
+SDL_GPUTexture* LoadTexture(SDL_GPUDevice* device, const char* name)
 {
     std::filesystem::path path = SDL_GetBasePath();
     path /= name;

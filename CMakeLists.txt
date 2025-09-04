@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.24)
-project(voxel_ray_tracer)
+project(glowstone)
 
 set(BINARY_DIR ${CMAKE_BINARY_DIR}/bin)
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${BINARY_DIR})
@@ -23,17 +23,15 @@ add_subdirectory(lib/json)
 add_subdirectory(lib/sqlite3)
 add_subdirectory(lib/stb)
 
-add_executable(voxel_ray_tracer WIN32
+add_executable(glowstone WIN32
     src/block.cpp
     src/camera.cpp
     src/chunk.cpp
-    src/debug_group.cpp
     src/helpers.cpp
     src/main.cpp
-    src/noise.cpp
     src/world.cpp
 )
-target_link_libraries(voxel_ray_tracer PRIVATE
+target_link_libraries(glowstone PRIVATE
     $<$<CONFIG:Debug>:TracyClient>
     FastNoiseLite
     SDL3::SDL3
@@ -43,8 +41,8 @@ target_link_libraries(voxel_ray_tracer PRIVATE
     sqlite3
     stb
 )
-set_target_properties(voxel_ray_tracer PROPERTIES CXX_STANDARD 23)
-target_precompile_headers(voxel_ray_tracer PRIVATE
+set_target_properties(glowstone PROPERTIES CXX_STANDARD 23)
+target_precompile_headers(glowstone PRIVATE
     <array>
     <algorithm>
     <cmath>
@@ -55,6 +53,7 @@ target_precompile_headers(voxel_ray_tracer PRIVATE
     <fstream>
     <glm/glm.hpp>
     <glm/gtc/constants.hpp>
+    <glm/gtc/matrix_transform.hpp>
     <imgui.h>
     <imgui_impl_sdl3.h>
     <imgui_impl_sdlgpu3.h>
@@ -89,7 +88,7 @@ function(add_shader FILE)
         string(REPLACE . _ NAME ${NAME})
         set(NAME compile_${NAME})
         add_custom_target(${NAME} DEPENDS ${OUTPUT})
-        add_dependencies(voxel_ray_tracer ${NAME})
+        add_dependencies(glowstone ${NAME})
     endfunction()
     if (MSVC)
         compile(${SPV})
@@ -110,7 +109,7 @@ function(add_shader FILE)
         string(REPLACE . _ NAME ${NAME})
         set(NAME package_${NAME})
         add_custom_target(${NAME} DEPENDS ${BINARY})
-        add_dependencies(voxel_ray_tracer ${NAME})
+        add_dependencies(glowstone ${NAME})
     endfunction()
     if(APPLE)
         package(${MSL})

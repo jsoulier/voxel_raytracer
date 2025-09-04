@@ -15,6 +15,7 @@ struct CameraState
     float Padding1;
     glm::vec3 Up;
     float Padding2;
+    glm::mat4 Matrix3D;
 };
 
 class Camera

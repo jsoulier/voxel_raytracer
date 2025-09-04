@@ -7,9 +7,7 @@
 #include <cstdint>
 
 #include "camera.hpp"
-#include "debug_group.hpp"
-#include "noise.hpp"
-#include "profile.hpp"
+#include "helpers.hpp"
 #include "world.hpp"
 
 static constexpr float kSpeed = 0.035f;
@@ -28,7 +26,7 @@ static uint64_t time1;
 static uint64_t time2;
 static float dt;
 static bool focus;
-static Block hitBlock;
+static WorldQuery hitQuery;
 
 static bool Init()
 {
@@ -36,13 +34,13 @@ static bool Init()
 #ifndef NDEBUG
     SDL_SetLogPriorities(SDL_LOG_PRIORITY_VERBOSE);
 #endif
-    SDL_SetAppMetadata("Voxel Ray Tracer", nullptr, nullptr);
+    SDL_SetAppMetadata("Glowstone", nullptr, nullptr);
     if (!SDL_Init(SDL_INIT_VIDEO))
     {
         SDL_Log("Failed to initialize SDL: %s", SDL_GetError());
         return false;
     }
-    window = SDL_CreateWindow("Voxel Ray Tracer", 960, 720, SDL_WINDOW_HIDDEN);
+    window = SDL_CreateWindow("Glowstone", 960, 720, SDL_WINDOW_HIDDEN);
     if (!window)
     {
         SDL_Log("Failed to create window: %s", SDL_GetError());
@@ -83,6 +81,7 @@ static bool Init()
     SDL_SetWindowResizable(window, true);
     SDL_FlashWindow(window, SDL_FLASH_BRIEFLY);
     {
+        ProfileBlock("Init::ImGui");
         IMGUI_CHECKVERSION();
         ImGui::CreateContext();
         ImGui_ImplSDL3_InitForSDLGPU(window);
@@ -127,7 +126,10 @@ static bool Poll()
                 if (SDL_GetWindowRelativeMouseMode(window))
                 {
                     WorldQuery query = world.Raycast(camera.GetPosition(), camera.GetDirection(), kRaycast);
-                    world.SetBlock(query.Position, BlockAir);
+                    if (query.HitBlock != BlockAir)
+                    {
+                        world.SetBlock(query.Position, BlockAir);
+                    }
                 }
                 else
                 {
@@ -139,15 +141,10 @@ static bool Poll()
                 if (SDL_GetWindowRelativeMouseMode(window))
                 {
                     WorldQuery query = world.Raycast(camera.GetPosition(), camera.GetDirection(), kRaycast);
-                    world.SetBlock(query.PreviousPosition, BlockDirt);
-                }
-            }
-            else if (event.button.button == SDL_BUTTON_MIDDLE)
-            {
-                if (SDL_GetWindowRelativeMouseMode(window))
-                {
-                    WorldQuery query = world.Raycast(camera.GetPosition(), camera.GetDirection(), kRaycast);
-                    hitBlock = query.HitBlock;
+                    if (query.HitBlock != BlockAir)
+                    {
+                        world.SetBlock(query.PreviousPosition, BlockDirt);
+                    }
                 }
             }
             break;
@@ -221,6 +218,7 @@ static void Update()
         dy *= speed;
         dz *= speed;
         camera.Move(dx, dy, dz);
+        hitQuery = world.Raycast(camera.GetPosition(), camera.GetDirection(), kRaycast);
     }
     world.Update(camera);
 }
@@ -284,13 +282,29 @@ static void Render()
     }
     {
         ProfileBlock("Render::PrepareImGui");
+        DebugGroupBlock(commandBuffer, "Render::PrepareImGui");
         ImGuiIO& io = ImGui::GetIO();
         io.DisplaySize.x = width;
         io.DisplaySize.y = height;
         ImGui_ImplSDLGPU3_NewFrame();
         ImGui::NewFrame();
+        // TODO: scale
+        static constexpr int kCrosshairWidth = 16;
+        static constexpr int kCrosshairThickness = 4;
+        static constexpr ImU32 kCrosshairColor = IM_COL32(255, 255, 255, 255);
+        int centerX = width / 2;
+        int centerY = height / 2;
+        ImDrawList* drawList = ImGui::GetForegroundDrawList();
+        drawList->AddRectFilled(
+            ImVec2(centerX - kCrosshairWidth / 2, centerY - kCrosshairThickness / 2),
+            ImVec2(centerX + kCrosshairWidth / 2, centerY + kCrosshairThickness / 2),
+            kCrosshairColor);
+        drawList->AddRectFilled(
+            ImVec2(centerX - kCrosshairThickness / 2, centerY - kCrosshairWidth / 2),
+            ImVec2(centerX + kCrosshairThickness / 2, centerY + kCrosshairWidth / 2),
+            kCrosshairColor);
         ImGui::BeginDisabled(SDL_GetWindowRelativeMouseMode(window));
-        ImGui::Text("Raycast: %s", BlockToString(hitBlock));
+        ImGui::Text("Raycast: %s", BlockToString(hitQuery.HitBlock));
         static constexpr int kFlags = ImGuiHoveredFlags_AnyWindow | ImGuiHoveredFlags_AllowWhenBlockedByActiveItem;
         if (focus && !ImGui::IsWindowHovered(kFlags))
         {
@@ -306,7 +320,7 @@ static void Render()
     world.Render(commandBuffer, colorTexture, camera);
     {
         ProfileBlock("Render::Blit");
-        DebugGroup(commandBuffer);
+        DebugGroupBlock(commandBuffer, "Render::Blit");
         SDL_GPUBlitInfo info{};
         info.source.texture = colorTexture;
         info.source.w = camera.GetWidth();
@@ -318,6 +332,7 @@ static void Render()
     }
     {
         ProfileBlock("Render::RenderImGui");
+        DebugGroupBlock(commandBuffer, "Render::RenderImGui");
         SDL_GPUColorTargetInfo info{};
         info.texture = swapchainTexture;
         info.load_op = SDL_GPU_LOADOP_LOAD;

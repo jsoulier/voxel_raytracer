@@ -4,7 +4,6 @@
 
 static constexpr BlockState kBlocks =
 {
-    // TODO: need at least 1 member with BlockProperty to deduce the initializer?
     BlockProperty
     // air
     {

@@ -5,7 +5,7 @@
             "name": "gltf",
             "type": "cppvsdbg",
             "request": "launch",
-            "program": "${workspaceFolder}/build/bin/voxel_ray_tracer.exe",
+            "program": "${workspaceFolder}/build/bin/glowstone.exe",
             "cwd": "${workspaceFolder}",
             "preLaunchTask": "CMake: build"
         },

@@ -1,3 +1,3 @@
-# Voxel Ray Tracer
+# Glowstone
 
 WIP

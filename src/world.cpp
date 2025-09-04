@@ -8,9 +8,7 @@
 #include "camera.hpp"
 #include "chunk.hpp"
 #include "config.h"
-#include "debug_group.hpp"
 #include "helpers.hpp"
-#include "profile.hpp"
 #include "world.hpp"
 
 static int FloorChunkIndex(float index)
