@@ -12,6 +12,12 @@
     X(Sand) \
     X(Water) \
     X(RedLight) \
+    X(GreenLight) \
+    X(BlueLight) \
+    X(CyanLight) \
+    X(MagentaLight) \
+    X(YellowLight) \
+    X(WhiteLight) \
 
 enum Block : uint8_t
 {

@@ -10,7 +10,7 @@
 #include "helpers.hpp"
 #include "world.hpp"
 
-static constexpr float kSpeed = 0.035f;
+static constexpr float kSpeed = 0.000000035f;
 static constexpr float kSensitivity = 0.001f;
 static constexpr float kWidth = 640.0f;
 static constexpr float kRaycast = 10.0f;
@@ -327,6 +327,7 @@ static void Render()
         }
         focus = false;
         int value = int(block) - BlockFirst;
+        ImGui::Text("Delta Time: %f ms", dt / 1000000.0f);
         if (ImGui::Combo("Block", &value, BlockGetStrings() + BlockFirst, BlockCount - BlockFirst))
         {
             block = Block(value + BlockFirst);
@@ -378,12 +379,12 @@ int main(int argc, char** argv)
     {
         return 1;
     }
-    time2 = SDL_GetTicks();
+    time2 = SDL_GetTicksNS();
     time1 = time2;
     while (true)
     {
         ProfileBlock("main::Loop");
-        time2 = SDL_GetTicks();
+        time2 = SDL_GetTicksNS();
         dt = time2 - time1;
         time1 = time2;
         if (!Poll())

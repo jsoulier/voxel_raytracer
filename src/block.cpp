@@ -13,31 +13,67 @@ static constexpr BlockState kBlocks =
     },
     // grass
     {
-        .Color = 0x00FF00FF,
-        .Light = 0.1f,
+        .Color = 0x33CC33FF,
+        .Light = 0.0f,
         .Roughness = 1.0f,
     },
     // dirt
     {
-        .Color = 0xA52A2AFF,
-        .Light = 0.1f,
+        .Color = 0x8B5A2BFF,
+        .Light = 0.0f,
         .Roughness = 1.0f,
     },
     // sand
     {
-        .Color = 0xFFFF00FF,
-        .Light = 0.1f,
+        .Color = 0xFFF5B1FF,
+        .Light = 0.0f,
         .Roughness = 1.0f,
     },
     // water
     {
-        .Color = 0x0000FFFF,
-        .Light = 0.1f,
+        .Color = 0x3399FFFF,
+        .Light = 0.0f,
         .Roughness = 1.0f,
     },
     // red light
     {
         .Color = 0xFF0000FF,
+        .Light = 1.0f,
+        .Roughness = 0.0f,
+    },
+    // green light
+    {
+        .Color = 0x00FF00FF,
+        .Light = 1.0f,
+        .Roughness = 0.0f,
+    },
+    // blue light
+    {
+        .Color = 0x0000FFFF,
+        .Light = 1.0f,
+        .Roughness = 0.0f,
+    },
+    // cyan light
+    {
+        .Color = 0x00FFFFFF,
+        .Light = 1.0f,
+        .Roughness = 0.0f,
+    },
+    // magenta light
+    {
+        .Color = 0xFF00FFFF,
+        .Light = 1.0f,
+        .Roughness = 0.0f,
+    },
+    // yellow light
+    {
+        .Color = 0xFFFF00FF,
+        .Light = 1.0f,
+        .Roughness = 0.0f,
+    },
+    // white light
+    {
+        .Color = 0xFFFFFFFF,
         .Light = 1.0f,
         .Roughness = 0.0f,
     },
