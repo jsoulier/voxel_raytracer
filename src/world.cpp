@@ -445,8 +445,8 @@ WorldQuery World::Raycast(const glm::vec3& position, const glm::vec3& direction,
             distance[i] = (query.Position[i] + 1.0f - position[i]) * delta[i];
         }
     }
-    float travelled = 0.0f;
-    while (travelled <= length)
+    float traveled = 0.0f;
+    while (traveled <= length)
     {
         Block block = GetBlock(query.Position);
         if (block != BlockAir)
@@ -459,13 +459,13 @@ WorldQuery World::Raycast(const glm::vec3& position, const glm::vec3& direction,
         {
             if (distance.x < distance.z)
             {
-                travelled = distance.x;
+                traveled = distance.x;
                 distance.x += delta.x;
                 query.Position.x += step.x;
             }
             else
             {
-                travelled = distance.z;
+                traveled = distance.z;
                 distance.z += delta.z;
                 query.Position.z += step.z;
             }
@@ -474,13 +474,13 @@ WorldQuery World::Raycast(const glm::vec3& position, const glm::vec3& direction,
         {
             if (distance.y < distance.z)
             {
-                travelled = distance.y;
+                traveled = distance.y;
                 distance.y += delta.y;
                 query.Position.y += step.y;
             }
             else
             {
-                travelled = distance.z;
+                traveled = distance.z;
                 distance.z += delta.z;
                 query.Position.z += step.z;
             }

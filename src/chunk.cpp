@@ -40,10 +40,9 @@ void Chunk::Generate(WorldProxy& proxy, int chunkX, int chunkZ)
         {
             proxy.SetBlock({i, y, j}, BlockDirt);
         }
-        // TODO: would a memcpy be faster to zero the chunk?
-        for (int y = height + 1; y < Chunk::kHeight; y++)
+        for (int y = height; y < Chunk::kHeight; y++)
         {
-            proxy.SetBlock({i, height, j}, BlockAir);
+            proxy.SetBlock({i, y, j}, BlockAir);
         }
         if (height > kSandLevel)
         {
