@@ -18,6 +18,7 @@
     X(MagentaLight) \
     X(YellowLight) \
     X(WhiteLight) \
+    X(Steel) \
 
 enum Block : uint8_t
 {

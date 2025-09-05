@@ -15,7 +15,7 @@ static constexpr BlockState kBlocks =
     {
         .Color = 0x33CC33FF,
         .Light = 0.0f,
-        .Roughness = 1.0f,
+        .Roughness = 0.8f,
     },
     // dirt
     {
@@ -33,7 +33,7 @@ static constexpr BlockState kBlocks =
     {
         .Color = 0x3399FFFF,
         .Light = 0.0f,
-        .Roughness = 1.0f,
+        .Roughness = 0.2f,
     },
     // red light
     {
@@ -76,6 +76,12 @@ static constexpr BlockState kBlocks =
         .Color = 0xFFFFFFFF,
         .Light = 1.0f,
         .Roughness = 0.0f,
+    },
+    // steel
+    {
+        .Color = 0xCCCCCCFF,
+        .Light = 0.0f,
+        .Roughness = 0.1f,
     },
 };
 

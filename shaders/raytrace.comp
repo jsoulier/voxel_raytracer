@@ -185,8 +185,10 @@ void main(uint3 id : SV_DispatchThreadID)
         float3 emission = albedo * block.Light;
         radiance += throughput * emission;
         throughput *= albedo;
+        float3 reflected = reflect(direction, query.Normal);
+        float3 diffuse = RandomHemisphere(query.Normal, id.x + id.y * width + bounce);
+        direction = normalize(lerp(reflected, diffuse, block.Roughness));
         origin = query.Position + query.Normal * 0.001f;
-        direction = RandomHemisphere(query.Normal, id.x + id.y * width + bounce);
 #elif DEBUG == 1
         float3 color = 0.0f;
         if (query.Normal.x == 1.0f)
