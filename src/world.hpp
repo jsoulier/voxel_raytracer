@@ -89,7 +89,7 @@ public:
 
 private:
     bool ValidLocalPosition(const glm::ivec3& position) const;
-    void WorldToLocalPosition(glm::ivec3& position) const;
+    bool WorldToLocalPosition(glm::ivec3& position) const;
 
 private:
     SDL_GPUDevice* Device;
@@ -103,8 +103,15 @@ private:
     StaticBuffer<BlockState> BlockStateBuffer;
     SDL_GPUTexture* BlockTexture;
     SDL_GPUTexture* ChunkTexture;
+    SDL_GPUTexture* ColorTexture;
     SDL_GPUComputePipeline* WorldSetBlocksPipeline;
     SDL_GPUComputePipeline* WorldSetChunksPipeline;
     SDL_GPUComputePipeline* WorldClearBlocksPipeline;
     SDL_GPUComputePipeline* RaytracePipeline;
+    SDL_GPUComputePipeline* ClearTexturePipeline;
+    SDL_GPUComputePipeline* SampleTexturePipeline;
+    int Width;
+    int Height;
+    bool Dirty;
+    int Sample;
 };

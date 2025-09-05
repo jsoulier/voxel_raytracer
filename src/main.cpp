@@ -256,6 +256,7 @@ static bool Resize(uint32_t width, uint32_t height)
     colorTexture = SDL_CreateGPUTexture(device, &info);
     if (!colorTexture)
     {
+        SDL_Log("Failed to create texture: %s", SDL_GetError());
         return false;
     }
     swapchainWidth = width;
@@ -337,7 +338,6 @@ static void Render()
         ImGui::Render();
         ImGui_ImplSDLGPU3_PrepareDrawData(ImGui::GetDrawData(), commandBuffer);
     }
-    camera.Upload(device, commandBuffer);
     world.Dispatch(commandBuffer);
     world.Render(commandBuffer, colorTexture, camera);
     {

@@ -1,0 +1,18 @@
+#include "config.h"
+#include "shader.hlsl"
+
+[[vk::image_format("rgba32f")]]
+RWTexture2D<float4> outTexture : register(u0, space1);
+
+[numthreads(CLEAR_TEXTURE_THREADS_X, CLEAR_TEXTURE_THREADS_Y, 1)]
+void main(uint3 id : SV_DispatchThreadID)
+{
+    uint width;
+    uint height;
+    outTexture.GetDimensions(width, height);
+    if (id.x >= width || id.y >= height)
+    {
+        return;
+    }
+    outTexture[id.xy] = float4(0.0f, 0.0f, 0.0f, 1.0f);
+}

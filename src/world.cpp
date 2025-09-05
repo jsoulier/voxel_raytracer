@@ -64,15 +64,27 @@ void WorldProxy::SetBlock(glm::ivec3 position, Block block)
 }
 
 World::World()
-    : Blocks{}
+    : Device{}
+    , Blocks{}
     , Chunks{}
+    , ChunkMap{}
     , SetBlocksBuffer{}
+    , SetChunksBuffer{}
+    , ClearChunks{}
     , WorldStateBuffer{}
+    , BlockStateBuffer{}
     , BlockTexture{nullptr}
     , ChunkTexture{nullptr}
+    , ColorTexture{nullptr}
     , WorldSetBlocksPipeline{nullptr}
     , WorldSetChunksPipeline{nullptr}
+    , WorldClearBlocksPipeline{nullptr}
     , RaytracePipeline{nullptr}
+    , ClearTexturePipeline{nullptr}
+    , Width{0}
+    , Height{0}
+    , Dirty{true}
+    , Sample{0}
 {
 }
 
@@ -134,6 +146,18 @@ bool World::Init(SDL_GPUDevice* device)
             SDL_Log("Failed to load raytrace pipeline");
             return false;
         }
+        ClearTexturePipeline = LoadComputePipeline(Device, "clear_texture.comp");
+        if (!RaytracePipeline)
+        {
+            SDL_Log("Failed to load clear texture pipeline");
+            return false;
+        }
+        SampleTexturePipeline = LoadComputePipeline(Device, "sample_texture.comp");
+        if (!SampleTexturePipeline)
+        {
+            SDL_Log("Failed to load sample texture pipeline");
+            return false;
+        }
     }
     {
         ProfileBlock("World::Init::Other");
@@ -176,12 +200,15 @@ void World::Destroy()
     WorldStateBuffer.Destroy(Device);
     SetChunksBuffer.Destroy(Device);
     SetBlocksBuffer.Destroy(Device);
+    SDL_ReleaseGPUComputePipeline(Device, SampleTexturePipeline);
+    SDL_ReleaseGPUComputePipeline(Device, ClearTexturePipeline);
     SDL_ReleaseGPUComputePipeline(Device, RaytracePipeline);
     SDL_ReleaseGPUComputePipeline(Device, WorldSetBlocksPipeline);
     SDL_ReleaseGPUComputePipeline(Device, WorldSetChunksPipeline);
     SDL_ReleaseGPUComputePipeline(Device, WorldClearBlocksPipeline);
     SDL_ReleaseGPUTexture(Device, ChunkTexture);
     SDL_ReleaseGPUTexture(Device, BlockTexture);
+    SDL_ReleaseGPUTexture(Device, ColorTexture);
 }
 
 void World::Update(Camera& camera)
@@ -251,6 +278,7 @@ void World::Update(Camera& camera)
             ClearChunks.emplace_back(outX, outZ);
             WorldProxy proxy{*this, SetBlocksBuffer, outX, outZ};
             chunk.Generate(proxy, WorldStateBuffer->X + inX, WorldStateBuffer->Z + inZ);
+            Dirty = true;
             return;
         }
     }
@@ -346,43 +374,112 @@ void World::Dispatch(SDL_GPUCommandBuffer* commandBuffer)
 void World::Render(SDL_GPUCommandBuffer* commandBuffer, SDL_GPUTexture* colorTexture, Camera& camera)
 {
     Profile();
-    DebugGroup(commandBuffer);
-    SDL_GPUStorageTextureReadWriteBinding writeTexture{};
-    writeTexture.texture = colorTexture;
-    SDL_GPUComputePass* computePass = SDL_BeginGPUComputePass(commandBuffer, &writeTexture, 1, nullptr, 0);
-    if (!computePass)
+    if (Width != camera.GetWidth() || Height != camera.GetHeight())
     {
-        SDL_Log("Failed to begin compute pass: %s", SDL_GetError());
-        return;
+        ProfileBlock("World::Render::Resize");
+        DebugGroupBlock(commandBuffer, "World::Render::Resize");
+        SDL_ReleaseGPUTexture(Device, ColorTexture);
+        SDL_GPUTextureCreateInfo info{};
+        info.format = SDL_GPU_TEXTUREFORMAT_R32G32B32A32_FLOAT;
+        info.type = SDL_GPU_TEXTURETYPE_2D;
+        info.usage = SDL_GPU_TEXTUREUSAGE_COMPUTE_STORAGE_READ |
+            SDL_GPU_TEXTUREUSAGE_COMPUTE_STORAGE_SIMULTANEOUS_READ_WRITE;
+        info.width = camera.GetWidth();
+        info.height = camera.GetHeight();
+        info.layer_count_or_depth = 1;
+        info.num_levels = 1;
+        ColorTexture = SDL_CreateGPUTexture(Device, &info);
+        if (!ColorTexture)
+        {
+            SDL_Log("Failed to create texture: %s", SDL_GetError());
+            return;
+        }
+        Width = camera.GetWidth();
+        Height = camera.GetHeight();
+        Dirty = true;
     }
-    int groupsX = (camera.GetWidth() + RAYTRACE_THREADS_X - 1) / RAYTRACE_THREADS_X;
-    int groupsY = (camera.GetHeight() + RAYTRACE_THREADS_Y - 1) / RAYTRACE_THREADS_Y;
-    SDL_GPUTexture* readTextures[2]{};
-    SDL_GPUBuffer* readBuffers[3]{};
-    readTextures[0] = BlockTexture;
-    readTextures[1] = ChunkTexture;
-    readBuffers[0] = camera.GetBuffer();
-    readBuffers[1] = WorldStateBuffer.GetBuffer();
-    readBuffers[2] = BlockStateBuffer.GetBuffer();
-    SDL_BindGPUComputePipeline(computePass, RaytracePipeline);
-    SDL_BindGPUComputeStorageTextures(computePass, 0, readTextures, 2);
-    SDL_BindGPUComputeStorageBuffers(computePass, 0, readBuffers, 3);
-    SDL_DispatchGPUCompute(computePass, groupsX, groupsY, 1);
-    SDL_EndGPUComputePass(computePass);
+    if (Dirty || camera.GetDirty())
+    {
+        Sample = 0;
+        ProfileBlock("World::Render::ClearTexture");
+        DebugGroupBlock(commandBuffer, "World::Render::ClearTexture");
+        SDL_GPUStorageTextureReadWriteBinding writeTexture{};
+        writeTexture.texture = ColorTexture;
+        SDL_GPUComputePass* computePass = SDL_BeginGPUComputePass(commandBuffer, &writeTexture, 1, nullptr, 0);
+        if (!computePass)
+        {
+            SDL_Log("Failed to begin compute pass: %s", SDL_GetError());
+            return;
+        }
+        int groupsX = (camera.GetWidth() + CLEAR_TEXTURE_THREADS_X - 1) / CLEAR_TEXTURE_THREADS_X;
+        int groupsY = (camera.GetHeight() + CLEAR_TEXTURE_THREADS_Y - 1) / CLEAR_TEXTURE_THREADS_Y;
+        SDL_BindGPUComputePipeline(computePass, ClearTexturePipeline);
+        SDL_DispatchGPUCompute(computePass, groupsX, groupsY, 1);
+        SDL_EndGPUComputePass(computePass);
+        Dirty = false;
+    }
+    Sample++;
+    {
+        SDL_GPUCopyPass* copyPass = SDL_BeginGPUCopyPass(commandBuffer);
+        if (!copyPass)
+        {
+            SDL_Log("Failed to begin copy pass: %s", SDL_GetError());
+            return;
+        }
+        camera.Upload(Device, copyPass);
+        SDL_EndGPUCopyPass(copyPass);
+    }
+    {
+        ProfileBlock("World::Render::Raytrace");
+        DebugGroupBlock(commandBuffer, "World::Render::Raytrace");
+        SDL_GPUStorageTextureReadWriteBinding writeTexture{};
+        writeTexture.texture = ColorTexture;
+        SDL_GPUComputePass* computePass = SDL_BeginGPUComputePass(commandBuffer, &writeTexture, 1, nullptr, 0);
+        if (!computePass)
+        {
+            SDL_Log("Failed to begin compute pass: %s", SDL_GetError());
+            return;
+        }
+        int groupsX = (camera.GetWidth() + RAYTRACE_THREADS_X - 1) / RAYTRACE_THREADS_X;
+        int groupsY = (camera.GetHeight() + RAYTRACE_THREADS_Y - 1) / RAYTRACE_THREADS_Y;
+        SDL_GPUTexture* readTextures[2]{};
+        SDL_GPUBuffer* readBuffers[3]{};
+        readTextures[0] = BlockTexture;
+        readTextures[1] = ChunkTexture;
+        readBuffers[0] = camera.GetBuffer();
+        readBuffers[1] = WorldStateBuffer.GetBuffer();
+        readBuffers[2] = BlockStateBuffer.GetBuffer();
+        SDL_BindGPUComputePipeline(computePass, RaytracePipeline);
+        SDL_PushGPUComputeUniformData(commandBuffer, 0, &Sample, sizeof(Sample));
+        SDL_BindGPUComputeStorageTextures(computePass, 0, readTextures, 2);
+        SDL_BindGPUComputeStorageBuffers(computePass, 0, readBuffers, 3);
+        SDL_DispatchGPUCompute(computePass, groupsX, groupsY, 1);
+        SDL_EndGPUComputePass(computePass);
+    }
+    {
+        ProfileBlock("World::Render::SampleTexture");
+        DebugGroupBlock(commandBuffer, "World::Render::SampleTexture");
+        SDL_GPUStorageTextureReadWriteBinding writeTexture{};
+        writeTexture.texture = colorTexture;
+        SDL_GPUComputePass* computePass = SDL_BeginGPUComputePass(commandBuffer, &writeTexture, 1, nullptr, 0);
+        if (!computePass)
+        {
+            SDL_Log("Failed to begin compute pass: %s", SDL_GetError());
+            return;
+        }
+        int groupsX = (camera.GetWidth() + SAMPLE_TEXTURE_THREADS_X - 1) / SAMPLE_TEXTURE_THREADS_X;
+        int groupsY = (camera.GetHeight() + SAMPLE_TEXTURE_THREADS_Y - 1) / SAMPLE_TEXTURE_THREADS_Y;
+        SDL_GPUTexture* readTextures[1]{};
+        readTextures[0] = ColorTexture;
+        SDL_BindGPUComputePipeline(computePass, SampleTexturePipeline);
+        SDL_PushGPUComputeUniformData(commandBuffer, 0, &Sample, sizeof(Sample));
+        SDL_BindGPUComputeStorageTextures(computePass, 0, readTextures, 1);
+        SDL_DispatchGPUCompute(computePass, groupsX, groupsY, 1);
+        SDL_EndGPUComputePass(computePass);
+    }
 }
 
-bool World::ValidLocalPosition(const glm::ivec3& position) const
-{
-    return
-        position.x >= 0 &&
-        position.y >= 0 &&
-        position.z >= 0 &&
-        position.x < Chunk::kWidth * World::kWidth &&
-        position.y < Chunk::kHeight &&
-        position.z < Chunk::kWidth * World::kWidth;
-}
-
-void World::WorldToLocalPosition(glm::ivec3& position) const
+bool World::WorldToLocalPosition(glm::ivec3& position) const
 {
     position.x -= WorldStateBuffer->X * Chunk::kWidth;
     position.z -= WorldStateBuffer->Z * Chunk::kWidth;
@@ -394,15 +491,19 @@ void World::WorldToLocalPosition(glm::ivec3& position) const
     chunk = ChunkMap[chunk.x][chunk.y];
     position.x += chunk.x * Chunk::kWidth;
     position.z += chunk.y * Chunk::kWidth;
+    return position.x >= 0 && position.y >= 0 && position.z >= 0 &&
+        position.x < Chunk::kWidth * World::kWidth &&
+        position.y < Chunk::kHeight &&
+        position.z < Chunk::kWidth * World::kWidth;
 }
 
 void World::SetBlock(glm::ivec3 position, Block block)
 {
-    WorldToLocalPosition(position);
-    if (ValidLocalPosition(position))
+    if (WorldToLocalPosition(position))
     {
         SetBlocksBuffer.Emplace(Device, position, block);
         Blocks[position.x][position.y][position.z] = block;
+        Dirty = true;
     }
     else
     {
@@ -412,14 +513,12 @@ void World::SetBlock(glm::ivec3 position, Block block)
 
 Block World::GetBlock(glm::ivec3 position) const
 {
-    WorldToLocalPosition(position);
-    if (ValidLocalPosition(position))
+    if (WorldToLocalPosition(position))
     {
         return Blocks[position.x][position.y][position.z];
     }
     else
     {
-        SDL_Log("Bad block position: %d, %d, %d", position.x, position.y, position.z);
         return BlockAir;
     }
 }

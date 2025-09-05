@@ -1,0 +1,33 @@
+#include <metal_stdlib>
+#include <simd/simd.h>
+
+using namespace metal;
+
+struct type_UniformBuffer
+{
+    int Sample;
+};
+
+kernel void main0(constant type_UniformBuffer& UniformBuffer [[buffer(0)]], texture2d<float> inTexture [[texture(0)]], texture2d<float, access::write> outTexture [[texture(1)]], uint3 gl_GlobalInvocationID [[thread_position_in_grid]])
+{
+    do
+    {
+        uint2 _136 = uint2(outTexture.get_width(), outTexture.get_height());
+        bool _164;
+        if (!(gl_GlobalInvocationID.x >= _136.x))
+        {
+            _164 = gl_GlobalInvocationID.y >= _136.y;
+        }
+        else
+        {
+            _164 = true;
+        }
+        if (_164)
+        {
+            break;
+        }
+        outTexture.write(float4(inTexture.read(uint2(gl_GlobalInvocationID.xy), 0u).xyz / float3(float(UniformBuffer.Sample)), 1.0), uint2(gl_GlobalInvocationID.xy));
+        break;
+    } while(false);
+}
+

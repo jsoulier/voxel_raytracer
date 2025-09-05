@@ -76,15 +76,6 @@ float Random(float4 v, float a, float b)
     return a + (b - a) * Random(v);
 }
 
-float4 Random(uint2 id, uint count, uint depth)
-{
-    float x = Random(float4(id.x, id.y, depth, (count + 1) * 17.0f), -1.0f, 1.0f);
-    float y = Random(float4(id.x, id.y, depth, (count + 1) * 73.0f), -1.0f, 1.0f);
-    float z = Random(float4(id.x, id.y, depth, (count + 1) * 97.0f), -1.0f, 1.0f);
-    float w = Random(float4(id.x, id.y, depth, (count + 1) * 57.0f), -1.0f, 1.0f);
-    return float4(x, y, z, w);
-}
-
 float3 RandomHemisphere(float3 normal, float3 position, uint sample, uint bounce)
 {
     float u = Random(float4(position, sample * 1337.0f + bounce));

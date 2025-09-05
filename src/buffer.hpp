@@ -252,6 +252,11 @@ public:
         return Data;
     }
 
+    bool GetDirty() const
+    {
+        return Dirty;
+    }
+
 private:
     SDL_GPUBuffer* Buffer;
     SDL_GPUTransferBuffer* TransferBuffer;

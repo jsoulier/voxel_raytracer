@@ -9,6 +9,7 @@
 #include "camera.hpp"
 
 static constexpr float kMaxPitch = glm::pi<float>() / 2.0f - 0.01f;
+static constexpr float kEpsilon = glm::epsilon<float>();
 static constexpr glm::vec3 kUp = glm::vec3{0.0f, 1.0f, 0.0f};
 
 Camera::Camera()
@@ -47,13 +48,21 @@ void Camera::Resize(float width, float height)
 
 void Camera::Move(float dx, float dy, float dz)
 {
+    if (glm::length(glm::vec3(dx, dy, dz)) < kEpsilon)
+    {
+        return;
+    }
     State.Get().Position += State->Right * glm::vec3(dx);
     State.Get().Position += State->Forward * glm::vec3(dz);
     State.Get().Position += kUp * glm::vec3(dy);
 }
 
-void Camera::Rotate(float dx, float dy)
+void Camera::Rotate(float dx, float dy, bool force)
 {
+    if (!force && std::abs(dx) < kEpsilon && std::abs(dy) < kEpsilon)
+    {
+        return;
+    }
     Yaw += dx;
     Pitch = std::clamp(Pitch - dy, -kMaxPitch, kMaxPitch);
     State.Get().Forward.x = std::cos(Pitch) * std::cos(Yaw);
@@ -71,16 +80,9 @@ void Camera::SetFov(float fov)
     State.Get().TanHalfFov = std::tan(glm::radians(fov) * 0.5f);
 }
 
-void Camera::Upload(SDL_GPUDevice* device, SDL_GPUCommandBuffer* commandBuffer)
+void Camera::Upload(SDL_GPUDevice* device, SDL_GPUCopyPass* copyPass)
 {
-    SDL_GPUCopyPass* copyPass = SDL_BeginGPUCopyPass(commandBuffer);
-    if (!copyPass)
-    {
-        SDL_Log("Failed to begin copy pass: %s", SDL_GetError());
-        return;
-    }
     State.Upload(device, copyPass);
-    SDL_EndGPUCopyPass(copyPass);
 }
 
 SDL_GPUBuffer* Camera::GetBuffer() const
@@ -111,4 +113,9 @@ float Camera::GetWidth() const
 float Camera::GetHeight() const
 {
     return Height;
+}
+
+bool Camera::GetDirty() const
+{
+    return State.GetDirty();
 }

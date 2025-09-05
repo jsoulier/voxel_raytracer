@@ -12,33 +12,33 @@ kernel void main0(constant type_UniformBuffer& UniformBuffer [[buffer(0)]], text
 {
     do
     {
-        bool _139;
+        bool _138;
         if (!(gl_GlobalInvocationID.x >= 32u))
         {
-            _139 = gl_GlobalInvocationID.y >= 32u;
+            _138 = gl_GlobalInvocationID.y >= 32u;
         }
         else
         {
-            _139 = true;
+            _138 = true;
         }
-        bool _153;
-        if (!_139)
+        bool _152;
+        if (!_138)
         {
-            _153 = gl_GlobalInvocationID.z >= 32u;
+            _152 = gl_GlobalInvocationID.z >= 32u;
         }
         else
         {
-            _153 = true;
+            _152 = true;
         }
-        if (_153)
+        if (_152)
         {
             break;
         }
-        int3 _160 = int3(gl_GlobalInvocationID);
-        int3 _174 = _160;
-        _174.x = _160.x + (UniformBuffer.Position.x * 32);
-        _174.z = _160.z + (UniformBuffer.Position.y * 32);
-        blocks.write(uint4(0u), uint3(uint3(_174)));
+        int3 _159 = int3(gl_GlobalInvocationID);
+        int3 _173 = _159;
+        _173.x = _159.x + (UniformBuffer.Position.x * 32);
+        _173.z = _159.z + (UniformBuffer.Position.y * 32);
+        blocks.write(uint4(0u), uint3(uint3(_173)));
         break;
     } while(false);
 }

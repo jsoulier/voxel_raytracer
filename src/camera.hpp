@@ -15,8 +15,6 @@ struct CameraState
     float Padding1;
     glm::vec3 Up;
     float Padding2;
-    // TODO
-    glm::mat4 ViewProj;
 };
 
 class Camera
@@ -27,15 +25,16 @@ public:
     void Destroy(SDL_GPUDevice* device);
     void Resize(float width, float height);
     void Move(float dx, float dy, float dz);
-    void Rotate(float dx, float dy);
+    void Rotate(float dx, float dy, bool force = false);
     void SetFov(float fov);
-    void Upload(SDL_GPUDevice* device, SDL_GPUCommandBuffer* commandBuffer);
+    void Upload(SDL_GPUDevice* device, SDL_GPUCopyPass* copyPass);
     SDL_GPUBuffer* GetBuffer() const;
     void SetPosition(const glm::vec3& position);
     const glm::vec3& GetPosition() const;
     const glm::vec3& GetDirection() const;
     float GetWidth() const;
     float GetHeight() const;
+    bool GetDirty() const;
 
 private:
     StaticBuffer<CameraState> State;
