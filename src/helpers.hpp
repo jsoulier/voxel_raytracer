@@ -4,16 +4,14 @@
 
 #ifndef NDEBUG
 #include <tracy/Tracy.hpp>
-#define DebugGroup(commandBuffer) DebugGroupInternal debugGroup(commandBuffer, SDL_FUNCTION)
-#define DebugGroupBlock(commandBuffer, name) DebugGroupInternal debugGroup(commandBuffer, name)
-#define Profile() ZoneScoped
+#define Profile() ZoneScopedN(SDL_FUNCTION)
 #define ProfileBlock(name) ZoneScopedN(name)
 #else
-#define DebugGroup(commandBuffer)
-#define DebugGroupBlock(commandBuffer, name)
 #define Profile()
 #define ProfileBlock(name)
 #endif
+#define DebugGroup(commandBuffer) DebugGroupInternal debugGroup(commandBuffer, SDL_FUNCTION)
+#define DebugGroupBlock(commandBuffer, name) DebugGroupInternal debugGroup(commandBuffer, name)
 
 class DebugGroupInternal
 {

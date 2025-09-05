@@ -27,7 +27,7 @@ void Chunk::Generate(WorldProxy& proxy, int chunkX, int chunkZ)
         float x = chunkX * Chunk::kWidth + i;
         float z = chunkZ * Chunk::kWidth + j;
         int height = (noise.GetNoise(x, z) + 1.0f) / 2.0f * kScale;
-        height = std::clamp(height, 1, Chunk::kHeight);
+        height = std::clamp(height, 1, Chunk::kHeight - 1);
         for (int y = 0; y < std::min(height, kWaterLevel); y++)
         {
             proxy.SetBlock({i, y, j}, BlockWater);

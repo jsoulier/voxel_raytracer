@@ -1,12 +1,13 @@
 #include "config.h"
+#include "random.hlsl"
 #include "shader.hlsl"
 
 #define DEBUG 0
 
 static const int kMaxSteps = 512;
-static const int kMaxBounces = 3;
-static const int kMaxSamples = 32;
-static const float3 kSkyColor = float3(0.5f, 0.7f, 1.0f);
+static const int kMaxBounces = 4;
+static const int kMaxSamples = 8;
+static const float3 kSkyColor = float3(0.25f, 0.35f, 0.5f);
 
 Texture3D<uint> blockTexture : register(t0, space0);
 Texture2D<uint2> chunkTexture : register(t1, space0);
@@ -50,7 +51,8 @@ Query Raycast(float3 origin, float3 direction)
         position.x -= worldState[0].Position.x * CHUNK_WIDTH;
         position.z -= worldState[0].Position.y * CHUNK_WIDTH;
         int2 chunk = position.xz / CHUNK_WIDTH;
-        if (position.x < 0 || position.z < 0 || chunk.x >= WORLD_WIDTH || chunk.y >= WORLD_WIDTH)
+        if (position.x < 0 || position.z < 0 || chunk.x >= WORLD_WIDTH ||
+            chunk.y >= WORLD_WIDTH || (step.y > 0 && position.y > CHUNK_HEIGHT))
         {
             break;
         }
@@ -122,51 +124,6 @@ Query Raycast(float3 origin, float3 direction)
     return query;
 }
 
-uint Hash(uint x)
-{
-    x ^= x >> 16;
-    x *= 0x7feb352d;
-    x ^= x >> 15;
-    x *= 0x846ca68b;
-    x ^= x >> 16;
-    return x;
-}
-
-float RandomFloat(uint seed)
-{
-    return float(Hash(seed) & 0x00FFFFFF) / 16777216.0f;
-}
-
-float3 RandomHemisphere(float3 normal, uint seed)
-{
-    float u = RandomFloat(seed);
-    float v = RandomFloat(seed + 1);
-    float theta = acos(sqrt(1.0f - u));
-    float phi = 2.0f * 3.14159265f * v;
-    float3 direction;
-    direction.x = sin(theta) * cos(phi);
-    direction.y = cos(theta);
-    direction.z = sin(theta) * sin(phi);
-    float3 up = abs(normal.y) < 0.999f ? float3(0.0f, 1.0f, 0.0f) : float3(1.0f, 0.0f, 0.0f);
-    float3 tangent = normalize(cross(up, normal));
-    float3 bitangent = cross(normal, tangent);
-    return tangent * direction.x + normal * direction.y + bitangent * direction.z;
-}
-
-float RandomFloat3(uint3 seed)
-{
-    uint h = Hash(seed.x ^ Hash(seed.y ^ Hash(seed.z)));
-    return float(h & 0x00FFFFFF) / 16777216.0f;
-}
-
-// Generates a 2D random float pair from pixel coordinates and sample index
-float2 Random2D(uint2 id, uint sample)
-{
-    float x = RandomFloat3(uint3(id.x, id.y, sample));
-    float y = RandomFloat3(uint3(id.y, id.x, sample + 17)); // Offset seed to decorrelate
-    return float2(x, y);
-}
-
 [numthreads(RAYTRACE_THREADS_X, RAYTRACE_THREADS_Y, 1)]
 void main(uint3 id : SV_DispatchThreadID)
 {
@@ -174,26 +131,20 @@ void main(uint3 id : SV_DispatchThreadID)
     uint height;
     outTexture.GetDimensions(width, height);
     if (id.x >= width || id.y >= height)
-        return;
-
-    float3 radianceSum = 0.0f;
-
-    // Compute base pixel coordinates once
-    float uBase = (2.0f * (id.x + 0.5f) / width - 1.0f) * cameraState[0].AspectRatio * cameraState[0].TanHalfFov;
-    float vBase = (1.0f - 2.0f * (id.y + 0.5f) / height) * cameraState[0].TanHalfFov;
-
-    for (int s = 0; s < kMaxSamples; s++)
     {
-        // Apply per-sample jitter
-        float2 jitter = Random2D(id.xy, s); // returns values in [0,1)
-        float u = uBase + (2.0f * jitter.x / width);
-        float v = vBase - (2.0f * jitter.y / height);
-
+        return;
+    }
+    float3 finalColor = 0.0f;
+    for (int sample = 0; sample < kMaxSamples; sample++)
+    {
+        float i = 0.25f + Random(float2(sample, 0)) / 4.0f;
+        float j = 0.25f + Random(float2(sample, 1)) / 4.0f;
+        float u = (2.0f * (id.x + i) / width - 1.0f) * cameraState[0].AspectRatio * cameraState[0].TanHalfFov;
+        float v = (1.0f - 2.0f * (id.y + j) / height) * cameraState[0].TanHalfFov;
         float3 direction = normalize(u * cameraState[0].Right - v * cameraState[0].Up + cameraState[0].Forward);
         float3 origin = cameraState[0].Position;
         float3 radiance = 0.0f;
         float3 throughput = 1.0f;
-
         for (int bounce = 0; bounce < kMaxBounces; bounce++)
         {
             Query query = Raycast(origin, direction);
@@ -202,7 +153,6 @@ void main(uint3 id : SV_DispatchThreadID)
                 radiance += throughput * kSkyColor;
                 break;
             }
-
             BlockState block = blockState[query.Block];
 #if DEBUG == 0
             float3 albedo;
@@ -212,20 +162,40 @@ void main(uint3 id : SV_DispatchThreadID)
             float3 emission = albedo * block.Light;
             radiance += throughput * emission;
             throughput *= albedo;
-
             float3 reflected = reflect(direction, query.Normal);
-            float3 diffuse = RandomHemisphere(query.Normal, id.x + id.y * width + bounce + s * 17);
+            float3 diffuse = RandomHemisphere(query.Normal, query.Position, sample, bounce);
             direction = normalize(lerp(reflected, diffuse, block.Roughness));
             origin = query.Position + query.Normal * 0.001f;
 #elif DEBUG == 1
             float3 color = 0.0f;
-            if (query.Normal.x == 1.0f)       color = float3(1,0,0);
-            else if (query.Normal.x == -1.0f) color = float3(0,1,0);
-            else if (query.Normal.y == 1.0f)  color = float3(0,0,1);
-            else if (query.Normal.y == -1.0f) color = float3(1,1,0);
-            else if (query.Normal.z == 1.0f)  color = float3(0,1,1);
-            else if (query.Normal.z == -1.0f) color = float3(1,0,1);
-            else color = float3(1,1,1);
+            if (query.Normal.x == 1.0f)
+            {
+                color = float3(1.0f, 0.0f, 0.0f);
+            }
+            else if (query.Normal.x == -1.0f)
+            {
+                color = float3(0.0f, 1.0f, 0.0f);
+            }
+            else if (query.Normal.y == 1.0f)
+            {
+                color = float3(0.0f, 0.0f, 1.0f);
+            }
+            else if (query.Normal.y == -1.0f)
+            {
+                color = float3(1.0f, 1.0f, 0.0f);
+            }
+            else if (query.Normal.z == 1.0f)
+            {
+                color = float3(0.0f, 1.0f, 1.0f);
+            }
+            else if (query.Normal.z == -1.0f)
+            {
+                color = float3(1.0f, 0.0f, 1.0f);
+            }
+            else
+            {
+                color = float3(1.0f, 1.0f, 1.0f);
+            }
             outTexture[id.xy] = float4(color, 1.0f);
             return;
 #elif DEBUG == 2
@@ -234,9 +204,7 @@ void main(uint3 id : SV_DispatchThreadID)
             origin = query.Position + direction * 0.001f;
 #endif
         }
-
-        radianceSum += radiance;
+        finalColor += radiance;
     }
-
-    outTexture[id.xy] = float4(radianceSum / kMaxSamples, 1.0f);
+    outTexture[id.xy] = float4(finalColor / kMaxSamples, 1.0f);
 }
