@@ -11,6 +11,7 @@
     X(Dirt) \
     X(Sand) \
     X(Water) \
+    X(RedLight) \
 
 enum Block : uint8_t
 {
@@ -18,14 +19,19 @@ enum Block : uint8_t
     BLOCKS
 #undef X
     BlockCount,
+    BlockFirst = BlockAir + 1,
+    BlockLast = BlockCount - 1,
 };
 
 struct BlockProperty
 {
     uint32_t Color;
+    float Light;
+    float Roughness;
 };
 
 using BlockState = std::array<BlockProperty, BlockCount>;
 
 BlockState BlockGetState();
 const char* BlockToString(Block block);
+const char** BlockGetStrings();

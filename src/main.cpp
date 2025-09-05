@@ -27,6 +27,7 @@ static uint64_t time2;
 static float dt;
 static bool focus;
 static WorldQuery hitQuery;
+static Block block = BlockRedLight;
 
 static bool Init()
 {
@@ -34,13 +35,13 @@ static bool Init()
 #ifndef NDEBUG
     SDL_SetLogPriorities(SDL_LOG_PRIORITY_VERBOSE);
 #endif
-    SDL_SetAppMetadata("Glowstone", nullptr, nullptr);
+    SDL_SetAppMetadata("Voxel Raytracer", nullptr, nullptr);
     if (!SDL_Init(SDL_INIT_VIDEO))
     {
         SDL_Log("Failed to initialize SDL: %s", SDL_GetError());
         return false;
     }
-    window = SDL_CreateWindow("Glowstone", 960, 720, SDL_WINDOW_HIDDEN);
+    window = SDL_CreateWindow("Voxel Raytracer", 960, 720, SDL_WINDOW_HIDDEN);
     if (!window)
     {
         SDL_Log("Failed to create window: %s", SDL_GetError());
@@ -143,7 +144,7 @@ static bool Poll()
                     WorldQuery query = world.Raycast(camera.GetPosition(), camera.GetDirection(), kRaycast);
                     if (query.HitBlock != BlockAir)
                     {
-                        world.SetBlock(query.PreviousPosition, BlockDirt);
+                        world.SetBlock(query.PreviousPosition, block);
                     }
                 }
             }
@@ -183,6 +184,21 @@ static bool Poll()
             if (SDL_GetWindowRelativeMouseMode(window))
             {
                 SDL_SetWindowRelativeMouseMode(window, false);
+            }
+            break;
+        case SDL_EVENT_MOUSE_WHEEL:
+            if (SDL_GetWindowRelativeMouseMode(window))
+            {
+                int value = int(block) + event.wheel.integer_y;
+                if (value < BlockFirst)
+                {
+                    value = BlockLast;
+                }
+                else if (value > BlockLast)
+                {
+                    value = BlockFirst;
+                }
+                block = Block(value);
             }
             break;
         }
@@ -288,7 +304,6 @@ static void Render()
         io.DisplaySize.y = height;
         ImGui_ImplSDLGPU3_NewFrame();
         ImGui::NewFrame();
-        // TODO: scale
         static constexpr int kCrosshairWidth = 16;
         static constexpr int kCrosshairThickness = 4;
         static constexpr ImU32 kCrosshairColor = IM_COL32(255, 255, 255, 255);
@@ -304,13 +319,19 @@ static void Render()
             ImVec2(centerX + kCrosshairThickness / 2, centerY + kCrosshairWidth / 2),
             kCrosshairColor);
         ImGui::BeginDisabled(SDL_GetWindowRelativeMouseMode(window));
-        ImGui::Text("Raycast: %s", BlockToString(hitQuery.HitBlock));
-        static constexpr int kFlags = ImGuiHoveredFlags_AnyWindow | ImGuiHoveredFlags_AllowWhenBlockedByActiveItem;
+        static constexpr int kFlags = ImGuiHoveredFlags_AnyWindow |
+            ImGuiHoveredFlags_AllowWhenBlockedByActiveItem | ImGuiHoveredFlags_AllowWhenBlockedByPopup;
         if (focus && !ImGui::IsWindowHovered(kFlags))
         {
             SDL_SetWindowRelativeMouseMode(window, true);
         }
         focus = false;
+        int value = int(block) - BlockFirst;
+        if (ImGui::Combo("Block", &value, BlockGetStrings() + BlockFirst, BlockCount - BlockFirst))
+        {
+            block = Block(value + BlockFirst);
+        }
+        ImGui::Text("Raycast: %s", BlockToString(hitQuery.HitBlock));
         ImGui::EndDisabled();
         ImGui::Render();
         ImGui_ImplSDLGPU3_PrepareDrawData(ImGui::GetDrawData(), commandBuffer);

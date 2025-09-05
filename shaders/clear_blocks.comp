@@ -19,5 +19,5 @@ void main(uint3 id : SV_DispatchThreadID)
     int3 position = id;
     position.x += Position.x * CHUNK_WIDTH;
     position.z += Position.y * CHUNK_WIDTH;
-    blocks[position] = kAir;
+    blocks[position] = kBlockAir;
 }

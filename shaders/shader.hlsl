@@ -16,15 +16,16 @@ struct CameraState
     float Padding1;
     float3 Up;
     float Padding2;
-    float4x4 Matrix3D;
+    float4x4 ViewProj;
 };
 
 struct BlockState
 {
     uint Color;
+    float Light;
+    float Roughness;
 };
 
-// TODO: lookup tables
-static const uint kAir = 0;
+static const uint kBlockAir = 0;
 
 #endif

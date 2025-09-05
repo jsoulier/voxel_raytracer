@@ -1,0 +1,210 @@
+#include "config.h"
+#include "shader.hlsl"
+
+#define DEBUG 0
+
+static const int kMaxSteps = 512;
+static const int kMaxBounces = 2;
+
+Texture3D<uint> blockTexture : register(t0, space0);
+Texture2D<uint2> chunkTexture : register(t1, space0);
+StructuredBuffer<CameraState> cameraState : register(t2, space0);
+StructuredBuffer<WorldState> worldState : register(t3, space0);
+StructuredBuffer<BlockState> blockState : register(t4, space0);
+[[vk::image_format("rgba8")]]
+RWTexture2D<float4> outTexture : register(u0, space1);
+
+struct Query
+{
+    bool Hit;
+    uint Block;
+    float3 Position;
+    float3 Normal;
+};
+
+Query Raycast(float3 origin, float3 direction)
+{
+    int3 voxel = int3(floor(origin));
+    float3 delta = abs(1.0 / direction);
+    int3 step;
+    float3 distance;
+    int axis = -1;
+    for (int i = 0; i < 3; i++)
+    {
+        if (direction[i] < 0.0f)
+        {
+            step[i] = -1;
+            distance[i] = (origin[i] - voxel[i]) * delta[i];
+        }
+        else
+        {
+            step[i] = 1;
+            distance[i] = (voxel[i] + 1.0f - origin[i]) * delta[i];
+        }
+    }
+    for (int i = 0; i < kMaxSteps; i++)
+    {
+        int3 position = voxel;
+        position.x -= worldState[0].Position.x * CHUNK_WIDTH;
+        position.z -= worldState[0].Position.y * CHUNK_WIDTH;
+        int2 chunk = position.xz / CHUNK_WIDTH;
+        if (position.x < 0 || position.z < 0 || chunk.x >= WORLD_WIDTH || chunk.y >= WORLD_WIDTH)
+        {
+            break;
+        }
+        position.x -= chunk.x * CHUNK_WIDTH;
+        position.z -= chunk.y * CHUNK_WIDTH;
+        chunk = chunkTexture[chunk];
+        position.x += chunk.x * CHUNK_WIDTH;
+        position.z += chunk.y * CHUNK_WIDTH;
+        uint hitBlock = blockTexture[position];
+        if (hitBlock != kBlockAir)
+        {
+            float3 normal = float3(0.0f, 0.0f, 0.0f);
+            if (axis == 0)
+            {
+                normal.x = -step.x;
+            }
+            else if (axis == 1)
+            {
+                normal.y = -step.y;
+            }
+            else if (axis == 2)
+            {
+                normal.z = -step.z;
+            }
+            float t = min(distance.x, min(distance.y, distance.z));
+            Query query;
+            query.Hit = true;
+            query.Block = hitBlock;
+            query.Position = origin + direction * t;
+            query.Normal = normal;
+            return query;
+        }
+        if (distance.x < distance.y)
+        {
+            if (distance.x < distance.z)
+            {
+                distance.x += delta.x;
+                voxel.x += step.x;
+                axis = 0;
+            }
+            else
+            {
+                distance.z += delta.z;
+                voxel.z += step.z;
+                axis = 2;
+            }
+        }
+        else
+        {
+            if (distance.y < distance.z)
+            {
+                distance.y += delta.y;
+                voxel.y += step.y;
+                axis = 1;
+            }
+            else
+            {
+                distance.z += delta.z;
+                voxel.z += step.z;
+                axis = 2;
+            }
+        }
+    }
+    Query query;
+    query.Hit = false;
+    return query;
+}
+
+uint Hash(uint x)
+{
+    x ^= x >> 16;
+    x *= 0x7feb352d;
+    x ^= x >> 15;
+    x *= 0x846ca68b;
+    x ^= x >> 16;
+    return x;
+}
+
+float RandomFloat(uint seed)
+{
+    return float(Hash(seed) & 0x00FFFFFF) / 16777216.0f;
+}
+
+float3 RandomHemisphere(float3 normal, uint seed)
+{
+    float u = RandomFloat(seed);
+    float v = RandomFloat(seed + 1);
+    float theta = acos(sqrt(1.0f - u));
+    float phi = 2.0f * 3.14159265f * v;
+    float3 direction;
+    direction.x = sin(theta) * cos(phi);
+    direction.y = cos(theta);
+    direction.z = sin(theta) * sin(phi);
+    float3 up = abs(normal.y) < 0.999f ? float3(0.0f, 1.0f, 0.0f) : float3(1.0f, 0.0f, 0.0f);
+    float3 tangent = normalize(cross(up, normal));
+    float3 bitangent = cross(normal, tangent);
+    return tangent * direction.x + normal * direction.y + bitangent * direction.z;
+}
+
+[numthreads(RAYTRACE_THREADS_X, RAYTRACE_THREADS_Y, 1)]
+void main(uint3 id : SV_DispatchThreadID)
+{
+    uint width;
+    uint height;
+    outTexture.GetDimensions(width, height);
+    if (id.x >= width || id.y >= height)
+    {
+        return;
+    }
+    float u = (2.0f * (id.x + 0.5f) / width - 1.0f) * cameraState[0].AspectRatio * cameraState[0].TanHalfFov;
+    float v = (1.0f - 2.0f * (id.y + 0.5f) / height) * cameraState[0].TanHalfFov;
+    float3 direction = normalize(u * cameraState[0].Right - v * cameraState[0].Up + cameraState[0].Forward);
+    float3 origin = cameraState[0].Position;
+    float3 color = 0.0f;
+    for (int bounce = 0; bounce < kMaxBounces; bounce++)
+    {
+        Query query = Raycast(origin, direction);
+        if (!query.Hit)
+        {
+            break;
+        }
+        BlockState block = blockState[query.Block];
+#if DEBUG == 1
+        if (query.Normal.x == 1.0f)
+        {
+            color = float3(1.0f, 0.0f, 0.0f);
+        }
+        else if (query.Normal.x == -1.0f)
+        {
+            color = float3(0.0f, 1.0f, 0.0f);
+        }
+        else if (query.Normal.y == 1.0f)
+        {
+            color = float3(0.0f, 0.0f, 1.0f);
+        }
+        else if (query.Normal.y == -1.0f)
+        {
+            color = float3(1.0f, 1.0f, 0.0f);
+        }
+        else if (query.Normal.z == 1.0f)
+        {
+            color = float3(0.0f, 1.0f, 1.0f);
+        }
+        else if (query.Normal.z == -1.0f)
+        {
+            color = float3(1.0f, 0.0f, 1.0f);
+        }
+        else
+        {
+            color = float3(1.0f, 1.0f, 1.0f);
+        }
+        break;
+#endif
+        color.r += block.Light;
+        direction = reflect(direction, query.Normal);
+        origin = query.Position + direction * 1.001f;
+    }
+    outTexture[id.xy] = float4(color, 1.0f);
+}

@@ -72,7 +72,7 @@ World::World()
     , ChunkTexture{nullptr}
     , WorldSetBlocksPipeline{nullptr}
     , WorldSetChunksPipeline{nullptr}
-    , RayTracePipeline{nullptr}
+    , RaytracePipeline{nullptr}
 {
 }
 
@@ -128,10 +128,10 @@ bool World::Init(SDL_GPUDevice* device)
             SDL_Log("Failed to load world clear blocks pipeline");
             return false;
         }
-        RayTracePipeline = LoadComputePipeline(Device, "ray_trace.comp");
-        if (!RayTracePipeline)
+        RaytracePipeline = LoadComputePipeline(Device, "raytrace.comp");
+        if (!RaytracePipeline)
         {
-            SDL_Log("Failed to load ray trace pipeline");
+            SDL_Log("Failed to load raytrace pipeline");
             return false;
         }
     }
@@ -176,7 +176,7 @@ void World::Destroy()
     WorldStateBuffer.Destroy(Device);
     SetChunksBuffer.Destroy(Device);
     SetBlocksBuffer.Destroy(Device);
-    SDL_ReleaseGPUComputePipeline(Device, RayTracePipeline);
+    SDL_ReleaseGPUComputePipeline(Device, RaytracePipeline);
     SDL_ReleaseGPUComputePipeline(Device, WorldSetBlocksPipeline);
     SDL_ReleaseGPUComputePipeline(Device, WorldSetChunksPipeline);
     SDL_ReleaseGPUComputePipeline(Device, WorldClearBlocksPipeline);
@@ -355,8 +355,8 @@ void World::Render(SDL_GPUCommandBuffer* commandBuffer, SDL_GPUTexture* colorTex
         SDL_Log("Failed to begin compute pass: %s", SDL_GetError());
         return;
     }
-    int groupsX = (camera.GetWidth() + RAY_TRACE_THREADS_X - 1) / RAY_TRACE_THREADS_X;
-    int groupsY = (camera.GetHeight() + RAY_TRACE_THREADS_Y - 1) / RAY_TRACE_THREADS_Y;
+    int groupsX = (camera.GetWidth() + RAYTRACE_THREADS_X - 1) / RAYTRACE_THREADS_X;
+    int groupsY = (camera.GetHeight() + RAYTRACE_THREADS_Y - 1) / RAYTRACE_THREADS_Y;
     SDL_GPUTexture* readTextures[2]{};
     SDL_GPUBuffer* readBuffers[3]{};
     readTextures[0] = BlockTexture;
@@ -364,11 +364,22 @@ void World::Render(SDL_GPUCommandBuffer* commandBuffer, SDL_GPUTexture* colorTex
     readBuffers[0] = camera.GetBuffer();
     readBuffers[1] = WorldStateBuffer.GetBuffer();
     readBuffers[2] = BlockStateBuffer.GetBuffer();
-    SDL_BindGPUComputePipeline(computePass, RayTracePipeline);
+    SDL_BindGPUComputePipeline(computePass, RaytracePipeline);
     SDL_BindGPUComputeStorageTextures(computePass, 0, readTextures, 2);
     SDL_BindGPUComputeStorageBuffers(computePass, 0, readBuffers, 3);
     SDL_DispatchGPUCompute(computePass, groupsX, groupsY, 1);
     SDL_EndGPUComputePass(computePass);
+}
+
+bool World::ValidLocalPosition(const glm::ivec3& position) const
+{
+    return
+        position.x >= 0 &&
+        position.y >= 0 &&
+        position.z >= 0 &&
+        position.x < Chunk::kWidth * World::kWidth &&
+        position.y < Chunk::kHeight &&
+        position.z < Chunk::kWidth * World::kWidth;
 }
 
 void World::WorldToLocalPosition(glm::ivec3& position) const
@@ -383,17 +394,6 @@ void World::WorldToLocalPosition(glm::ivec3& position) const
     chunk = ChunkMap[chunk.x][chunk.y];
     position.x += chunk.x * Chunk::kWidth;
     position.z += chunk.y * Chunk::kWidth;
-}
-
-bool World::ValidLocalPosition(const glm::ivec3& position) const
-{
-    return
-        position.x >= 0 &&
-        position.y >= 0 &&
-        position.z >= 0 &&
-        position.x < Chunk::kWidth * World::kWidth &&
-        position.y < Chunk::kHeight &&
-        position.z < Chunk::kWidth * World::kWidth;
 }
 
 void World::SetBlock(glm::ivec3 position, Block block)
@@ -445,7 +445,6 @@ WorldQuery World::Raycast(const glm::vec3& position, const glm::vec3& direction,
             distance[i] = (query.Position[i] + 1.0f - position[i]) * delta[i];
         }
     }
-    // TODO: travelled should be distance along the ray, not the axis
     float travelled = 0.0f;
     while (travelled <= length)
     {

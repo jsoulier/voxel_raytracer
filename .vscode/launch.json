@@ -2,10 +2,10 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "gltf",
+            "name": "win32",
             "type": "cppvsdbg",
             "request": "launch",
-            "program": "${workspaceFolder}/build/bin/glowstone.exe",
+            "program": "${workspaceFolder}/build/bin/voxel_raytracer.exe",
             "cwd": "${workspaceFolder}",
             "preLaunchTask": "CMake: build"
         },

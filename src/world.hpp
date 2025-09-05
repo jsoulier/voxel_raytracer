@@ -88,8 +88,8 @@ public:
     WorldQuery Raycast(const glm::vec3& position, const glm::vec3& direction, float length);
 
 private:
-    void WorldToLocalPosition(glm::ivec3& position) const;
     bool ValidLocalPosition(const glm::ivec3& position) const;
+    void WorldToLocalPosition(glm::ivec3& position) const;
 
 private:
     SDL_GPUDevice* Device;
@@ -106,5 +106,5 @@ private:
     SDL_GPUComputePipeline* WorldSetBlocksPipeline;
     SDL_GPUComputePipeline* WorldSetChunksPipeline;
     SDL_GPUComputePipeline* WorldClearBlocksPipeline;
-    SDL_GPUComputePipeline* RayTracePipeline;
+    SDL_GPUComputePipeline* RaytracePipeline;
 };

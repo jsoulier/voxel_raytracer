@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.24)
-project(glowstone)
+project(voxel_raytracer)
 
 set(BINARY_DIR ${CMAKE_BINARY_DIR}/bin)
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${BINARY_DIR})
@@ -23,7 +23,7 @@ add_subdirectory(lib/json)
 add_subdirectory(lib/sqlite3)
 add_subdirectory(lib/stb)
 
-add_executable(glowstone WIN32
+add_executable(voxel_raytracer WIN32
     src/block.cpp
     src/camera.cpp
     src/chunk.cpp
@@ -31,7 +31,7 @@ add_executable(glowstone WIN32
     src/main.cpp
     src/world.cpp
 )
-target_link_libraries(glowstone PRIVATE
+target_link_libraries(voxel_raytracer PRIVATE
     $<$<CONFIG:Debug>:TracyClient>
     FastNoiseLite
     SDL3::SDL3
@@ -41,8 +41,8 @@ target_link_libraries(glowstone PRIVATE
     sqlite3
     stb
 )
-set_target_properties(glowstone PROPERTIES CXX_STANDARD 23)
-target_precompile_headers(glowstone PRIVATE
+set_target_properties(voxel_raytracer PROPERTIES CXX_STANDARD 23)
+target_precompile_headers(voxel_raytracer PRIVATE
     <array>
     <algorithm>
     <cmath>
@@ -88,7 +88,7 @@ function(add_shader FILE)
         string(REPLACE . _ NAME ${NAME})
         set(NAME compile_${NAME})
         add_custom_target(${NAME} DEPENDS ${OUTPUT})
-        add_dependencies(glowstone ${NAME})
+        add_dependencies(voxel_raytracer ${NAME})
     endfunction()
     if (MSVC)
         compile(${SPV})
@@ -109,7 +109,7 @@ function(add_shader FILE)
         string(REPLACE . _ NAME ${NAME})
         set(NAME package_${NAME})
         add_custom_target(${NAME} DEPENDS ${BINARY})
-        add_dependencies(glowstone ${NAME})
+        add_dependencies(voxel_raytracer ${NAME})
     endfunction()
     if(APPLE)
         package(${MSL})
@@ -119,6 +119,6 @@ function(add_shader FILE)
     package(${JSON})
 endfunction()
 add_shader(clear_blocks.comp shaders/shader.hlsl src/config.h)
-add_shader(ray_trace.comp shaders/shader.hlsl src/config.h)
+add_shader(raytrace.comp shaders/shader.hlsl src/config.h)
 add_shader(world_set_blocks.comp shaders/shader.hlsl src/config.h)
 add_shader(world_set_chunks.comp shaders/shader.hlsl src/config.h)
