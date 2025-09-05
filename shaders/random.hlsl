@@ -76,10 +76,10 @@ float Random(float4 v, float a, float b)
     return a + (b - a) * Random(v);
 }
 
-float3 RandomHemisphere(float3 normal, float3 position, uint sample, uint bounce)
+float3 RandomHemisphere(float3 normal, float2 id, uint sample, uint bounce)
 {
-    float u = Random(float4(position, sample * 1337.0f + bounce));
-    float v = Random(float4(position, sample + bounce * 19.0f));
+    float u = Random(float4(id, sample * 1337.0f, bounce));
+    float v = Random(float4(id, sample, bounce * 19.0f));
     float theta = acos(sqrt(1.0f - u));
     float phi = 2.0f * 3.14159265f * v;
     float3 direction;

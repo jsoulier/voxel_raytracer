@@ -27,7 +27,7 @@ static uint64_t time2;
 static float dt;
 static bool focus;
 static WorldQuery hitQuery;
-static Block block = BlockRedLight;
+static Block block = BlockWhiteLight;
 
 static bool Init()
 {

@@ -35,53 +35,71 @@ static constexpr BlockState kBlocks =
         .Light = 0.0f,
         .Roughness = 0.2f,
     },
-    // red light
+    // stone
     {
-        .Color = 0xFF0000FF,
-        .Light = 10.0f,
-        .Roughness = 0.0f,
+        .Color = 0x777777FF,
+        .Light = 0.0f,
+        .Roughness = 0.9f,
     },
-    // green light
+    // wood
     {
-        .Color = 0x00FF00FF,
-        .Light = 10.0f,
-        .Roughness = 0.0f,
+        .Color = 0x8B4513FF,
+        .Light = 0.0f,
+        .Roughness = 0.7f,
     },
-    // blue light
+    // leaves
     {
-        .Color = 0x0000FFFF,
-        .Light = 10.0f,
-        .Roughness = 0.0f,
-    },
-    // cyan light
-    {
-        .Color = 0x00FFFFFF,
-        .Light = 10.0f,
-        .Roughness = 0.0f,
-    },
-    // magenta light
-    {
-        .Color = 0xFF00FFFF,
-        .Light = 10.0f,
-        .Roughness = 0.0f,
-    },
-    // yellow light
-    {
-        .Color = 0xFFFF00FF,
-        .Light = 10.0f,
-        .Roughness = 0.0f,
-    },
-    // white light
-    {
-        .Color = 0xFFFFFFFF,
-        .Light = 10.0f,
-        .Roughness = 0.0f,
+        .Color = 0x228B22FF,
+        .Light = 0.0f,
+        .Roughness = 0.9f,
     },
     // steel
     {
         .Color = 0xCCCCCCFF,
         .Light = 0.0f,
         .Roughness = 0.1f,
+    },
+    // red light
+    {
+        .Color = 0xFF0000FF,
+        .Light = 5.0f,
+        .Roughness = 0.0f,
+    },
+    // green light
+    {
+        .Color = 0x00FF00FF,
+        .Light = 5.0f,
+        .Roughness = 0.0f,
+    },
+    // blue light
+    {
+        .Color = 0x0000FFFF,
+        .Light = 5.0f,
+        .Roughness = 0.0f,
+    },
+    // cyan light
+    {
+        .Color = 0x00FFFFFF,
+        .Light = 5.0f,
+        .Roughness = 0.0f,
+    },
+    // magenta light
+    {
+        .Color = 0xFF00FFFF,
+        .Light = 5.0f,
+        .Roughness = 0.0f,
+    },
+    // yellow light
+    {
+        .Color = 0xFFFF00FF,
+        .Light = 5.0f,
+        .Roughness = 0.0f,
+    },
+    // white light
+    {
+        .Color = 0xFFFFFFFF,
+        .Light = 5.0f,
+        .Roughness = 0.0f,
     },
 };
 

@@ -138,8 +138,8 @@ void main(uint3 id : SV_DispatchThreadID)
     {
         return;
     }
-    float i = 0.25f + Random(float2(Sample, 0)) / 4.0f;
-    float j = 0.25f + Random(float2(Sample, 1)) / 4.0f;
+    float i = Random(float4(id.xy, Sample, 0));
+    float j = Random(float4(id.xy, Sample, 1));
     float u = (2.0f * (id.x + i) / width - 1.0f) * cameraState[0].AspectRatio * cameraState[0].TanHalfFov;
     float v = (1.0f - 2.0f * (id.y + j) / height) * cameraState[0].TanHalfFov;
     float3 direction = normalize(u * cameraState[0].Right - v * cameraState[0].Up + cameraState[0].Forward);
@@ -164,7 +164,7 @@ void main(uint3 id : SV_DispatchThreadID)
         radiance += throughput * emission;
         throughput *= albedo;
         float3 reflected = reflect(direction, query.Normal);
-        float3 diffuse = RandomHemisphere(query.Normal, query.Position, Sample, bounce);
+        float3 diffuse = RandomHemisphere(query.Normal, id.xy, Sample, bounce);
         direction = normalize(lerp(reflected, diffuse, block.Roughness));
         origin = query.Position + query.Normal * 0.001f;
 #elif DEBUG == 1
