@@ -411,8 +411,8 @@ void World::Render(SDL_GPUCommandBuffer* commandBuffer, SDL_GPUTexture* colorTex
             SDL_Log("Failed to begin compute pass: %s", SDL_GetError());
             return;
         }
-        int groupsX = (camera.GetWidth() + CLEAR_TEXTURE_THREADS_X - 1) / CLEAR_TEXTURE_THREADS_X;
-        int groupsY = (camera.GetHeight() + CLEAR_TEXTURE_THREADS_Y - 1) / CLEAR_TEXTURE_THREADS_Y;
+        int groupsX = (Width + CLEAR_TEXTURE_THREADS_X - 1) / CLEAR_TEXTURE_THREADS_X;
+        int groupsY = (Height + CLEAR_TEXTURE_THREADS_Y - 1) / CLEAR_TEXTURE_THREADS_Y;
         SDL_BindGPUComputePipeline(computePass, ClearTexturePipeline);
         SDL_DispatchGPUCompute(computePass, groupsX, groupsY, 1);
         SDL_EndGPUComputePass(computePass);
@@ -440,8 +440,8 @@ void World::Render(SDL_GPUCommandBuffer* commandBuffer, SDL_GPUTexture* colorTex
             SDL_Log("Failed to begin compute pass: %s", SDL_GetError());
             return;
         }
-        int groupsX = (camera.GetWidth() + RAYTRACE_THREADS_X - 1) / RAYTRACE_THREADS_X;
-        int groupsY = (camera.GetHeight() + RAYTRACE_THREADS_Y - 1) / RAYTRACE_THREADS_Y;
+        int groupsX = (Width + RAYTRACE_THREADS_X - 1) / RAYTRACE_THREADS_X;
+        int groupsY = (Height + RAYTRACE_THREADS_Y - 1) / RAYTRACE_THREADS_Y;
         SDL_GPUTexture* readTextures[2]{};
         SDL_GPUBuffer* readBuffers[3]{};
         readTextures[0] = BlockTexture;
@@ -467,8 +467,8 @@ void World::Render(SDL_GPUCommandBuffer* commandBuffer, SDL_GPUTexture* colorTex
             SDL_Log("Failed to begin compute pass: %s", SDL_GetError());
             return;
         }
-        int groupsX = (camera.GetWidth() + SAMPLE_TEXTURE_THREADS_X - 1) / SAMPLE_TEXTURE_THREADS_X;
-        int groupsY = (camera.GetHeight() + SAMPLE_TEXTURE_THREADS_Y - 1) / SAMPLE_TEXTURE_THREADS_Y;
+        int groupsX = (Width + SAMPLE_TEXTURE_THREADS_X - 1) / SAMPLE_TEXTURE_THREADS_X;
+        int groupsY = (Height + SAMPLE_TEXTURE_THREADS_Y - 1) / SAMPLE_TEXTURE_THREADS_Y;
         SDL_GPUTexture* readTextures[1]{};
         readTextures[0] = ColorTexture;
         SDL_BindGPUComputePipeline(computePass, SampleTexturePipeline);

@@ -23,7 +23,7 @@ public:
     Camera();
     bool Init(SDL_GPUDevice* device);
     void Destroy(SDL_GPUDevice* device);
-    void Resize(float width, float height);
+    void Resize(int width, int height);
     void Move(float dx, float dy, float dz);
     void Rotate(float dx, float dy, bool force = false);
     void SetFov(float fov);
@@ -32,14 +32,14 @@ public:
     void SetPosition(const glm::vec3& position);
     const glm::vec3& GetPosition() const;
     const glm::vec3& GetDirection() const;
-    float GetWidth() const;
-    float GetHeight() const;
+    int GetWidth() const;
+    int GetHeight() const;
     bool GetDirty() const;
 
 private:
     StaticBuffer<CameraState> State;
     float Pitch;
     float Yaw;
-    float Width;
-    float Height;
+    int Width;
+    int Height;
 };

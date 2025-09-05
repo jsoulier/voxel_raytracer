@@ -16,8 +16,8 @@ Camera::Camera()
     : State{}
     , Pitch{0.0f}
     , Yaw{0.0f}
-    , Width{0.0f}
-    , Height{0.0f}
+    , Width{0}
+    , Height{0}
 {
 }
 
@@ -29,7 +29,7 @@ bool Camera::Init(SDL_GPUDevice* device)
         return false;
     }
     Rotate(0.0f, 0.0f);
-    Resize(1.0f, 1.0f);
+    Resize(1, 1);
     SetFov(60.0f);
     return true;
 }
@@ -39,11 +39,11 @@ void Camera::Destroy(SDL_GPUDevice* device)
     State.Destroy(device);
 }
 
-void Camera::Resize(float width, float height)
+void Camera::Resize(int width, int height)
 {
     Width = width;
     Height = height;
-    State.Get().AspectRatio = Width / Height;
+    State.Get().AspectRatio = float(Width) / Height;
 }
 
 void Camera::Move(float dx, float dy, float dz)
@@ -105,12 +105,12 @@ const glm::vec3& Camera::GetDirection() const
     return State->Forward;
 }
 
-float Camera::GetWidth() const
+int Camera::GetWidth() const
 {
     return Width;
 }
 
-float Camera::GetHeight() const
+int Camera::GetHeight() const
 {
     return Height;
 }

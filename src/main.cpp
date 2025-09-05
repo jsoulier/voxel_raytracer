@@ -12,7 +12,7 @@
 
 static constexpr float kSpeed = 0.000000035f;
 static constexpr float kSensitivity = 0.001f;
-static constexpr float kWidth = 640.0f;
+static constexpr float kWidth = 1280.0f;
 static constexpr float kRaycast = 10.0f;
 
 static SDL_Window* window;

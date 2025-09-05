@@ -350,7 +350,7 @@ kernel void main0(constant type_UniformBuffer& UniformBuffer [[buffer(0)]], cons
                 } while(false);
                 if (!_931)
                 {
-                    _2053 = _926 + (_928 * float3(0.25, 0.3499999940395355224609375, 0.5));
+                    _2053 = _926 + (_928 * float3(0.5, 0.699999988079071044921875, 1.0));
                     break;
                 }
                 _925 = float3(float((blockState._m0[_933].Color >> 24u) & 255u) * 0.0039215688593685626983642578125, float((blockState._m0[_933].Color >> 16u) & 255u) * 0.0039215688593685626983642578125, float((blockState._m0[_933].Color >> 8u) & 255u) * 0.0039215688593685626983642578125);
