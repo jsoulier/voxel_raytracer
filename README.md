@@ -34,7 +34,7 @@ cd bin
 
 ### Rendering
 
-Uses a single compute shader [here](shaders/raytrace.comp) using DDA with no acceleration structures (and is fairly slow as a result).
+Uses a single compute shader [here](shaders/raytrace.comp) with no acceleration structures (and is fairly slow as a result).
 1. Start a ray from the camera in world space
 2. Convert the ray position to local space
 3. Get the current chunk and position within the that chunk
