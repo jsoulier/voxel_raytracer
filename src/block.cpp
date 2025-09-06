@@ -37,8 +37,15 @@ static constexpr BlockState kBlocks =
     {
         .Color = 0x3399FFFF,
         .Light = 0.0f,
-        .Roughness = 1.0f,
+        .Roughness = 0.0f,
         .IOR = 0.33f,
+    },
+    // glass
+    {
+        .Color = 0x99FFFFFF,
+        .Light = 0.0f,
+        .Roughness = 0.0f,
+        .IOR = 0.5f,
     },
     // stone
     {
@@ -65,7 +72,7 @@ static constexpr BlockState kBlocks =
     {
         .Color = 0xCCCCCCFF,
         .Light = 0.0f,
-        .Roughness = 0.1f,
+        .Roughness = 0.0f,
         .IOR = 0.0f,
     },
     // red light

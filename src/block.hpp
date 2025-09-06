@@ -11,6 +11,7 @@
     X(Dirt) \
     X(Sand) \
     X(Water) \
+    X(Glass) \
     X(Stone) \
     X(Wood) \
     X(Leaves) \
