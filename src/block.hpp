@@ -38,6 +38,7 @@ struct BlockProperty
     uint32_t Color;
     float Light;
     float Roughness;
+    float IOR;
 };
 
 using BlockState = std::array<BlockProperty, BlockCount>;

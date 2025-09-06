@@ -12,17 +12,17 @@ kernel void main0(constant type_UniformBuffer& UniformBuffer [[buffer(0)]], text
 {
     do
     {
-        uint2 _136 = uint2(outTexture.get_width(), outTexture.get_height());
-        bool _164;
-        if (!(gl_GlobalInvocationID.x >= _136.x))
+        uint2 _140 = uint2(outTexture.get_width(), outTexture.get_height());
+        bool _168;
+        if (!(gl_GlobalInvocationID.x >= _140.x))
         {
-            _164 = gl_GlobalInvocationID.y >= _136.y;
+            _168 = gl_GlobalInvocationID.y >= _140.y;
         }
         else
         {
-            _164 = true;
+            _168 = true;
         }
-        if (_164)
+        if (_168)
         {
             break;
         }
