@@ -13,7 +13,6 @@ Chunk::Chunk()
 
 void Chunk::Generate(WorldProxy& proxy, int chunkX, int chunkZ)
 {
-    Profile();
     SDL_assert(Flags & ChunkFlagsGenerate);
     FastNoiseLite baseNoise;
     FastNoiseLite detailNoise;

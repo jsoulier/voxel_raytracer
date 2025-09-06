@@ -147,7 +147,7 @@ void main(uint3 id : SV_DispatchThreadID)
     float v = (1.0f - 2.0f * (id.y + j) / height) * cameraState[0].TanHalfFov;
     float3 direction = normalize(u * cameraState[0].Right - v * cameraState[0].Up + cameraState[0].Forward);
     float3 origin = cameraState[0].Position;
-    float ior = -1.0f;
+    float ior = 0.0f;
     float3 radiance = 0.0f;
     float3 throughput = 1.0f;
     for (int bounce = 0; bounce < kMaxBounces; bounce++)
@@ -158,9 +158,8 @@ void main(uint3 id : SV_DispatchThreadID)
             radiance += throughput * lerp(kSkyBottom, kSkyTop, saturate((direction.y + 1.0f) / 2.0f));
             break;
         }
-        BlockState block = blockState[query.Block];
-        ior = block.IOR;
 #if DEBUG == 0
+        BlockState block = blockState[query.Block];
         float3 albedo;
         albedo.r = float((block.Color >> 24) & 0xFFu) / 255.0f;
         albedo.g = float((block.Color >> 16) & 0xFFu) / 255.0f;
@@ -169,16 +168,20 @@ void main(uint3 id : SV_DispatchThreadID)
         float3 emission = albedo * block.Light;
         radiance += throughput * emission;
         throughput *= albedo;
-        if (ior > kEpsilon)
+        if (block.IOR > kEpsilon)
         {
             // TODO: reflectance
             if (Random(float4(id.xy, Sample * 11.0f, bounce)) < 0.5f)
             {
-                direction = refract(direction, query.Normal, 1.0f / (1.0f + ior));
+                // TODO: shouldn't refract when we enter and leave glass
+                // TODO: modify Raycast to take a bool to skip the first block when refracting
+                direction = refract(direction, query.Normal, (1.0f + ior) / (1.0f + block.IOR));
+                ior = block.IOR;
                 origin = query.Position + query.Normal * 0.001f;
                 continue;
             }
         }
+        ior = block.IOR;
         float3 reflected = reflect(direction, query.Normal);
         float3 diffuse = RandomHemisphere(query.Normal, id.xy, Sample, bounce);
         direction = normalize(lerp(reflected, diffuse, block.Roughness));

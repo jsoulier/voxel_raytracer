@@ -44,7 +44,6 @@ public:
     {
         if (!Data && TransferBuffer)
         {
-            ProfileBlock("Buffer::Emplace::Map");
             BufferSize = 0;
             SDL_assert(!TransferBufferSize);
             Data = static_cast<T*>(SDL_MapGPUTransferBuffer(device, TransferBuffer, true));
@@ -57,7 +56,6 @@ public:
         SDL_assert(TransferBufferSize <= TransferBufferCapacity);
         if (TransferBufferSize == TransferBufferCapacity)
         {
-            ProfileBlock("Buffer::Emplace::Realloc");
             int capacity = std::max(kStartingCapacity, TransferBufferSize * kGrowthRate);
             SDL_GPUTransferBufferCreateInfo info{};
             info.usage = SDL_GPU_TRANSFERBUFFERUSAGE_UPLOAD;
@@ -77,7 +75,6 @@ public:
             }
             if (Data)
             {
-                ProfileBlock("Buffer::Emplace::Realloc::Copy");
                 std::copy(Data, Data + TransferBufferSize, data);
                 SDL_UnmapGPUTransferBuffer(device, TransferBuffer);
             }
@@ -92,7 +89,6 @@ public:
 
     void Upload(SDL_GPUDevice* device, SDL_GPUCopyPass* copyPass)
     {
-        Profile();
         if (Data)
         {
             SDL_UnmapGPUTransferBuffer(device, TransferBuffer);
@@ -107,7 +103,6 @@ public:
         }
         if (TransferBufferCapacity > BufferCapacity)
         {
-            ProfileBlock("Buffer::Upload::Reallocate");
             SDL_ReleaseGPUBuffer(device, Buffer);
             Buffer = nullptr;
             BufferCapacity = 0;
@@ -167,7 +162,6 @@ public:
 
     bool Init(SDL_GPUDevice* device)
     {
-        Profile();
         {
             SDL_GPUTransferBufferCreateInfo info{};
             info.usage = SDL_GPU_TRANSFERBUFFERUSAGE_UPLOAD;
@@ -203,7 +197,6 @@ public:
 
     void Upload(SDL_GPUDevice* device, SDL_GPUCopyPass* copyPass)
     {
-        Profile();
         if (!Dirty)
         {
             return;

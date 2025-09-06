@@ -31,3 +31,14 @@ cmake --build . --parallel 8
 cd bin
 ./voxel_raytracer
 ```
+
+### Rendering
+
+Uses a single compute shader [here](shaders/raytrace.comp) using DDA with no acceleration structures (and is fairly slow as a result).
+1. Start a ray from the camera in world space
+2. Convert the ray position to local space
+3. Get the current chunk and position within the that chunk
+4. Convert the chunk coordinates to chunk data coordinates
+5. Index the block texture at the chunk data coordinates and position within the chunk
+6. Calculate the intersection location and apply reflection/refraction a few times
+7. Accumulate over results over multiple frames

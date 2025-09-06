@@ -90,10 +90,8 @@ World::World()
 
 bool World::Init(SDL_GPUDevice* device)
 {
-    Profile();
     Device = device;
     {
-        ProfileBlock("World::Init::Textures");
         SDL_GPUTextureCreateInfo info{};
         info.format = SDL_GPU_TEXTUREFORMAT_R8_UINT;
         info.type = SDL_GPU_TEXTURETYPE_3D;
@@ -121,7 +119,6 @@ bool World::Init(SDL_GPUDevice* device)
         }
     }
     {
-        ProfileBlock("World::Init::Pipelines");
         WorldSetBlocksPipeline = LoadComputePipeline(Device, "world_set_blocks.comp");
         if (!WorldSetBlocksPipeline)
         {
@@ -160,7 +157,6 @@ bool World::Init(SDL_GPUDevice* device)
         }
     }
     {
-        ProfileBlock("World::Init::Other");
         if (!WorldStateBuffer.Init(Device))
         {
             SDL_Log("Failed to initialize world state");
@@ -195,7 +191,6 @@ bool World::Init(SDL_GPUDevice* device)
 
 void World::Destroy()
 {
-    Profile();
     BlockStateBuffer.Destroy(Device);
     WorldStateBuffer.Destroy(Device);
     SetChunksBuffer.Destroy(Device);
@@ -213,7 +208,6 @@ void World::Destroy()
 
 void World::Update(Camera& camera)
 {
-    Profile();
     int cameraX = camera.GetPosition().x / Chunk::kWidth - kWidth / 2;
     int cameraZ = camera.GetPosition().z / Chunk::kWidth - kWidth / 2;
     int offsetX = cameraX - WorldStateBuffer->X;
@@ -286,9 +280,7 @@ void World::Update(Camera& camera)
 
 void World::Dispatch(SDL_GPUCommandBuffer* commandBuffer)
 {
-    Profile();
     {
-        ProfileBlock("World::Render::Upload");
         DebugGroupBlock(commandBuffer, "World::Render::Upload");
         SDL_GPUCopyPass* copyPass = SDL_BeginGPUCopyPass(commandBuffer);
         if (!copyPass)
@@ -304,7 +296,6 @@ void World::Dispatch(SDL_GPUCommandBuffer* commandBuffer)
     }
     if (SetChunksBuffer.GetSize())
     {
-        ProfileBlock("World::Render::SetChunks");
         DebugGroupBlock(commandBuffer, "World::Render::SetChunks");
         SDL_GPUStorageTextureReadWriteBinding writeTexture{};
         writeTexture.texture = ChunkTexture;
@@ -326,7 +317,6 @@ void World::Dispatch(SDL_GPUCommandBuffer* commandBuffer)
     }
     if (!ClearChunks.empty())
     {
-        ProfileBlock("World::Render::ClearBlocks");
         DebugGroupBlock(commandBuffer, "World::Render::ClearBlocks");
         SDL_GPUStorageTextureReadWriteBinding writeTexture{};
         writeTexture.texture = BlockTexture;
@@ -349,7 +339,6 @@ void World::Dispatch(SDL_GPUCommandBuffer* commandBuffer)
     }
     if (SetBlocksBuffer.GetSize())
     {
-        ProfileBlock("World::Render::SetBlocks");
         DebugGroupBlock(commandBuffer, "World::Render::SetBlocks");
         SDL_GPUStorageTextureReadWriteBinding writeTexture{};
         writeTexture.texture = BlockTexture;
@@ -373,10 +362,8 @@ void World::Dispatch(SDL_GPUCommandBuffer* commandBuffer)
 
 void World::Render(SDL_GPUCommandBuffer* commandBuffer, SDL_GPUTexture* colorTexture, Camera& camera)
 {
-    Profile();
     if (Width != camera.GetWidth() || Height != camera.GetHeight())
     {
-        ProfileBlock("World::Render::Resize");
         DebugGroupBlock(commandBuffer, "World::Render::Resize");
         SDL_ReleaseGPUTexture(Device, ColorTexture);
         SDL_GPUTextureCreateInfo info{};
@@ -401,7 +388,6 @@ void World::Render(SDL_GPUCommandBuffer* commandBuffer, SDL_GPUTexture* colorTex
     if (Dirty || camera.GetDirty())
     {
         Sample = 0;
-        ProfileBlock("World::Render::ClearTexture");
         DebugGroupBlock(commandBuffer, "World::Render::ClearTexture");
         SDL_GPUStorageTextureReadWriteBinding writeTexture{};
         writeTexture.texture = ColorTexture;
@@ -430,7 +416,6 @@ void World::Render(SDL_GPUCommandBuffer* commandBuffer, SDL_GPUTexture* colorTex
         SDL_EndGPUCopyPass(copyPass);
     }
     {
-        ProfileBlock("World::Render::Raytrace");
         DebugGroupBlock(commandBuffer, "World::Render::Raytrace");
         SDL_GPUStorageTextureReadWriteBinding writeTexture{};
         writeTexture.texture = ColorTexture;
@@ -457,7 +442,6 @@ void World::Render(SDL_GPUCommandBuffer* commandBuffer, SDL_GPUTexture* colorTex
         SDL_EndGPUComputePass(computePass);
     }
     {
-        ProfileBlock("World::Render::SampleTexture");
         DebugGroupBlock(commandBuffer, "World::Render::SampleTexture");
         SDL_GPUStorageTextureReadWriteBinding writeTexture{};
         writeTexture.texture = colorTexture;

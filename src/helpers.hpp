@@ -2,14 +2,6 @@
 
 #include <SDL3/SDL.h>
 
-#ifndef NDEBUG
-#include <tracy/Tracy.hpp>
-#define Profile() ZoneScopedN(SDL_FUNCTION)
-#define ProfileBlock(name) ZoneScopedN(name)
-#else
-#define Profile()
-#define ProfileBlock(name)
-#endif
 #define DebugGroup(commandBuffer) DebugGroupInternal debugGroup(commandBuffer, SDL_FUNCTION)
 #define DebugGroupBlock(commandBuffer, name) DebugGroupInternal debugGroup(commandBuffer, name)
 

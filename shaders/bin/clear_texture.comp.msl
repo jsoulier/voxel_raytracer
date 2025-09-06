@@ -7,17 +7,17 @@ kernel void main0(texture2d<float, access::write> outTexture [[texture(0)]], uin
 {
     do
     {
-        uint2 _114 = uint2(outTexture.get_width(), outTexture.get_height());
-        bool _142;
-        if (!(gl_GlobalInvocationID.x >= _114.x))
+        uint2 _29 = uint2(outTexture.get_width(), outTexture.get_height());
+        bool _41;
+        if (!(gl_GlobalInvocationID.x >= _29.x))
         {
-            _142 = gl_GlobalInvocationID.y >= _114.y;
+            _41 = gl_GlobalInvocationID.y >= _29.y;
         }
         else
         {
-            _142 = true;
+            _41 = true;
         }
-        if (_142)
+        if (_41)
         {
             break;
         }

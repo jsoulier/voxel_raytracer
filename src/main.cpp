@@ -31,7 +31,6 @@ static Block block = BlockWhiteLight;
 
 static bool Init()
 {
-    Profile();
 #ifndef NDEBUG
     SDL_SetLogPriorities(SDL_LOG_PRIORITY_VERBOSE);
 #endif
@@ -82,7 +81,6 @@ static bool Init()
     SDL_SetWindowResizable(window, true);
     SDL_FlashWindow(window, SDL_FLASH_BRIEFLY);
     {
-        ProfileBlock("Init::ImGui");
         IMGUI_CHECKVERSION();
         ImGui::CreateContext();
         ImGui_ImplSDL3_InitForSDLGPU(window);
@@ -96,7 +94,6 @@ static bool Init()
 
 static void Quit()
 {
-    Profile();
     SDL_HideWindow(window);
     ImGui_ImplSDLGPU3_Shutdown();
     ImGui_ImplSDL3_Shutdown();
@@ -112,7 +109,6 @@ static void Quit()
 
 static bool Poll()
 {
-    Profile();
     SDL_Event event;
     while (SDL_PollEvent(&event))
     {
@@ -208,7 +204,6 @@ static bool Poll()
 
 static void Update()
 {
-    Profile();
     if (SDL_GetWindowRelativeMouseMode(window))
     {
         float dx = 0.0f;
@@ -241,7 +236,6 @@ static void Update()
 
 static bool Resize(uint32_t width, uint32_t height)
 {
-    Profile();
     float aspectRatio = float(width) / float(height);
     camera.Resize(kWidth, kWidth / aspectRatio);
     SDL_ReleaseGPUTexture(device, colorTexture);
@@ -266,7 +260,6 @@ static bool Resize(uint32_t width, uint32_t height)
 
 static void Render()
 {
-    Profile();
     SDL_GPUCommandBuffer* commandBuffer = SDL_AcquireGPUCommandBuffer(device);
     if (!commandBuffer)
     {
@@ -277,7 +270,6 @@ static void Render()
     uint32_t width;
     uint32_t height;
     {
-        ProfileBlock("Render::AcquireSwapchainTexture");
         if (!SDL_WaitAndAcquireGPUSwapchainTexture(commandBuffer, window, &swapchainTexture, &width, &height))
         {
             SDL_Log("Failed to acquire command buffer: %s", SDL_GetError());
@@ -298,7 +290,6 @@ static void Render()
         return;
     }
     {
-        ProfileBlock("Render::PrepareImGui");
         DebugGroupBlock(commandBuffer, "Render::PrepareImGui");
         ImGuiIO& io = ImGui::GetIO();
         io.DisplaySize.x = width;
@@ -341,7 +332,6 @@ static void Render()
     world.Dispatch(commandBuffer);
     world.Render(commandBuffer, colorTexture, camera);
     {
-        ProfileBlock("Render::Blit");
         DebugGroupBlock(commandBuffer, "Render::Blit");
         SDL_GPUBlitInfo info{};
         info.source.texture = colorTexture;
@@ -353,7 +343,6 @@ static void Render()
         SDL_BlitGPUTexture(commandBuffer, &info);
     }
     {
-        ProfileBlock("Render::RenderImGui");
         DebugGroupBlock(commandBuffer, "Render::RenderImGui");
         SDL_GPUColorTargetInfo info{};
         info.texture = swapchainTexture;
@@ -374,7 +363,6 @@ static void Render()
 
 int main(int argc, char** argv)
 {
-    Profile();
     if (!Init())
     {
         return 1;
@@ -383,7 +371,6 @@ int main(int argc, char** argv)
     time1 = time2;
     while (true)
     {
-        ProfileBlock("main::Loop");
         time2 = SDL_GetTicksNS();
         dt = time2 - time1;
         time1 = time2;

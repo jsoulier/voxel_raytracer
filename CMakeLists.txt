@@ -16,11 +16,9 @@ configure_file(README.md ${BINARY_DIR} COPYONLY)
 set(GLM_BUILD_LIBRARY OFF)
 add_subdirectory(lib/FastNoiseLite)
 add_subdirectory(lib/SDL)
-add_subdirectory(lib/Tracy)
 add_subdirectory(lib/glm)
 add_subdirectory(lib/imgui)
 add_subdirectory(lib/json)
-add_subdirectory(lib/sqlite3)
 add_subdirectory(lib/stb)
 
 add_executable(voxel_raytracer WIN32
@@ -32,13 +30,11 @@ add_executable(voxel_raytracer WIN32
     src/world.cpp
 )
 target_link_libraries(voxel_raytracer PRIVATE
-    $<$<CONFIG:Debug>:TracyClient>
     FastNoiseLite
     SDL3::SDL3
     glm
     imgui
     nlohmann_json
-    sqlite3
     stb
 )
 set_target_properties(voxel_raytracer PROPERTIES CXX_STANDARD 23)
@@ -79,7 +75,7 @@ function(add_shader FILE)
     function(compile OUTPUT)
         add_custom_command(
             OUTPUT ${OUTPUT}
-            COMMAND ${SHADERCROSS} ${HLSL} -s hlsl -o ${OUTPUT} -I src -g
+            COMMAND ${SHADERCROSS} ${HLSL} -s hlsl -o ${OUTPUT} -I src
             WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
             DEPENDS ${HLSL} ${DEPENDS}
             COMMENT ${OUTPUT}
