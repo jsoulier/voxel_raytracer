@@ -6,7 +6,8 @@
 
 static const int kMaxSteps = 512;
 static const int kMaxBounces = 8;
-static const float3 kSkyColor = float3(0.5f, 0.7f, 1.0f);
+static const float3 kSkyBottom = float3(1.0f, 1.0f, 1.0f);
+static const float3 kSkyTop = float3(0.5f, 0.7f, 1.0f);
 
 cbuffer UniformBuffer : register(b0, space2)
 {
@@ -154,7 +155,7 @@ void main(uint3 id : SV_DispatchThreadID)
         Query query = Raycast(origin, direction, ior);
         if (!query.Hit)
         {
-            radiance += throughput * kSkyColor;
+            radiance += throughput * lerp(kSkyBottom, kSkyTop, saturate((direction.y + 1.0f) / 2.0f));
             break;
         }
         BlockState block = blockState[query.Block];
@@ -182,6 +183,11 @@ void main(uint3 id : SV_DispatchThreadID)
         float3 diffuse = RandomHemisphere(query.Normal, id.xy, Sample, bounce);
         direction = normalize(lerp(reflected, diffuse, block.Roughness));
         origin = query.Position + query.Normal * 0.001f;
+        // TODO: for fixing excess lighting on water reflections
+        if (block.Light > kEpsilon)
+        {
+            break;
+        }
 #elif DEBUG == 1
         float3 color = 0.0f;
         if (query.Normal.x == 1.0f)
@@ -214,10 +220,6 @@ void main(uint3 id : SV_DispatchThreadID)
         }
         outTexture[id.xy] = float4(color, 1.0f);
         return;
-#elif DEBUG == 2
-        radiance.rgb += block.Light;
-        direction = reflect(direction, query.Normal);
-        origin = query.Position + direction * 0.001f;
 #endif
     }
     outTexture[id.xy] += float4(radiance, 1.0f);

@@ -2,7 +2,7 @@
 #define CONFIG_H
 
 #define CHUNK_WIDTH 32
-#define CHUNK_HEIGHT 32
+#define CHUNK_HEIGHT 64
 #define WORLD_WIDTH 8
 
 #define CLEAR_BLOCKS_THREADS_X 8

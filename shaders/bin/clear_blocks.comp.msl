@@ -15,7 +15,7 @@ kernel void main0(constant type_UniformBuffer& UniformBuffer [[buffer(0)]], text
         bool _147;
         if (!(gl_GlobalInvocationID.x >= 32u))
         {
-            _147 = gl_GlobalInvocationID.y >= 32u;
+            _147 = gl_GlobalInvocationID.y >= 64u;
         }
         else
         {
