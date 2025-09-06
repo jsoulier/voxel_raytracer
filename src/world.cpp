@@ -1,4 +1,5 @@
 #include <SDL3/SDL.h>
+#include <glm/glm.hpp>
 
 #include <cmath>
 #include <cstring>
@@ -44,7 +45,7 @@ WorldSetChunkJob::WorldSetChunkJob(int inX, int inZ, int outX, int outZ)
 {
 }
 
-WorldProxy::WorldProxy(World& handle, DynamicBuffer<Job>& buffer, int chunkX, int chunkZ)
+WorldProxy::WorldProxy(World& handle, DynamicBuffer<WorldSetBlockJob>& buffer, int chunkX, int chunkZ)
     : Handle{handle}
     , Buffer{buffer}
     , X{chunkX * Chunk::kWidth}

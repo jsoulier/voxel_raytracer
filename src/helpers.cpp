@@ -38,7 +38,7 @@ static void* LoadShaderInternal(SDL_GPUDevice* device, const char* name)
     }
     else
     {
-        assert(false);
+        SDL_assert(false);
     }
     std::filesystem::path path = SDL_GetBasePath();
     path /= name;

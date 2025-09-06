@@ -49,7 +49,6 @@ target_precompile_headers(voxel_raytracer PRIVATE
     <fstream>
     <glm/glm.hpp>
     <glm/gtc/constants.hpp>
-    <glm/gtc/matrix_transform.hpp>
     <imgui.h>
     <imgui_impl_sdl3.h>
     <imgui_impl_sdlgpu3.h>

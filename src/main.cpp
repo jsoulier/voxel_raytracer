@@ -269,17 +269,15 @@ static void Render()
     SDL_GPUTexture* swapchainTexture;
     uint32_t width;
     uint32_t height;
+    if (!SDL_WaitAndAcquireGPUSwapchainTexture(commandBuffer, window, &swapchainTexture, &width, &height))
     {
-        if (!SDL_WaitAndAcquireGPUSwapchainTexture(commandBuffer, window, &swapchainTexture, &width, &height))
-        {
-            SDL_Log("Failed to acquire command buffer: %s", SDL_GetError());
-            SDL_CancelGPUCommandBuffer(commandBuffer);
-            return;
-        }
+        SDL_Log("Failed to acquire command buffer: %s", SDL_GetError());
+        SDL_CancelGPUCommandBuffer(commandBuffer);
+        return;
     }
     if (!swapchainTexture || !width || !height)
     {
-        // Not an error
+        // not an error
         SDL_SubmitGPUCommandBuffer(commandBuffer);
         return;
     }

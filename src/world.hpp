@@ -3,6 +3,7 @@
 #include <SDL3/SDL.h>
 #include <glm/glm.hpp>
 
+#include <cstdint>
 #include <vector>
 
 #include "block.hpp"
@@ -45,15 +46,13 @@ static_assert(sizeof(WorldSetChunkJob) == 4);
 
 class WorldProxy
 {
-private:
-    using Job = WorldSetBlockJob;
-
 public:
-    WorldProxy(World& Handle, DynamicBuffer<Job>& buffer, int chunkX, int chunkZ);
+    WorldProxy(World& handle, DynamicBuffer<WorldSetBlockJob>& buffer, int chunkX, int chunkZ);
     void SetBlock(glm::ivec3 position, Block block);
 
+private:
     World& Handle;
-    DynamicBuffer<Job>& Buffer;
+    DynamicBuffer<WorldSetBlockJob>& Buffer;
     int X;
     int Z;
 };
@@ -88,7 +87,6 @@ public:
     WorldQuery Raycast(const glm::vec3& position, const glm::vec3& direction, float length);
 
 private:
-    bool ValidLocalPosition(const glm::ivec3& position) const;
     bool WorldToLocalPosition(glm::ivec3& position) const;
 
 private:

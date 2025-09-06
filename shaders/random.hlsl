@@ -86,7 +86,15 @@ float3 RandomHemisphere(float3 normal, float2 id, uint sample, uint bounce)
     direction.x = sin(theta) * cos(phi);
     direction.y = cos(theta);
     direction.z = sin(theta) * sin(phi);
-    float3 up = abs(normal.y) < 0.999f ? float3(0.0f, 1.0f, 0.0f) : float3(1.0f, 0.0f, 0.0f);
+    float3 up;
+    if (abs(normal.y) < 0.999f)
+    {
+        up = float3(0.0f, 1.0f, 0.0f);
+    }
+    else
+    {
+        up = float3(1.0f, 0.0f, 0.0f);
+    }
     float3 tangent = normalize(cross(up, normal));
     float3 bitangent = cross(normal, tangent);
     return tangent * direction.x + normal * direction.y + bitangent * direction.z;
