@@ -23,8 +23,10 @@ struct BlockState
     uint Color;
     float Light;
     float Roughness;
+    float IOR;
 };
 
 static const uint kBlockAir = 0;
+static const float kEpsilon = 0.001f;
 
 #endif

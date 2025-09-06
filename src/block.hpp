@@ -11,6 +11,7 @@
     X(Dirt) \
     X(Sand) \
     X(Water) \
+    X(Glass) \
     X(Stone) \
     X(Wood) \
     X(Leaves) \
@@ -38,6 +39,7 @@ struct BlockProperty
     uint32_t Color;
     float Light;
     float Roughness;
+    float IOR;
 };
 
 using BlockState = std::array<BlockProperty, BlockCount>;
