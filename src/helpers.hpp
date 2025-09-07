@@ -25,4 +25,3 @@ private:
 
 SDL_GPUShader* LoadShader(SDL_GPUDevice* device, const char* name);
 SDL_GPUComputePipeline* LoadComputePipeline(SDL_GPUDevice* device, const char* name);
-SDL_GPUTexture* LoadTexture(SDL_GPUDevice* device, const char* name);

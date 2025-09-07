@@ -19,7 +19,6 @@ add_subdirectory(lib/SDL)
 add_subdirectory(lib/glm)
 add_subdirectory(lib/imgui)
 add_subdirectory(lib/json)
-add_subdirectory(lib/stb)
 
 add_executable(voxel_raytracer WIN32
     src/block.cpp
@@ -35,7 +34,6 @@ target_link_libraries(voxel_raytracer PRIVATE
     glm
     imgui
     nlohmann_json
-    stb
 )
 set_target_properties(voxel_raytracer PROPERTIES CXX_STANDARD 23)
 target_precompile_headers(voxel_raytracer PRIVATE

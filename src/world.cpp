@@ -256,6 +256,7 @@ void World::Update(Camera& camera)
             Chunk& chunk = Chunks[position.x][position.y];
             chunk.AddFlags(ChunkFlagsGenerate);
             SetChunksBuffer.Emplace(Device, x, z, position.x, position.y);
+            ClearChunks.emplace_back(position.x, position.y);
         }
         SDL_assert(outOfBoundsChunks.empty());
     }
@@ -270,7 +271,6 @@ void World::Update(Camera& camera)
         Chunk& chunk = Chunks[outX][outZ];
         if (chunk.GetFlags() & ChunkFlagsGenerate)
         {
-            ClearChunks.emplace_back(outX, outZ);
             WorldProxy proxy{*this, SetBlocksBuffer, outX, outZ};
             chunk.Generate(proxy, WorldStateBuffer->X + inX, WorldStateBuffer->Z + inZ);
             Dirty = true;

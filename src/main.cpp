@@ -144,6 +144,17 @@ static bool Poll()
                     }
                 }
             }
+            else if (event.button.button == SDL_BUTTON_MIDDLE)
+            {
+                if (SDL_GetWindowRelativeMouseMode(window))
+                {
+                    WorldQuery query = world.Raycast(camera.GetPosition(), camera.GetDirection(), kRaycast);
+                    if (query.HitBlock != BlockAir)
+                    {
+                        block = query.HitBlock;
+                    }
+                }
+            }
             break;
         case SDL_EVENT_MOUSE_MOTION:
             if (SDL_GetWindowRelativeMouseMode(window))
