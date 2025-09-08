@@ -33,7 +33,7 @@ float FloatConstruct(uint m)
     m &= ieeeMantissa;
     m |= ieeeOne;
     float f = asfloat(m);
-    return f - 1.0;
+    return f - 1.0f;
 }
 
 float Random(float x)

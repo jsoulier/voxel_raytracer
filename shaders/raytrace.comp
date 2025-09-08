@@ -88,6 +88,11 @@ Query Raycast(float3 origin, float3 direction, float ior)
                 normal.z = -step.z;
                 t = distance.z - delta.z;
             }
+            else
+            {
+                // TODO: hack
+                normal = -direction;
+            }
             Query query;
             query.Hit = true;
             query.Block = hitBlock;
