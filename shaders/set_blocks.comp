@@ -10,7 +10,7 @@ StructuredBuffer<uint2> jobs : register(t0, space0);
 [[vk::image_format("r8ui")]]
 RWTexture3D<uint> blockTexture : register(u0, space1);
 
-[numthreads(WORLD_SET_BLOCKS_THREADS_X, 1, 1)]
+[numthreads(SET_BLOCKS_THREADS_X, 1, 1)]
 void main(uint3 id : SV_DispatchThreadID)
 {
     if (id.x >= NumJobs)

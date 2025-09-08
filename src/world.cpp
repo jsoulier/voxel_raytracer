@@ -77,9 +77,9 @@ World::World()
     , BlockTexture{nullptr}
     , ChunkTexture{nullptr}
     , ColorTexture{nullptr}
-    , WorldSetBlocksPipeline{nullptr}
-    , WorldSetChunksPipeline{nullptr}
-    , WorldClearBlocksPipeline{nullptr}
+    , SetBlocksPipeline{nullptr}
+    , SetChunksPipeline{nullptr}
+    , ClearBlocksPipeline{nullptr}
     , RaytracePipeline{nullptr}
     , ClearTexturePipeline{nullptr}
     , Width{0}
@@ -120,22 +120,22 @@ bool World::Init(SDL_GPUDevice* device)
         }
     }
     {
-        WorldSetBlocksPipeline = LoadComputePipeline(Device, "world_set_blocks.comp");
-        if (!WorldSetBlocksPipeline)
+        SetBlocksPipeline = LoadComputePipeline(Device, "set_blocks.comp");
+        if (!SetBlocksPipeline)
         {
-            SDL_Log("Failed to load world set blocks pipeline");
+            SDL_Log("Failed to load set blocks pipeline");
             return false;
         }
-        WorldSetChunksPipeline = LoadComputePipeline(Device, "world_set_chunks.comp");
-        if (!WorldSetChunksPipeline)
+        SetChunksPipeline = LoadComputePipeline(Device, "set_chunks.comp");
+        if (!SetChunksPipeline)
         {
-            SDL_Log("Failed to load world set chunks pipeline");
+            SDL_Log("Failed to load set chunks pipeline");
             return false;
         }
-        WorldClearBlocksPipeline = LoadComputePipeline(Device, "clear_blocks.comp");
-        if (!WorldClearBlocksPipeline)
+        ClearBlocksPipeline = LoadComputePipeline(Device, "clear_blocks.comp");
+        if (!ClearBlocksPipeline)
         {
-            SDL_Log("Failed to load world clear blocks pipeline");
+            SDL_Log("Failed to load clear blocks pipeline");
             return false;
         }
         RaytracePipeline = LoadComputePipeline(Device, "raytrace.comp");
@@ -199,9 +199,9 @@ void World::Destroy()
     SDL_ReleaseGPUComputePipeline(Device, SampleTexturePipeline);
     SDL_ReleaseGPUComputePipeline(Device, ClearTexturePipeline);
     SDL_ReleaseGPUComputePipeline(Device, RaytracePipeline);
-    SDL_ReleaseGPUComputePipeline(Device, WorldSetBlocksPipeline);
-    SDL_ReleaseGPUComputePipeline(Device, WorldSetChunksPipeline);
-    SDL_ReleaseGPUComputePipeline(Device, WorldClearBlocksPipeline);
+    SDL_ReleaseGPUComputePipeline(Device, SetBlocksPipeline);
+    SDL_ReleaseGPUComputePipeline(Device, SetChunksPipeline);
+    SDL_ReleaseGPUComputePipeline(Device, ClearBlocksPipeline);
     SDL_ReleaseGPUTexture(Device, ChunkTexture);
     SDL_ReleaseGPUTexture(Device, BlockTexture);
     SDL_ReleaseGPUTexture(Device, ColorTexture);
@@ -307,10 +307,10 @@ void World::Dispatch(SDL_GPUCommandBuffer* commandBuffer)
             return;
         }
         int numJobs = SetChunksBuffer.GetSize();
-        int groupsX = (numJobs + WORLD_SET_CHUNKS_THREADS_X - 1) / WORLD_SET_CHUNKS_THREADS_X;
+        int groupsX = (numJobs + SET_CHUNKS_THREADS_X - 1) / SET_CHUNKS_THREADS_X;
         SDL_GPUBuffer* readBuffers[1]{};
         readBuffers[0] = SetChunksBuffer.GetBuffer();
-        SDL_BindGPUComputePipeline(computePass, WorldSetChunksPipeline);
+        SDL_BindGPUComputePipeline(computePass, SetChunksPipeline);
         SDL_BindGPUComputeStorageBuffers(computePass, 0, readBuffers, 1);
         SDL_PushGPUComputeUniformData(commandBuffer, 0, &numJobs, sizeof(numJobs));
         SDL_DispatchGPUCompute(computePass, groupsX, 1, 1);
@@ -329,7 +329,7 @@ void World::Dispatch(SDL_GPUCommandBuffer* commandBuffer)
         }
         int groupsX = (Chunk::kWidth + CLEAR_BLOCKS_THREADS_X - 1) / CLEAR_BLOCKS_THREADS_X;
         int groupsY = (Chunk::kHeight + CLEAR_BLOCKS_THREADS_Y - 1) / CLEAR_BLOCKS_THREADS_Y;
-        SDL_BindGPUComputePipeline(computePass, WorldClearBlocksPipeline);
+        SDL_BindGPUComputePipeline(computePass, ClearBlocksPipeline);
         for (glm::ivec2 position : ClearChunks)
         {
             SDL_PushGPUComputeUniformData(commandBuffer, 0, &position, sizeof(position));
@@ -350,10 +350,10 @@ void World::Dispatch(SDL_GPUCommandBuffer* commandBuffer)
             return;
         }
         int numJobs = SetBlocksBuffer.GetSize();
-        int groupsX = (numJobs + WORLD_SET_BLOCKS_THREADS_X - 1) / WORLD_SET_BLOCKS_THREADS_X;
+        int groupsX = (numJobs + SET_BLOCKS_THREADS_X - 1) / SET_BLOCKS_THREADS_X;
         SDL_GPUBuffer* readBuffers[1]{};
         readBuffers[0] = SetBlocksBuffer.GetBuffer();
-        SDL_BindGPUComputePipeline(computePass, WorldSetBlocksPipeline);
+        SDL_BindGPUComputePipeline(computePass, SetBlocksPipeline);
         SDL_BindGPUComputeStorageBuffers(computePass, 0, readBuffers, 1);
         SDL_PushGPUComputeUniformData(commandBuffer, 0, &numJobs, sizeof(numJobs));
         SDL_DispatchGPUCompute(computePass, groupsX, 1, 1);
