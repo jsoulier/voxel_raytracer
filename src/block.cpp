@@ -44,7 +44,7 @@ static constexpr BlockState kBlocks =
     {
         .Color = 0x99FFFFFF,
         .Light = 0.0f,
-        .Roughness = 0.0f,
+        .Roughness = 1.0f,
         .IOR = 0.5f,
     },
     // stone
