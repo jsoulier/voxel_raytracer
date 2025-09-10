@@ -215,7 +215,6 @@ void World::Update(Camera& camera)
     int offsetZ = cameraZ - WorldStateBuffer->Z;
     if (offsetX || offsetZ)
     {
-        // TODO: refactor
         WorldStateBuffer.Get().X = cameraX;
         WorldStateBuffer.Get().Z = cameraZ;
         static constexpr int kNull = -1;
@@ -260,9 +259,6 @@ void World::Update(Camera& camera)
         }
         SDL_assert(outOfBoundsChunks.empty());
     }
-    // TODO:
-    // 1. sort chunk indices from the center outwards
-    // 2. hold onto current index and reset to zero when e.g. chunks move, chunks modified, etc
     for (int inX = 0; inX < kWidth; inX++)
     for (int inZ = 0; inZ < kWidth; inZ++)
     {
