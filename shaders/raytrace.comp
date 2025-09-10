@@ -88,6 +88,11 @@ Query Raycast(float3 origin, float3 direction, float ior)
                 normal.z = -step.z;
                 t = distance.z - delta.z;
             }
+            else
+            {
+                // NOTE: don't know why but let's me see underwater
+                normal = -direction;
+            }
             Query query;
             query.Hit = true;
             query.Block = hitBlock;
@@ -131,6 +136,16 @@ Query Raycast(float3 origin, float3 direction, float ior)
     return query;
 }
 
+float FresnelSchlick(float3 direction, float3 normal, float iorFrom, float iorTo)
+{
+    float cosTheta = saturate(dot(-direction, normal));
+    iorFrom += 1.0f;
+    iorTo += 1.0f;
+    float r0 = (iorFrom - iorTo) / (iorFrom + iorTo);
+    r0 = r0 * r0;
+    return r0 + (1.0f - r0) * pow(1.0f - cosTheta, 5.0f);
+}
+
 [numthreads(RAYTRACE_THREADS_X, RAYTRACE_THREADS_Y, 1)]
 void main(uint3 id : SV_DispatchThreadID)
 {
@@ -172,7 +187,7 @@ void main(uint3 id : SV_DispatchThreadID)
         }
         if (block.IOR > kEpsilon || (ior > kEpsilon && query.Block == kBlockAir))
         {
-            if (Random(float4(id.xy, Sample * 11.0f, bounce)) < 0.5f)
+            if (Random(float4(id.xy, Sample * 11.0f, bounce)) > FresnelSchlick(direction, query.Normal, ior, block.IOR))
             {
                 float3 newDirection = refract(direction, query.Normal, (1.0f + ior) / (1.0f + block.IOR));
                 if (length(newDirection) > kEpsilon)
