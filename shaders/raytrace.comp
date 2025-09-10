@@ -33,7 +33,7 @@ struct Query
 Query Raycast(float3 origin, float3 direction, float ior)
 {
     int3 voxel = int3(floor(origin));
-    float3 delta = abs(1.0 / direction);
+    float3 delta = abs(1.0f / direction);
     int3 step;
     float3 distance;
     int axis = -1;
@@ -87,11 +87,6 @@ Query Raycast(float3 origin, float3 direction, float ior)
             {
                 normal.z = -step.z;
                 t = distance.z - delta.z;
-            }
-            else
-            {
-                // NOTE: don't know why but let's me see underwater
-                normal = -direction;
             }
             Query query;
             query.Hit = true;
@@ -175,6 +170,11 @@ void main(uint3 id : SV_DispatchThreadID)
         }
 #if DEBUG == 0
         BlockState block = blockState[query.Block];
+        if (bounce == 0 && length(query.Normal) < kEpsilon)
+        {
+            ior = block.IOR;
+            continue;
+        }
         if (query.Block != kBlockAir)
         {
             float3 albedo;

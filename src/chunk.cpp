@@ -45,9 +45,13 @@ void Chunk::Generate(WorldProxy& proxy, int chunkX, int chunkZ)
             {
                 proxy.SetBlock({i, y, j}, BlockDirt);
             }
-            else
+            else if (height >= kWaterLevel)
             {
                 proxy.SetBlock({i, y, j}, BlockGrass);
+            }
+            else
+            {
+                proxy.SetBlock({i, y, j}, BlockDirt);
             }
         }
         if (height < kWaterLevel)
