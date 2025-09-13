@@ -1,2 +1,2 @@
-*.c linguist-vendored
-*.h linguist-vendored
+*.comp linguist-language=HLSL
+lib/** linguist-vendored
