@@ -1,6 +1,6 @@
 #pragma once
 
-#include <SDl3/SDL.h>
+#include <SDL3/SDL.h>
 #include <glm/glm.hpp>
 
 #include "buffer.hpp"
