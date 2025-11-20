@@ -12,7 +12,7 @@
 
 #include "helpers.hpp"
 
-static void* LoadShaderInternal(SDL_GPUDevice* device, const char* name)
+static void* Load(SDL_GPUDevice* device, const char* name)
 {
     SDL_GPUShaderFormat shaderFormat = SDL_GetGPUShaderFormats(device);
     const char* entrypoint;
@@ -116,10 +116,10 @@ static void* LoadShaderInternal(SDL_GPUDevice* device, const char* name)
 
 SDL_GPUShader* LoadShader(SDL_GPUDevice* device, const char* name)
 {
-    return static_cast<SDL_GPUShader*>(LoadShaderInternal(device, name));
+    return static_cast<SDL_GPUShader*>(Load(device, name));
 }
 
 SDL_GPUComputePipeline* LoadComputePipeline(SDL_GPUDevice* device, const char* name)
 {
-    return static_cast<SDL_GPUComputePipeline*>(LoadShaderInternal(device, name));
+    return static_cast<SDL_GPUComputePipeline*>(Load(device, name));
 }

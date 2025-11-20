@@ -41,6 +41,10 @@ void Camera::Destroy(SDL_GPUDevice* device)
 
 void Camera::Resize(int width, int height)
 {
+    if (Width == width && Height == height)
+    {
+        return;
+    }
     Width = width;
     Height = height;
     State.Get().AspectRatio = float(Width) / Height;

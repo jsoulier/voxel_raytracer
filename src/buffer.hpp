@@ -6,8 +6,6 @@
 #include <cmath>
 #include <utility>
 
-#include "helpers.hpp"
-
 template<typename T, SDL_GPUBufferUsageFlags U = SDL_GPU_BUFFERUSAGE_COMPUTE_STORAGE_READ>
 class DynamicBuffer
 {

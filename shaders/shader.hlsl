@@ -3,6 +3,10 @@
 
 struct WorldState
 {
+    float3 SkyBottom;
+    int MaxSteps;
+    float3 SkyTop;
+    int MaxBounces;
     int2 Position;
 };
 

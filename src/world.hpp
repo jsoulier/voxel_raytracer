@@ -35,14 +35,25 @@ struct WorldSetChunkJob
     uint8_t OutZ;
 };
 
+static_assert(sizeof(WorldSetBlockJob) == 8);
+static_assert(sizeof(WorldSetChunkJob) == 4);
+
+struct WorldOptions
+{
+    WorldOptions();
+
+    glm::vec3 SkyBottom;
+    int32_t MaxSteps;
+    glm::vec3 SkyTop;
+    int32_t MaxBounces;
+};
+
 struct WorldState
 {
+    WorldOptions Options;
     int32_t X;
     int32_t Z;
 };
-
-static_assert(sizeof(WorldSetBlockJob) == 8);
-static_assert(sizeof(WorldSetChunkJob) == 4);
 
 class WorldProxy
 {
@@ -85,6 +96,7 @@ public:
     void SetBlock(glm::ivec3 position, Block block);
     Block GetBlock(glm::ivec3 position) const;
     WorldQuery Raycast(const glm::vec3& position, const glm::vec3& direction, float length);
+    void SetOptions(const WorldOptions& options);
 
 private:
     bool WorldToLocalPosition(glm::ivec3& position) const;

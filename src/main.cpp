@@ -1,5 +1,7 @@
 #include <SDL3/SDL.h>
 #include <SDL3/SDL_main.h>
+#include <glm/glm.hpp>
+#include <glm/gtc/type_ptr.hpp>
 #include <imgui.h>
 #include <imgui_impl_sdl3.h>
 #include <imgui_impl_sdlgpu3.h>
@@ -18,15 +20,16 @@ static constexpr float kRaycast = 10.0f;
 static SDL_Window* window;
 static SDL_GPUDevice* device;
 static SDL_GPUTexture* colorTexture;
-static uint32_t swapchainWidth;
-static uint32_t swapchainHeight;
+static uint32_t textureWidth;
+static uint32_t textureHeight;
 static Camera camera;
 static World world;
 static uint64_t time1;
 static uint64_t time2;
 static float dt;
 static bool focus;
-static WorldQuery hitQuery;
+static WorldQuery worldQuery;
+static WorldOptions worldOptions;
 static Block block = BlockWhiteLight;
 
 static bool Init()
@@ -240,7 +243,7 @@ static void Update()
         dy *= speed;
         dz *= speed;
         camera.Move(dx, dy, dz);
-        hitQuery = world.Raycast(camera.GetPosition(), camera.GetDirection(), kRaycast);
+        worldQuery = world.Raycast(camera.GetPosition(), camera.GetDirection(), kRaycast);
     }
     world.Update(camera);
 }
@@ -264,8 +267,8 @@ static bool Resize(uint32_t width, uint32_t height)
         SDL_Log("Failed to create texture: %s", SDL_GetError());
         return false;
     }
-    swapchainWidth = width;
-    swapchainHeight = height;
+    textureWidth = width;
+    textureHeight = height;
     return true;
 }
 
@@ -292,7 +295,7 @@ static void Render()
         SDL_SubmitGPUCommandBuffer(commandBuffer);
         return;
     }
-    if ((swapchainWidth != width || swapchainHeight != height) && !Resize(width, height))
+    if ((textureWidth != width || textureHeight != height) && !Resize(width, height))
     {
         SDL_Log("Failed to create color texture: %s", SDL_GetError());
         SDL_SubmitGPUCommandBuffer(commandBuffer);
@@ -333,7 +336,20 @@ static void Render()
         {
             block = Block(value + BlockFirst);
         }
-        ImGui::Text("Raycast: %s", BlockToString(hitQuery.HitBlock));
+        ImGui::Text("Raycast Block: %s", BlockToString(worldQuery.HitBlock));
+        bool setOptions = false;
+        int maxSteps = worldOptions.MaxSteps;
+        int maxBounces = worldOptions.MaxBounces;
+        setOptions |= ImGui::SliderInt("Max Steps", &maxSteps, 0, 1000);
+        setOptions |= ImGui::SliderInt("Max Bounces", &maxBounces, 0, 100);
+        setOptions |= ImGui::ColorEdit3("Sky Bottom", glm::value_ptr(worldOptions.SkyBottom));
+        setOptions |= ImGui::ColorEdit3("Sky Top", glm::value_ptr(worldOptions.SkyTop));
+        worldOptions.MaxSteps = maxSteps;
+        worldOptions.MaxBounces = maxBounces;
+        if (setOptions)
+        {
+            world.SetOptions(worldOptions);
+        }
         ImGui::EndDisabled();
         ImGui::Render();
         ImGui_ImplSDLGPU3_PrepareDrawData(ImGui::GetDrawData(), commandBuffer);
@@ -347,8 +363,8 @@ static void Render()
         info.source.w = camera.GetWidth();
         info.source.h = camera.GetHeight();
         info.destination.texture = swapchainTexture;
-        info.destination.w = swapchainWidth;
-        info.destination.h = swapchainHeight;
+        info.destination.w = textureWidth;
+        info.destination.h = textureHeight;
         SDL_BlitGPUTexture(commandBuffer, &info);
     }
     {

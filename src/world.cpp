@@ -45,6 +45,14 @@ WorldSetChunkJob::WorldSetChunkJob(int inX, int inZ, int outX, int outZ)
 {
 }
 
+WorldOptions::WorldOptions()
+    : SkyBottom{1.0f, 1.0f, 1.0f}
+    , MaxSteps{512}
+    , SkyTop{0.5f, 0.7f, 1.0f}
+    , MaxBounces{8}
+{
+}
+
 WorldProxy::WorldProxy(World& handle, DynamicBuffer<WorldSetBlockJob>& buffer, int chunkX, int chunkZ)
     : Handle{handle}
     , Buffer{buffer}
@@ -568,4 +576,10 @@ WorldQuery World::Raycast(const glm::vec3& position, const glm::vec3& direction,
     }
     query.HitBlock = BlockAir;
     return query;
+}
+
+void World::SetOptions(const WorldOptions& options)
+{
+    WorldStateBuffer.Get().Options = options;
+    Dirty = true;
 }
