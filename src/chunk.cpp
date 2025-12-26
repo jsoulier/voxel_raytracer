@@ -25,10 +25,6 @@ void Chunk::Generate(WorldProxy& proxy, int chunkX, int chunkZ)
     for (int i = 0; i < Chunk::kWidth; i++)
     for (int j = 0; j < Chunk::kWidth; j++)
     {
-        for (int y = 0; y < Chunk::kHeight; y++)
-        {
-            proxy.SetBlock({i, y, j}, BlockAir);
-        }
         float x = chunkX * Chunk::kWidth + i;
         float z = chunkZ * Chunk::kWidth + j;
         float base = (baseNoise.GetNoise(x, z) + 1.0f) * 0.5f * 20.0f;
