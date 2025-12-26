@@ -337,6 +337,7 @@ static void Render()
             block = Block(value + BlockFirst);
         }
         ImGui::Text("Raycast Block: %s", BlockToString(worldQuery.HitBlock));
+        ImGui::Text("Raycast Position: %d, %d, %d", worldQuery.Position.x, worldQuery.Position.y, worldQuery.Position.z);
         bool setOptions = false;
         int maxSteps = worldOptions.MaxSteps;
         int maxBounces = worldOptions.MaxBounces;

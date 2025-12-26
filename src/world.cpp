@@ -59,17 +59,26 @@ WorldProxy::WorldProxy(World& handle, DynamicBuffer<WorldSetBlockJob>& buffer, i
     , X{chunkX * Chunk::kWidth}
     , Z{chunkZ * Chunk::kWidth}
 {
+    for (int i = 0; i < Chunk::kWidth; i++)
+    for (int j = 0; j < Chunk::kWidth; j++)
+    for (int y = 0; y < Chunk::kHeight; y++)
+    {
+        int x = X + i;
+        int z = Z + j;
+        Handle.Blocks[x][y][z] = BlockAir;
+    }
 }
 
 void WorldProxy::SetBlock(glm::ivec3 position, Block block)
 {
+    SDL_assert(block != BlockAir);
+    SDL_assert(position.x >= 0 && position.x < Chunk::kWidth);
+    SDL_assert(position.y >= 0 && position.y < Chunk::kHeight);
+    SDL_assert(position.z >= 0 && position.z < Chunk::kWidth);
     position.x += X;
     position.z += Z;
     Handle.Blocks[position.x][position.y][position.z] = block;
-    if (block != BlockAir)
-    {
-        Buffer.Emplace(Handle.Device, position, block);
-    }
+    Buffer.Emplace(Handle.Device, position, block);
 }
 
 World::World()
