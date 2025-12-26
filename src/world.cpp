@@ -59,14 +59,12 @@ WorldProxy::WorldProxy(World& handle, DynamicBuffer<WorldSetBlockJob>& buffer, i
     , X{chunkX * Chunk::kWidth}
     , Z{chunkZ * Chunk::kWidth}
 {
-}
-
-void WorldProxy::Clear()
-{
-    for (int x = 0; x < Chunk::kWidth; x++)
-    for (int z = 0; z < Chunk::kWidth; z++)
+    for (int i = 0; i < Chunk::kWidth; i++)
+    for (int j = 0; j < Chunk::kWidth; j++)
     for (int y = 0; y < Chunk::kHeight; y++)
     {
+        int x = X + i;
+        int z = Z + j;
         Handle.Blocks[x][y][z] = BlockAir;
     }
 }

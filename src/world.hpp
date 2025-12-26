@@ -59,7 +59,6 @@ class WorldProxy
 {
 public:
     WorldProxy(World& handle, DynamicBuffer<WorldSetBlockJob>& buffer, int chunkX, int chunkZ);
-    void Clear();
     void SetBlock(glm::ivec3 position, Block block);
 
 private:
