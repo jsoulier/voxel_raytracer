@@ -14,7 +14,7 @@
 
 static int FloorChunkIndex(float index)
 {
-    return std::floorf(index / Chunk::kWidth);
+    return std::floor(index / Chunk::kWidth);
 }
 
 static void TestFloorChunkIndex()

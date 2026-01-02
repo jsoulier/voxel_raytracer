@@ -2,22 +2,14 @@
 
 #include <SDL3/SDL.h>
 
-#define DebugGroup(commandBuffer) DebugGroupInternal debugGroup(commandBuffer, SDL_FUNCTION)
-#define DebugGroupBlock(commandBuffer, name) DebugGroupInternal debugGroup(commandBuffer, name)
+#define DebugGroup(commandBuffer) DebugGroupClass debugGroup(commandBuffer, SDL_FUNCTION)
+#define DebugGroupBlock(commandBuffer, name) DebugGroupClass debugGroup(commandBuffer, name)
 
-class DebugGroupInternal
+class DebugGroupClass
 {
 public:
-    DebugGroupInternal(SDL_GPUCommandBuffer* commandBuffer, const char* name)
-        : CommandBuffer{commandBuffer}
-    {
-        SDL_PushGPUDebugGroup(CommandBuffer, name);
-    }
-
-    ~DebugGroupInternal()
-    {
-        SDL_PopGPUDebugGroup(CommandBuffer);
-    }
+    DebugGroupClass(SDL_GPUCommandBuffer* commandBuffer, const char* name);
+    ~DebugGroupClass();
 
 private:
     SDL_GPUCommandBuffer* CommandBuffer;

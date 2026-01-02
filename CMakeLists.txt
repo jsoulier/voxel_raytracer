@@ -19,7 +19,6 @@ add_subdirectory(lib/SDL)
 add_subdirectory(lib/glm)
 add_subdirectory(lib/imgui)
 add_subdirectory(lib/json)
-
 add_executable(voxel_raytracer WIN32
     src/block.cpp
     src/camera.cpp
@@ -28,13 +27,7 @@ add_executable(voxel_raytracer WIN32
     src/main.cpp
     src/world.cpp
 )
-target_link_libraries(voxel_raytracer PRIVATE
-    FastNoiseLite
-    SDL3::SDL3
-    glm
-    imgui
-    nlohmann_json
-)
+target_link_libraries(voxel_raytracer SDL3::SDL3 FastNoiseLite glm imgui nlohmann_json)
 set_target_properties(voxel_raytracer PROPERTIES CXX_STANDARD 23)
 target_precompile_headers(voxel_raytracer PRIVATE
     <array>
