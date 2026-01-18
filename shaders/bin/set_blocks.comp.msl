@@ -21,7 +21,7 @@ kernel void main0(constant type_UniformBuffer& UniformBuffer [[buffer(0)]], cons
         {
             break;
         }
-        blockTexture.write(uint4((((device uint*)&jobs._m0[gl_GlobalInvocationID.x])[1] >> 16u) & 255u), uint3(uint3(((device uint*)&jobs._m0[gl_GlobalInvocationID.x])[0] & 65535u, (((device uint*)&jobs._m0[gl_GlobalInvocationID.x])[0] >> 16u) & 65535u, ((device uint*)&jobs._m0[gl_GlobalInvocationID.x])[1] & 65535u)));
+        blockTexture.write(uint4((((device uint*)&jobs._m0[gl_GlobalInvocationID.x])[1] >> 16u) & 255u), uint3(uint3((((device uint*)&jobs._m0[gl_GlobalInvocationID.x])[0] >> 0u) & 65535u, (((device uint*)&jobs._m0[gl_GlobalInvocationID.x])[0] >> 16u) & 65535u, (((device uint*)&jobs._m0[gl_GlobalInvocationID.x])[1] >> 0u) & 65535u)));
         break;
     } while(false);
 }

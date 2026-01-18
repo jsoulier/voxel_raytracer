@@ -21,7 +21,7 @@ kernel void main0(constant type_UniformBuffer& UniformBuffer [[buffer(0)]], cons
         {
             break;
         }
-        chunkTexture.write(uint2((jobs._m0[gl_GlobalInvocationID.x] >> 16u) & 255u, (jobs._m0[gl_GlobalInvocationID.x] >> 24u) & 255u).xyyy, uint2(uint2(jobs._m0[gl_GlobalInvocationID.x] & 255u, (jobs._m0[gl_GlobalInvocationID.x] >> 8u) & 255u)));
+        chunkTexture.write(uint2((jobs._m0[gl_GlobalInvocationID.x] >> 16u) & 255u, (jobs._m0[gl_GlobalInvocationID.x] >> 24u) & 255u).xyyy, uint2(uint2((jobs._m0[gl_GlobalInvocationID.x] >> 0u) & 255u, (jobs._m0[gl_GlobalInvocationID.x] >> 8u) & 255u)));
         break;
     } while(false);
 }

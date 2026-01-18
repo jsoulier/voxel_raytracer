@@ -32,3 +32,8 @@ cmake --build . --parallel 8
 cd bin
 ./voxel_raytracer
 ```
+
+#### Shaders
+
+Shaders are prebuilt.
+To build locally, install [SDL_shadercross](https://github.com/libsdl-org/SDL_shadercross) to your path
