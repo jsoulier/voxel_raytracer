@@ -1,6 +1,9 @@
 #ifndef SHADER_HLSL
 #define SHADER_HLSL
 
+// https://github.com/libsdl-org/SDL_shadercross/issues/211
+#include "../src/config.h"
+
 struct WorldState
 {
     float3 SkyBottom;

@@ -1,4 +1,3 @@
-#include "config.h"
 #include "shader.hlsl"
 
 cbuffer UniformBuffer : register(b0, space2)

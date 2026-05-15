@@ -1,4 +1,3 @@
-#include "config.h"
 #include "shader.hlsl"
 
 [[vk::image_format("rgba32f")]]

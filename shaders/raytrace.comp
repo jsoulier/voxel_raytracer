@@ -1,4 +1,3 @@
-#include "config.h"
 #include "random.hlsl"
 #include "shader.hlsl"
 
