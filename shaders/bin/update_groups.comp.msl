@@ -3,35 +3,42 @@
 
 using namespace metal;
 
-kernel void main0(texture3d<uint> blockTexture [[texture(0)]], texture3d<uint, access::write> groupTexture [[texture(1)]], uint3 gl_GlobalInvocationID [[thread_position_in_grid]])
+struct type_UniformBuffer
+{
+    int2 ChunkCoord;
+};
+
+kernel void main0(constant type_UniformBuffer& UniformBuffer [[buffer(0)]], texture3d<uint> blockTexture [[texture(0)]], texture3d<uint, access::write> groupTexture [[texture(1)]], uint3 gl_GlobalInvocationID [[thread_position_in_grid]])
 {
     do
     {
-        bool _40;
-        if (gl_GlobalInvocationID.x < 1024u)
+        uint3 _45 = gl_GlobalInvocationID + uint3(int3(UniformBuffer.ChunkCoord.x * 32, 0, UniformBuffer.ChunkCoord.y * 32));
+        int3 _46 = int3(_45);
+        bool _53;
+        if (_46.x < 1024)
         {
-            _40 = gl_GlobalInvocationID.y >= 128u;
+            _53 = _46.y >= 128;
         }
         else
         {
-            _40 = true;
+            _53 = true;
         }
-        bool _47;
-        if (!_40)
+        bool _59;
+        if (!_53)
         {
-            _47 = gl_GlobalInvocationID.z >= 1024u;
+            _59 = _46.z >= 1024;
         }
         else
         {
-            _47 = true;
+            _59 = true;
         }
-        if (_47)
+        if (_59)
         {
             break;
         }
-        if (blockTexture.read(uint3(gl_GlobalInvocationID), 0u).x != 0u)
+        if (blockTexture.read(uint3(_45), 0u).x != 0u)
         {
-            groupTexture.write(uint4(1u), uint3((gl_GlobalInvocationID / uint3(8u))));
+            groupTexture.write(uint4(1u), uint3(uint3(_46 / int3(8))));
         }
         break;
     } while(false);

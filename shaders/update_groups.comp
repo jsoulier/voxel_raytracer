@@ -1,5 +1,10 @@
 #include "shader.hlsl"
 
+cbuffer UniformBuffer : register(b0, space2)
+{
+    int2 ChunkCoord;
+};
+
 Texture3D<uint> blockTexture : register(t0, space0);
 [[vk::image_format("r8ui")]]
 RWTexture3D<uint> groupTexture : register(u0, space1);
@@ -7,12 +12,13 @@ RWTexture3D<uint> groupTexture : register(u0, space1);
 [numthreads(UPDATE_GROUPS_THREADS_X, UPDATE_GROUPS_THREADS_Y, UPDATE_GROUPS_THREADS_Z)]
 void main(uint3 id : SV_DispatchThreadID)
 {
-    if (id.x >= WORLD_WIDTH * CHUNK_WIDTH || id.y >= CHUNK_HEIGHT || id.z >= WORLD_WIDTH * CHUNK_WIDTH)
+    int3 position = id + int3(ChunkCoord.x * CHUNK_WIDTH, 0, ChunkCoord.y * CHUNK_WIDTH);
+    if (position.x >= WORLD_WIDTH * CHUNK_WIDTH || position.y >= CHUNK_HEIGHT || position.z >= WORLD_WIDTH * CHUNK_WIDTH)
     {
         return;
     }
-    if (blockTexture[id] != kBlockAir)
+    if (blockTexture[position] != kBlockAir)
     {
-        groupTexture[id / GROUP_SIZE] = 1;
+        groupTexture[position / GROUP_SIZE] = 1;
     }
 }

@@ -1,14 +1,15 @@
 #include <SDL3/SDL.h>
 #include <glm/glm.hpp>
 
+#include <algorithm>
+#include <array>
 #include <cmath>
 #include <cstring>
-#include <vector>
-#include <array>
-#include <algorithm>
 #include <execution>
-#include <thread>
 #include <numeric>
+#include <thread>
+#include <unordered_set>
+#include <vector>
 
 #include "block.hpp"
 #include "camera.hpp"
@@ -93,6 +94,7 @@ World::World()
     , ChunkMap{}
     , SetBlocksBuffers{}
     , SetBlocksBufferCount{0}
+    , UpdateGroups{}
     , SetChunksBuffer{}
     , ClearChunks{}
     , WorldStateBuffer{}
@@ -313,6 +315,7 @@ void World::Update(Camera& camera)
             chunk.AddFlags(ChunkFlagsGenerate);
             SetChunksBuffer.Emplace(Device, x, z, position.x, position.y);
             ClearChunks.emplace_back(position.x, position.y);
+            UpdateGroups.insert(position);
         }
         SDL_assert(outOfBoundsChunks.empty());
     }
@@ -330,8 +333,7 @@ void World::Update(Camera& camera)
     }
     if (!jobs.empty())
     {
-        SDL_assert(SetBlocksBufferCount == 0);
-        int maxJobs = std::min(jobs.size(), SetBlocksBuffers.size());
+        int maxJobs = std::min(jobs.size(), SetBlocksBuffers.size() - SetBlocksBufferCount);
         std::vector<int> jobIndices(maxJobs);
         std::iota(jobIndices.begin(), jobIndices.end(), 0);
         std::for_each(std::execution::par, jobIndices.begin(), jobIndices.end(), [this, &jobs](int i)
@@ -345,6 +347,14 @@ void World::Update(Camera& camera)
             WorldProxy proxy{*this, SetBlocksBuffers[bufferIndex], outX, outZ};
             chunk.Generate(proxy, WorldStateBuffer->X + inX, WorldStateBuffer->Z + inZ);
         });
+        for (int i = 0; i < maxJobs; i++)
+        {
+            int inX = jobs[i].x;
+            int inZ = jobs[i].y;
+            int outX = ChunkMap[inX][inZ].x;
+            int outZ = ChunkMap[inX][inZ].y;
+            UpdateGroups.insert({outX, outZ});
+        }
         SetBlocksBufferCount += maxJobs;
         Dirty = true;
     }
@@ -352,7 +362,6 @@ void World::Update(Camera& camera)
 
 void World::Dispatch(SDL_GPUCommandBuffer* commandBuffer)
 {
-    bool groupGridDirty = false; // TODO: delete
     {
         DebugGroupBlock(commandBuffer, "World::Render::Upload");
         SDL_GPUCopyPass* copyPass = SDL_BeginGPUCopyPass(commandBuffer);
@@ -393,7 +402,6 @@ void World::Dispatch(SDL_GPUCommandBuffer* commandBuffer)
     }
     if (!ClearChunks.empty())
     {
-        groupGridDirty = true;
         DebugGroupBlock(commandBuffer, "World::Render::ClearBlocks");
         SDL_GPUStorageTextureReadWriteBinding writeTexture{};
         writeTexture.texture = BlockTexture;
@@ -414,10 +422,8 @@ void World::Dispatch(SDL_GPUCommandBuffer* commandBuffer)
         ClearChunks.clear();
         SDL_EndGPUComputePass(computePass);
     }
-    
     if (SetBlocksBufferCount > 0)
     {
-        groupGridDirty = true;
         DebugGroupBlock(commandBuffer, "World::Render::SetBlocks");
         SDL_GPUStorageTextureReadWriteBinding writeTexture{};
         writeTexture.texture = BlockTexture;
@@ -444,47 +450,54 @@ void World::Dispatch(SDL_GPUCommandBuffer* commandBuffer)
         SDL_EndGPUComputePass(computePass);
         SetBlocksBufferCount = 0;
     }
-
-    if (groupGridDirty)
+    if (!UpdateGroups.empty())
     {
-        DebugGroupBlock(commandBuffer, "World::Render::UpdateGroupGrid");
-        
+        DebugGroupBlock(commandBuffer, "World::Render::ClearGroups");
+        SDL_GPUStorageTextureReadWriteBinding writeTexture{};
+        writeTexture.texture = GroupTexture;
+        SDL_GPUComputePass* computePass = SDL_BeginGPUComputePass(commandBuffer, &writeTexture, 1, nullptr, 0);
+        if (!computePass)
         {
-            SDL_GPUStorageTextureReadWriteBinding writeTexture{};
-            writeTexture.texture = GroupTexture;
-            SDL_GPUComputePass* computePass = SDL_BeginGPUComputePass(commandBuffer, &writeTexture, 1, nullptr, 0);
-            if (!computePass)
-            {
-                SDL_Log("Failed to begin compute pass: %s", SDL_GetError());
-                return;
-            }
-            int groupsX = (GROUP_WIDTH + CLEAR_GROUPS_THREADS_X - 1) / CLEAR_GROUPS_THREADS_X;
-            int groupsY = (GROUP_HEIGHT + CLEAR_GROUPS_THREADS_Y - 1) / CLEAR_GROUPS_THREADS_Y;
-            int groupsZ = (GROUP_WIDTH + CLEAR_GROUPS_THREADS_Z - 1) / CLEAR_GROUPS_THREADS_Z;
-            SDL_BindGPUComputePipeline(computePass, ClearGroupPipeline);
-            SDL_DispatchGPUCompute(computePass, groupsX, groupsY, groupsZ);
-            SDL_EndGPUComputePass(computePass);
+            SDL_Log("Failed to begin compute pass: %s", SDL_GetError());
+            return;
         }
+        SDL_BindGPUComputePipeline(computePass, ClearGroupPipeline);
+        for (const glm::ivec2& position : UpdateGroups)
         {
-            SDL_GPUStorageTextureReadWriteBinding writeTexture{};
-            writeTexture.texture = GroupTexture;
-            SDL_GPUComputePass* computePass = SDL_BeginGPUComputePass(commandBuffer, &writeTexture, 1, nullptr, 0);
-            if (!computePass)
-            {
-                SDL_Log("Failed to begin compute pass: %s", SDL_GetError());
-                return;
-            }
-            int groupsX = (kWidth * Chunk::kWidth + UPDATE_GROUPS_THREADS_X - 1) / UPDATE_GROUPS_THREADS_X;
-            int groupsY = (Chunk::kHeight + UPDATE_GROUPS_THREADS_Y - 1) / UPDATE_GROUPS_THREADS_Y;
-            int groupsZ = (kWidth * Chunk::kWidth + UPDATE_GROUPS_THREADS_Z - 1) / UPDATE_GROUPS_THREADS_Z;
-            SDL_GPUTexture* readTextures[1]{};
-            readTextures[0] = BlockTexture;
-            SDL_BindGPUComputePipeline(computePass, UpdateGroupPipeline);
-            SDL_BindGPUComputeStorageTextures(computePass, 0, readTextures, 1);
+            int groupsX = (CHUNK_WIDTH / GROUP_SIZE + CLEAR_GROUPS_THREADS_X - 1) / CLEAR_GROUPS_THREADS_X;
+            int groupsY = (CHUNK_HEIGHT / GROUP_SIZE + CLEAR_GROUPS_THREADS_Y - 1) / CLEAR_GROUPS_THREADS_Y;
+            int groupsZ = (CHUNK_WIDTH / GROUP_SIZE + CLEAR_GROUPS_THREADS_Z - 1) / CLEAR_GROUPS_THREADS_Z;
+            SDL_PushGPUComputeUniformData(commandBuffer, 0, &position, sizeof(position));
             SDL_DispatchGPUCompute(computePass, groupsX, groupsY, groupsZ);
-            SDL_EndGPUComputePass(computePass);
         }
+        SDL_EndGPUComputePass(computePass);
     }
+    if (!UpdateGroups.empty())
+    {
+        DebugGroupBlock(commandBuffer, "World::Render::UpdateGroups");
+        SDL_GPUStorageTextureReadWriteBinding writeTexture{};
+        writeTexture.texture = GroupTexture;
+        SDL_GPUComputePass* computePass = SDL_BeginGPUComputePass(commandBuffer, &writeTexture, 1, nullptr, 0);
+        if (!computePass)
+        {
+            SDL_Log("Failed to begin compute pass: %s", SDL_GetError());
+            return;
+        }
+        SDL_GPUTexture* readTextures[1]{};
+        readTextures[0] = BlockTexture;
+        SDL_BindGPUComputePipeline(computePass, UpdateGroupPipeline);
+        SDL_BindGPUComputeStorageTextures(computePass, 0, readTextures, 1);
+        for (const glm::ivec2& position : UpdateGroups)
+        {
+            int groupsX = (CHUNK_WIDTH + UPDATE_GROUPS_THREADS_X - 1) / UPDATE_GROUPS_THREADS_X;
+            int groupsY = (CHUNK_HEIGHT + UPDATE_GROUPS_THREADS_Y - 1) / UPDATE_GROUPS_THREADS_Y;
+            int groupsZ = (CHUNK_WIDTH + UPDATE_GROUPS_THREADS_Z - 1) / UPDATE_GROUPS_THREADS_Z;
+            SDL_PushGPUComputeUniformData(commandBuffer, 0, &position, sizeof(position));
+            SDL_DispatchGPUCompute(computePass, groupsX, groupsY, groupsZ);
+        }
+        SDL_EndGPUComputePass(computePass);
+    }
+    UpdateGroups.clear();
 }
 
 void World::Render(SDL_GPUCommandBuffer* commandBuffer, SDL_GPUTexture* colorTexture, Camera& camera)
@@ -613,8 +626,11 @@ void World::SetBlock(glm::ivec3 position, Block block)
 {
     if (WorldToLocalPosition(position))
     {
+        int chunkX = position.x / Chunk::kWidth;
+        int chunkZ = position.z / Chunk::kWidth;
         SetBlocksBuffers[0].Emplace(Device, position, block);
         SetBlocksBufferCount = std::max(SetBlocksBufferCount, 1);
+        UpdateGroups.insert({chunkX, chunkZ});
         Blocks[position.x][position.y][position.z] = block;
         Dirty = true;
     }

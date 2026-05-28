@@ -3,33 +3,40 @@
 
 using namespace metal;
 
-kernel void main0(texture3d<uint, access::write> groupTexture [[texture(0)]], uint3 gl_GlobalInvocationID [[thread_position_in_grid]])
+struct type_UniformBuffer
+{
+    int2 ChunkCoord;
+};
+
+kernel void main0(constant type_UniformBuffer& UniformBuffer [[buffer(0)]], texture3d<uint, access::write> groupTexture [[texture(0)]], uint3 gl_GlobalInvocationID [[thread_position_in_grid]])
 {
     do
     {
-        bool _33;
-        if (gl_GlobalInvocationID.x < 128u)
+        uint3 _38 = gl_GlobalInvocationID + uint3(int3(UniformBuffer.ChunkCoord.x * 4, 0, UniformBuffer.ChunkCoord.y * 4));
+        int3 _39 = int3(_38);
+        bool _46;
+        if (_39.x < 128)
         {
-            _33 = gl_GlobalInvocationID.y >= 16u;
+            _46 = _39.y >= 16;
         }
         else
         {
-            _33 = true;
+            _46 = true;
         }
-        bool _40;
-        if (!_33)
+        bool _52;
+        if (!_46)
         {
-            _40 = gl_GlobalInvocationID.z >= 128u;
+            _52 = _39.z >= 128;
         }
         else
         {
-            _40 = true;
+            _52 = true;
         }
-        if (_40)
+        if (_52)
         {
             break;
         }
-        groupTexture.write(uint4(0u), uint3(gl_GlobalInvocationID));
+        groupTexture.write(uint4(0u), uint3(_38));
         break;
     } while(false);
 }

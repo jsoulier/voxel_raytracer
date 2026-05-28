@@ -1,7 +1,9 @@
 #pragma once
 
 #include <SDL3/SDL.h>
+#define GLM_ENABLE_EXPERIMENTAL
 #include <glm/glm.hpp>
+#include <glm/gtx/hash.hpp>
 
 #include <cstdint>
 #include <vector>
@@ -9,6 +11,7 @@
 #include <algorithm>
 #include <execution>
 #include <thread>
+#include <unordered_set>
 
 #include "block.hpp"
 #include "buffer.hpp"
@@ -112,6 +115,7 @@ private:
     glm::ivec2 ChunkMap[kWidth][kWidth];
     std::vector<DynamicBuffer<WorldSetBlockJob>> SetBlocksBuffers;
     int SetBlocksBufferCount;
+    std::unordered_set<glm::ivec2> UpdateGroups;
     DynamicBuffer<WorldSetChunkJob> SetChunksBuffer;
     std::vector<glm::ivec2> ClearChunks;
     StaticBuffer<WorldState> WorldStateBuffer;
