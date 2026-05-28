@@ -74,43 +74,57 @@ Query Raycast(float3 origin, float3 direction, float ior)
         position.x += chunk.x * CHUNK_WIDTH;
         position.z += chunk.y * CHUNK_WIDTH;
         
-        int3 macroPosition = position / 8;
+        int3 macroPosition = position / GROUP_SIZE;
         uint macroValue = macroTexture[macroPosition];
         if (macroValue == 0)
         {
             int3 macroVoxel = voxel >> 3;
             int3 nextMacroBoundary;
-            nextMacroBoundary.x = step.x > 0 ? (macroVoxel.x + 1) * 8 : macroVoxel.x * 8;
-            nextMacroBoundary.y = step.y > 0 ? (macroVoxel.y + 1) * 8 : macroVoxel.y * 8;
-            nextMacroBoundary.z = step.z > 0 ? (macroVoxel.z + 1) * 8 : macroVoxel.z * 8;
+            for (int j = 0; j < 3; j++)
+            {
+                if (step[j] > 0)
+                {
+                    nextMacroBoundary[j] = (macroVoxel[j] + 1) * GROUP_SIZE;
+
+                }
+                else
+                {
+                    nextMacroBoundary[j] = macroVoxel[j] * GROUP_SIZE;
+                }
+            }
             
             float3 distToMacro;
             for (int j = 0; j < 3; j++)
             {
                 if (step[j] > 0)
+                {
                     distToMacro[j] = distance[j] + (nextMacroBoundary[j] - voxel[j] - 1) * delta[j];
+                }
                 else
+                {
                     distToMacro[j] = distance[j] + (voxel[j] - nextMacroBoundary[j]) * delta[j];
+                }
             }
-            
             axis = GetStepAxis(distToMacro);
             float t = distToMacro[axis];
             macroVoxel[axis] += step[axis];
             
             float3 hitPos = origin + direction * t;
             voxel = int3(floor(hitPos));
-            if (axis == 0) voxel.x = macroVoxel.x * 8 + (step.x > 0 ? 0 : 7);
-            if (axis == 1) voxel.y = macroVoxel.y * 8 + (step.y > 0 ? 0 : 7);
-            if (axis == 2) voxel.z = macroVoxel.z * 8 + (step.z > 0 ? 0 : 7);
+            voxel[axis] = macroVoxel[axis] * GROUP_SIZE + (step[axis] > 0 ? 0 : (GROUP_SIZE - 1));
             
-            voxel = clamp(voxel, macroVoxel * 8, macroVoxel * 8 + 7);
+            voxel = clamp(voxel, macroVoxel * GROUP_SIZE, macroVoxel * GROUP_SIZE + GROUP_SIZE - 1);
             
             for (int j = 0; j < 3; j++)
             {
                 if (step[j] > 0)
+                {
                     distance[j] = (voxel[j] + 1.0f - origin[j]) * delta[j];
+                }
                 else
+                {
                     distance[j] = (origin[j] - voxel[j]) * delta[j];
+                }
             }
             continue;
         }
@@ -121,22 +135,8 @@ Query Raycast(float3 origin, float3 direction, float ior)
         if ((!refract && hitBlock != kBlockAir) || (refract && abs(block.IOR - ior) > kEpsilon))
         {
             float3 normal = float3(0.0f, 0.0f, 0.0f);
-            float t = 0.0f;
-            if (axis == 0)
-            {
-                normal.x = -step.x;
-                t = distance.x - delta.x;
-            }
-            else if (axis == 1)
-            {
-                normal.y = -step.y;
-                t = distance.y - delta.y;
-            }
-            else if (axis == 2)
-            {
-                normal.z = -step.z;
-                t = distance.z - delta.z;
-            }
+            normal[axis] = -step[axis];
+            float t = distance[axis] - delta[axis];
             Query query;
             query.Hit = true;
             query.Block = hitBlock;

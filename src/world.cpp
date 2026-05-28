@@ -139,9 +139,9 @@ bool World::Init(SDL_GPUDevice* device)
         }
         info.format = SDL_GPU_TEXTUREFORMAT_R8_UINT;
         info.type = SDL_GPU_TEXTURETYPE_3D;
-        info.width = kWidth * Chunk::kWidth / 8;
-        info.height = Chunk::kHeight / 8;
-        info.layer_count_or_depth = kWidth * Chunk::kWidth / 8;
+        info.width = kWidth * Chunk::kWidth / GROUP_SIZE;
+        info.height = Chunk::kHeight / GROUP_SIZE;
+        info.layer_count_or_depth = kWidth * Chunk::kWidth / GROUP_SIZE;
         MacroTexture = SDL_CreateGPUTexture(Device, &info);
         if (!MacroTexture)
         {
@@ -244,7 +244,9 @@ void World::Destroy()
     SDL_ReleaseGPUComputePipeline(Device, SetBlocksPipeline);
     SDL_ReleaseGPUComputePipeline(Device, SetChunksPipeline);
     SDL_ReleaseGPUComputePipeline(Device, ClearBlocksPipeline);
+    SDL_ReleaseGPUComputePipeline(Device, ClearMacroTexturePipeline);
     SDL_ReleaseGPUComputePipeline(Device, UpdateMacroBlocksPipeline);
+    SDL_ReleaseGPUTexture(Device, MacroTexture);
     SDL_ReleaseGPUTexture(Device, ChunkTexture);
     SDL_ReleaseGPUTexture(Device, BlockTexture);
     SDL_ReleaseGPUTexture(Device, ColorTexture);
@@ -414,9 +416,9 @@ void World::Dispatch(SDL_GPUCommandBuffer* commandBuffer)
                 SDL_Log("Failed to begin compute pass: %s", SDL_GetError());
                 return;
             }
-            int groupsX = (kWidth * Chunk::kWidth / 8 + UPDATE_MACRO_BLOCKS_THREADS_X - 1) / UPDATE_MACRO_BLOCKS_THREADS_X;
-            int groupsY = (Chunk::kHeight / 8 + UPDATE_MACRO_BLOCKS_THREADS_Y - 1) / UPDATE_MACRO_BLOCKS_THREADS_Y;
-            int groupsZ = (kWidth * Chunk::kWidth / 8 + UPDATE_MACRO_BLOCKS_THREADS_Z - 1) / UPDATE_MACRO_BLOCKS_THREADS_Z;
+            int groupsX = (kWidth * Chunk::kWidth / GROUP_SIZE + UPDATE_MACRO_BLOCKS_THREADS_X - 1) / UPDATE_MACRO_BLOCKS_THREADS_X;
+            int groupsY = (Chunk::kHeight / GROUP_SIZE + UPDATE_MACRO_BLOCKS_THREADS_Y - 1) / UPDATE_MACRO_BLOCKS_THREADS_Y;
+            int groupsZ = (kWidth * Chunk::kWidth / GROUP_SIZE + UPDATE_MACRO_BLOCKS_THREADS_Z - 1) / UPDATE_MACRO_BLOCKS_THREADS_Z;
             SDL_BindGPUComputePipeline(computePass, ClearMacroTexturePipeline);
             SDL_DispatchGPUCompute(computePass, groupsX, groupsY, groupsZ);
             SDL_EndGPUComputePass(computePass);
