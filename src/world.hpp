@@ -121,6 +121,7 @@ private:
     SDL_GPUComputePipeline* RaytracePipeline;
     SDL_GPUComputePipeline* ClearTexturePipeline;
     SDL_GPUComputePipeline* SampleTexturePipeline;
+    SDL_GPUComputePipeline* ClearMacroTexturePipeline;
     SDL_GPUComputePipeline* UpdateMacroBlocksPipeline;
     int Width;
     int Height;

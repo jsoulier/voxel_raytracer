@@ -233,7 +233,7 @@ kernel void main0(constant type_UniformBuffer& UniformBuffer [[buffer(0)]], cons
                                 bool _403;
                                 if (_108.y > 0)
                                 {
-                                    _403 = _361.y > 64;
+                                    _403 = _361.y > 128;
                                 }
                                 else
                                 {

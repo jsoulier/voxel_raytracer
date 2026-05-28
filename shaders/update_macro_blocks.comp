@@ -4,30 +4,15 @@ Texture3D<uint> blockTexture : register(t0, space0);
 [[vk::image_format("r8ui")]]
 RWTexture3D<uint> macroTexture : register(u0, space1);
 
-[numthreads(UPDATE_MACRO_BLOCKS_THREADS_X, UPDATE_MACRO_BLOCKS_THREADS_Y, UPDATE_MACRO_BLOCKS_THREADS_Z)]
+[numthreads(8, 8, 8)]
 void main(uint3 id : SV_DispatchThreadID)
 {
-    if (id.x >= WORLD_WIDTH * CHUNK_WIDTH / 8 || id.y >= CHUNK_HEIGHT / 8 || id.z >= WORLD_WIDTH * CHUNK_WIDTH / 8)
+    if (id.x >= WORLD_WIDTH * CHUNK_WIDTH || id.y >= CHUNK_HEIGHT || id.z >= WORLD_WIDTH * CHUNK_WIDTH)
     {
         return;
     }
-    uint anySolid = 0;
-    int3 startPos = id * 8;
-    for (int x = 0; x < 8; x++)
+    if (blockTexture[id] != kBlockAir)
     {
-        for (int y = 0; y < 8; y++)
-        {
-            for (int z = 0; z < 8; z++)
-            {
-                if (blockTexture[startPos + int3(x, y, z)] != kBlockAir)
-                {
-                    anySolid = 1;
-                    break;
-                }
-            }
-            if (anySolid) break;
-        }
-        if (anySolid) break;
+        macroTexture[id / 8] = 1;
     }
-    macroTexture[id] = anySolid;
 }

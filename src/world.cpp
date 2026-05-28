@@ -99,6 +99,7 @@ World::World()
     , ClearBlocksPipeline{nullptr}
     , RaytracePipeline{nullptr}
     , ClearTexturePipeline{nullptr}
+    , ClearMacroTexturePipeline{nullptr}
     , Width{0}
     , UpdateMacroBlocksPipeline{nullptr}
     , Height{0}
@@ -183,6 +184,12 @@ bool World::Init(SDL_GPUDevice* device)
         if (!SampleTexturePipeline)
         {
             SDL_Log("Failed to load sample texture pipeline");
+            return false;
+        }
+        ClearMacroTexturePipeline = LoadComputePipeline(Device, "clear_macro_texture.comp");
+        if (!ClearMacroTexturePipeline)
+        {
+            SDL_Log("Failed to load clear macro texture pipeline");
             return false;
         }
         UpdateMacroBlocksPipeline = LoadComputePipeline(Device, "update_macro_blocks.comp");
@@ -397,23 +404,42 @@ void World::Dispatch(SDL_GPUCommandBuffer* commandBuffer)
     if (macroGridDirty)
     {
         DebugGroupBlock(commandBuffer, "World::Render::UpdateMacroGrid");
-        SDL_GPUStorageTextureReadWriteBinding writeTexture{};
-        writeTexture.texture = MacroTexture;
-        SDL_GPUComputePass* computePass = SDL_BeginGPUComputePass(commandBuffer, &writeTexture, 1, nullptr, 0);
-        if (!computePass)
+        
         {
-            SDL_Log("Failed to begin compute pass: %s", SDL_GetError());
-            return;
+            SDL_GPUStorageTextureReadWriteBinding writeTexture{};
+            writeTexture.texture = MacroTexture;
+            SDL_GPUComputePass* computePass = SDL_BeginGPUComputePass(commandBuffer, &writeTexture, 1, nullptr, 0);
+            if (!computePass)
+            {
+                SDL_Log("Failed to begin compute pass: %s", SDL_GetError());
+                return;
+            }
+            int groupsX = (kWidth * Chunk::kWidth / 8 + UPDATE_MACRO_BLOCKS_THREADS_X - 1) / UPDATE_MACRO_BLOCKS_THREADS_X;
+            int groupsY = (Chunk::kHeight / 8 + UPDATE_MACRO_BLOCKS_THREADS_Y - 1) / UPDATE_MACRO_BLOCKS_THREADS_Y;
+            int groupsZ = (kWidth * Chunk::kWidth / 8 + UPDATE_MACRO_BLOCKS_THREADS_Z - 1) / UPDATE_MACRO_BLOCKS_THREADS_Z;
+            SDL_BindGPUComputePipeline(computePass, ClearMacroTexturePipeline);
+            SDL_DispatchGPUCompute(computePass, groupsX, groupsY, groupsZ);
+            SDL_EndGPUComputePass(computePass);
         }
-        int groupsX = (kWidth * Chunk::kWidth / 8 + UPDATE_MACRO_BLOCKS_THREADS_X - 1) / UPDATE_MACRO_BLOCKS_THREADS_X;
-        int groupsY = (Chunk::kHeight / 8 + UPDATE_MACRO_BLOCKS_THREADS_Y - 1) / UPDATE_MACRO_BLOCKS_THREADS_Y;
-        int groupsZ = (kWidth * Chunk::kWidth / 8 + UPDATE_MACRO_BLOCKS_THREADS_Z - 1) / UPDATE_MACRO_BLOCKS_THREADS_Z;
-        SDL_GPUTexture* readTextures[1]{};
-        readTextures[0] = BlockTexture;
-        SDL_BindGPUComputePipeline(computePass, UpdateMacroBlocksPipeline);
-        SDL_BindGPUComputeStorageTextures(computePass, 0, readTextures, 1);
-        SDL_DispatchGPUCompute(computePass, groupsX, groupsY, groupsZ);
-        SDL_EndGPUComputePass(computePass);
+        {
+            SDL_GPUStorageTextureReadWriteBinding writeTexture{};
+            writeTexture.texture = MacroTexture;
+            SDL_GPUComputePass* computePass = SDL_BeginGPUComputePass(commandBuffer, &writeTexture, 1, nullptr, 0);
+            if (!computePass)
+            {
+                SDL_Log("Failed to begin compute pass: %s", SDL_GetError());
+                return;
+            }
+            int groupsX = (kWidth * Chunk::kWidth + UPDATE_MACRO_BLOCKS_THREADS_X - 1) / UPDATE_MACRO_BLOCKS_THREADS_X;
+            int groupsY = (Chunk::kHeight + UPDATE_MACRO_BLOCKS_THREADS_Y - 1) / UPDATE_MACRO_BLOCKS_THREADS_Y;
+            int groupsZ = (kWidth * Chunk::kWidth + UPDATE_MACRO_BLOCKS_THREADS_Z - 1) / UPDATE_MACRO_BLOCKS_THREADS_Z;
+            SDL_GPUTexture* readTextures[1]{};
+            readTextures[0] = BlockTexture;
+            SDL_BindGPUComputePipeline(computePass, UpdateMacroBlocksPipeline);
+            SDL_BindGPUComputeStorageTextures(computePass, 0, readTextures, 1);
+            SDL_DispatchGPUCompute(computePass, groupsX, groupsY, groupsZ);
+            SDL_EndGPUComputePass(computePass);
+        }
     }
 }
 
