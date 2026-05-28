@@ -5,6 +5,10 @@
 
 #include <cstdint>
 #include <vector>
+#include <array>
+#include <algorithm>
+#include <execution>
+#include <thread>
 
 #include "block.hpp"
 #include "buffer.hpp"
@@ -106,7 +110,8 @@ private:
     Block Blocks[kWidth * Chunk::kWidth][Chunk::kHeight][kWidth * Chunk::kWidth];
     Chunk Chunks[kWidth][kWidth];
     glm::ivec2 ChunkMap[kWidth][kWidth];
-    DynamicBuffer<WorldSetBlockJob> SetBlocksBuffer;
+    std::vector<DynamicBuffer<WorldSetBlockJob>> SetBlocksBuffers;
+    int SetBlocksBufferCount;
     DynamicBuffer<WorldSetChunkJob> SetChunksBuffer;
     std::vector<glm::ivec2> ClearChunks;
     StaticBuffer<WorldState> WorldStateBuffer;

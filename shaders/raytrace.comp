@@ -73,7 +73,6 @@ Query Raycast(float3 origin, float3 direction, float ior)
         chunk = chunkTexture[chunk];
         position.x += chunk.x * CHUNK_WIDTH;
         position.z += chunk.y * CHUNK_WIDTH;
-        
         int3 groupPosition = position / GROUP_SIZE;
         uint groupValue = groupTexture[groupPosition];
         if (groupValue == 0)
@@ -92,7 +91,6 @@ Query Raycast(float3 origin, float3 direction, float ior)
                     nextMacroBoundary[j] = groupVoxel[j] * GROUP_SIZE;
                 }
             }
-            
             float3 distToMacro;
             for (int j = 0; j < 3; j++)
             {
@@ -108,13 +106,10 @@ Query Raycast(float3 origin, float3 direction, float ior)
             axis = GetStepAxis(distToMacro);
             float t = distToMacro[axis];
             groupVoxel[axis] += step[axis];
-            
             float3 hitPos = origin + direction * t;
             voxel = int3(floor(hitPos));
             voxel[axis] = groupVoxel[axis] * GROUP_SIZE + (step[axis] > 0 ? 0 : (GROUP_SIZE - 1));
-            
             voxel = clamp(voxel, groupVoxel * GROUP_SIZE, groupVoxel * GROUP_SIZE + GROUP_SIZE - 1);
-            
             for (int j = 0; j < 3; j++)
             {
                 if (step[j] > 0)
@@ -128,7 +123,6 @@ Query Raycast(float3 origin, float3 direction, float ior)
             }
             continue;
         }
-
         uint hitBlock = blockTexture[position];
         BlockState block = blockState[hitBlock];
         bool refract = ior > kEpsilon || block.IOR > kEpsilon;

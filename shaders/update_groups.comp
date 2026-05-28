@@ -4,14 +4,13 @@ Texture3D<uint> blockTexture : register(t0, space0);
 [[vk::image_format("r8ui")]]
 RWTexture3D<uint> groupTexture : register(u0, space1);
 
-[numthreads(GROUP_SIZE, GROUP_SIZE, GROUP_SIZE)]
+[numthreads(UPDATE_GROUPS_THREADS_X, UPDATE_GROUPS_THREADS_Y, UPDATE_GROUPS_THREADS_Z)]
 void main(uint3 id : SV_DispatchThreadID)
 {
     if (id.x >= WORLD_WIDTH * CHUNK_WIDTH || id.y >= CHUNK_HEIGHT || id.z >= WORLD_WIDTH * CHUNK_WIDTH)
     {
         return;
     }
-
     if (blockTexture[id] != kBlockAir)
     {
         groupTexture[id / GROUP_SIZE] = 1;

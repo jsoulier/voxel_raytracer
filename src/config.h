@@ -9,10 +9,6 @@
 #define GROUP_WIDTH ((WORLD_WIDTH * CHUNK_WIDTH) / GROUP_SIZE)
 #define GROUP_HEIGHT (CHUNK_HEIGHT / GROUP_SIZE)
 
-#ifdef __cplusplus
-static_assert(CHUNK_WIDTH == 32, "Ensure it's divisible by 8 to ensure groups work properly");
-#endif
-
 #define CLEAR_BLOCKS_THREADS_X 8
 #define CLEAR_BLOCKS_THREADS_Y 8
 #define CLEAR_TEXTURE_THREADS_X 8
@@ -23,8 +19,11 @@ static_assert(CHUNK_WIDTH == 32, "Ensure it's divisible by 8 to ensure groups wo
 #define SAMPLE_TEXTURE_THREADS_Y 8
 #define SET_BLOCKS_THREADS_X 128
 #define SET_CHUNKS_THREADS_X 32
-#define UPDATE_MACRO_BLOCKS_THREADS_X 8
-#define UPDATE_MACRO_BLOCKS_THREADS_Y 8
-#define UPDATE_MACRO_BLOCKS_THREADS_Z 8
+#define CLEAR_GROUPS_THREADS_X 8
+#define CLEAR_GROUPS_THREADS_Y 8
+#define CLEAR_GROUPS_THREADS_Z 8
+#define UPDATE_GROUPS_THREADS_X 8
+#define UPDATE_GROUPS_THREADS_Y 8
+#define UPDATE_GROUPS_THREADS_Z 8
 
 #endif

@@ -3,7 +3,7 @@
 [[vk::image_format("r8ui")]]
 RWTexture3D<uint> groupTexture : register(u0, space1);
 
-[numthreads(GROUP_SIZE, GROUP_SIZE, GROUP_SIZE)]
+[numthreads(CLEAR_GROUPS_THREADS_X, CLEAR_GROUPS_THREADS_Y, CLEAR_GROUPS_THREADS_Z)]
 void main(uint3 id : SV_DispatchThreadID)
 {
     if (id.x >= GROUP_WIDTH || id.y >= GROUP_HEIGHT || id.z >= GROUP_WIDTH)
