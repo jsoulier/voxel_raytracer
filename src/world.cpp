@@ -92,6 +92,7 @@ World::World()
     , WorldStateBuffer{}
     , BlockStateBuffer{}
     , BlockTexture{nullptr}
+    , GroupTexture{nullptr}
     , ChunkTexture{nullptr}
     , ColorTexture{nullptr}
     , SetBlocksPipeline{nullptr}
@@ -99,9 +100,10 @@ World::World()
     , ClearBlocksPipeline{nullptr}
     , RaytracePipeline{nullptr}
     , ClearTexturePipeline{nullptr}
-    , ClearMacroTexturePipeline{nullptr}
+    , SampleTexturePipeline{nullptr}
+    , ClearGroupPipeline{nullptr}
+    , UpdateGroupPipeline{nullptr}
     , Width{0}
-    , UpdateMacroBlocksPipeline{nullptr}
     , Height{0}
     , Dirty{true}
     , Sample{0}
@@ -139,13 +141,13 @@ bool World::Init(SDL_GPUDevice* device)
         }
         info.format = SDL_GPU_TEXTUREFORMAT_R8_UINT;
         info.type = SDL_GPU_TEXTURETYPE_3D;
-        info.width = kWidth * Chunk::kWidth / GROUP_SIZE;
-        info.height = Chunk::kHeight / GROUP_SIZE;
-        info.layer_count_or_depth = kWidth * Chunk::kWidth / GROUP_SIZE;
-        MacroTexture = SDL_CreateGPUTexture(Device, &info);
-        if (!MacroTexture)
+        info.width = GROUP_WIDTH;
+        info.height = GROUP_HEIGHT;
+        info.layer_count_or_depth = GROUP_WIDTH;
+        GroupTexture = SDL_CreateGPUTexture(Device, &info);
+        if (!GroupTexture)
         {
-            SDL_Log("Failed to create macro texture: %s", SDL_GetError());
+            SDL_Log("Failed to create group texture: %s", SDL_GetError());
             return false;
         }
     }
@@ -186,16 +188,16 @@ bool World::Init(SDL_GPUDevice* device)
             SDL_Log("Failed to load sample texture pipeline");
             return false;
         }
-        ClearMacroTexturePipeline = LoadComputePipeline(Device, "clear_macro_texture.comp");
-        if (!ClearMacroTexturePipeline)
+        ClearGroupPipeline = LoadComputePipeline(Device, "clear_groups.comp");
+        if (!ClearGroupPipeline)
         {
-            SDL_Log("Failed to load clear macro texture pipeline");
+            SDL_Log("Failed to load clear group pipeline");
             return false;
         }
-        UpdateMacroBlocksPipeline = LoadComputePipeline(Device, "update_macro_blocks.comp");
-        if (!UpdateMacroBlocksPipeline)
+        UpdateGroupPipeline = LoadComputePipeline(Device, "update_groups.comp");
+        if (!UpdateGroupPipeline)
         {
-            SDL_Log("Failed to load update macro blocks pipeline");
+            SDL_Log("Failed to load update group pipeline");
             return false;
         }
     }
@@ -244,9 +246,9 @@ void World::Destroy()
     SDL_ReleaseGPUComputePipeline(Device, SetBlocksPipeline);
     SDL_ReleaseGPUComputePipeline(Device, SetChunksPipeline);
     SDL_ReleaseGPUComputePipeline(Device, ClearBlocksPipeline);
-    SDL_ReleaseGPUComputePipeline(Device, ClearMacroTexturePipeline);
-    SDL_ReleaseGPUComputePipeline(Device, UpdateMacroBlocksPipeline);
-    SDL_ReleaseGPUTexture(Device, MacroTexture);
+    SDL_ReleaseGPUComputePipeline(Device, ClearGroupPipeline);
+    SDL_ReleaseGPUComputePipeline(Device, UpdateGroupPipeline);
+    SDL_ReleaseGPUTexture(Device, GroupTexture);
     SDL_ReleaseGPUTexture(Device, ChunkTexture);
     SDL_ReleaseGPUTexture(Device, BlockTexture);
     SDL_ReleaseGPUTexture(Device, ColorTexture);
@@ -322,7 +324,7 @@ void World::Update(Camera& camera)
 
 void World::Dispatch(SDL_GPUCommandBuffer* commandBuffer)
 {
-    bool macroGridDirty = false;
+    bool groupGridDirty = false;
     {
         DebugGroupBlock(commandBuffer, "World::Render::Upload");
         SDL_GPUCopyPass* copyPass = SDL_BeginGPUCopyPass(commandBuffer);
@@ -360,7 +362,7 @@ void World::Dispatch(SDL_GPUCommandBuffer* commandBuffer)
     }
     if (!ClearChunks.empty())
     {
-        macroGridDirty = true;
+        groupGridDirty = true;
         DebugGroupBlock(commandBuffer, "World::Render::ClearBlocks");
         SDL_GPUStorageTextureReadWriteBinding writeTexture{};
         writeTexture.texture = BlockTexture;
@@ -383,7 +385,7 @@ void World::Dispatch(SDL_GPUCommandBuffer* commandBuffer)
     }
     if (SetBlocksBuffer.GetSize())
     {
-        macroGridDirty = true;
+        groupGridDirty = true;
         DebugGroupBlock(commandBuffer, "World::Render::SetBlocks");
         SDL_GPUStorageTextureReadWriteBinding writeTexture{};
         writeTexture.texture = BlockTexture;
@@ -403,29 +405,29 @@ void World::Dispatch(SDL_GPUCommandBuffer* commandBuffer)
         SDL_DispatchGPUCompute(computePass, groupsX, 1, 1);
         SDL_EndGPUComputePass(computePass);
     }
-    if (macroGridDirty)
+    if (groupGridDirty)
     {
-        DebugGroupBlock(commandBuffer, "World::Render::UpdateMacroGrid");
+        DebugGroupBlock(commandBuffer, "World::Render::UpdateGroupGrid");
         
         {
             SDL_GPUStorageTextureReadWriteBinding writeTexture{};
-            writeTexture.texture = MacroTexture;
+            writeTexture.texture = GroupTexture;
             SDL_GPUComputePass* computePass = SDL_BeginGPUComputePass(commandBuffer, &writeTexture, 1, nullptr, 0);
             if (!computePass)
             {
                 SDL_Log("Failed to begin compute pass: %s", SDL_GetError());
                 return;
             }
-            int groupsX = (kWidth * Chunk::kWidth / GROUP_SIZE + UPDATE_MACRO_BLOCKS_THREADS_X - 1) / UPDATE_MACRO_BLOCKS_THREADS_X;
-            int groupsY = (Chunk::kHeight / GROUP_SIZE + UPDATE_MACRO_BLOCKS_THREADS_Y - 1) / UPDATE_MACRO_BLOCKS_THREADS_Y;
-            int groupsZ = (kWidth * Chunk::kWidth / GROUP_SIZE + UPDATE_MACRO_BLOCKS_THREADS_Z - 1) / UPDATE_MACRO_BLOCKS_THREADS_Z;
-            SDL_BindGPUComputePipeline(computePass, ClearMacroTexturePipeline);
+            int groupsX = (GROUP_WIDTH + UPDATE_MACRO_BLOCKS_THREADS_X - 1) / UPDATE_MACRO_BLOCKS_THREADS_X;
+            int groupsY = (GROUP_HEIGHT + UPDATE_MACRO_BLOCKS_THREADS_Y - 1) / UPDATE_MACRO_BLOCKS_THREADS_Y;
+            int groupsZ = (GROUP_WIDTH + UPDATE_MACRO_BLOCKS_THREADS_Z - 1) / UPDATE_MACRO_BLOCKS_THREADS_Z;
+            SDL_BindGPUComputePipeline(computePass, ClearGroupPipeline);
             SDL_DispatchGPUCompute(computePass, groupsX, groupsY, groupsZ);
             SDL_EndGPUComputePass(computePass);
         }
         {
             SDL_GPUStorageTextureReadWriteBinding writeTexture{};
-            writeTexture.texture = MacroTexture;
+            writeTexture.texture = GroupTexture;
             SDL_GPUComputePass* computePass = SDL_BeginGPUComputePass(commandBuffer, &writeTexture, 1, nullptr, 0);
             if (!computePass)
             {
@@ -437,7 +439,7 @@ void World::Dispatch(SDL_GPUCommandBuffer* commandBuffer)
             int groupsZ = (kWidth * Chunk::kWidth + UPDATE_MACRO_BLOCKS_THREADS_Z - 1) / UPDATE_MACRO_BLOCKS_THREADS_Z;
             SDL_GPUTexture* readTextures[1]{};
             readTextures[0] = BlockTexture;
-            SDL_BindGPUComputePipeline(computePass, UpdateMacroBlocksPipeline);
+            SDL_BindGPUComputePipeline(computePass, UpdateGroupPipeline);
             SDL_BindGPUComputeStorageTextures(computePass, 0, readTextures, 1);
             SDL_DispatchGPUCompute(computePass, groupsX, groupsY, groupsZ);
             SDL_EndGPUComputePass(computePass);
@@ -515,7 +517,7 @@ void World::Render(SDL_GPUCommandBuffer* commandBuffer, SDL_GPUTexture* colorTex
         SDL_GPUTexture* readTextures[3]{};
         SDL_GPUBuffer* readBuffers[3]{};
         readTextures[0] = BlockTexture;
-        readTextures[1] = MacroTexture;
+        readTextures[1] = GroupTexture;
         readTextures[2] = ChunkTexture;
         readBuffers[0] = camera.GetBuffer();
         readBuffers[1] = WorldStateBuffer.GetBuffer();

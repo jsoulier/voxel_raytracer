@@ -4,7 +4,14 @@
 #define CHUNK_WIDTH 32
 #define CHUNK_HEIGHT 128
 #define WORLD_WIDTH 32
+
 #define GROUP_SIZE 8
+#define GROUP_WIDTH ((WORLD_WIDTH * CHUNK_WIDTH) / GROUP_SIZE)
+#define GROUP_HEIGHT (CHUNK_HEIGHT / GROUP_SIZE)
+
+#ifdef __cplusplus
+static_assert(CHUNK_WIDTH == 32, "Ensure it's divisible by 8 to ensure groups work properly");
+#endif
 
 #define CLEAR_BLOCKS_THREADS_X 8
 #define CLEAR_BLOCKS_THREADS_Y 8

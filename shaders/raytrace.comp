@@ -9,7 +9,7 @@ cbuffer UniformBuffer : register(b0, space2)
 };
 
 Texture3D<uint> blockTexture : register(t0, space0);
-Texture3D<uint> macroTexture : register(t1, space0);
+Texture3D<uint> groupTexture : register(t1, space0);
 Texture2D<uint2> chunkTexture : register(t2, space0);
 StructuredBuffer<CameraState> cameraState : register(t3, space0);
 StructuredBuffer<WorldState> worldState : register(t4, space0);
@@ -74,22 +74,22 @@ Query Raycast(float3 origin, float3 direction, float ior)
         position.x += chunk.x * CHUNK_WIDTH;
         position.z += chunk.y * CHUNK_WIDTH;
         
-        int3 macroPosition = position / GROUP_SIZE;
-        uint macroValue = macroTexture[macroPosition];
-        if (macroValue == 0)
+        int3 groupPosition = position / GROUP_SIZE;
+        uint groupValue = groupTexture[groupPosition];
+        if (groupValue == 0)
         {
-            int3 macroVoxel = voxel >> 3;
+            int3 groupVoxel = voxel >> 3;
             int3 nextMacroBoundary;
             for (int j = 0; j < 3; j++)
             {
                 if (step[j] > 0)
                 {
-                    nextMacroBoundary[j] = (macroVoxel[j] + 1) * GROUP_SIZE;
+                    nextMacroBoundary[j] = (groupVoxel[j] + 1) * GROUP_SIZE;
 
                 }
                 else
                 {
-                    nextMacroBoundary[j] = macroVoxel[j] * GROUP_SIZE;
+                    nextMacroBoundary[j] = groupVoxel[j] * GROUP_SIZE;
                 }
             }
             
@@ -107,13 +107,13 @@ Query Raycast(float3 origin, float3 direction, float ior)
             }
             axis = GetStepAxis(distToMacro);
             float t = distToMacro[axis];
-            macroVoxel[axis] += step[axis];
+            groupVoxel[axis] += step[axis];
             
             float3 hitPos = origin + direction * t;
             voxel = int3(floor(hitPos));
-            voxel[axis] = macroVoxel[axis] * GROUP_SIZE + (step[axis] > 0 ? 0 : (GROUP_SIZE - 1));
+            voxel[axis] = groupVoxel[axis] * GROUP_SIZE + (step[axis] > 0 ? 0 : (GROUP_SIZE - 1));
             
-            voxel = clamp(voxel, macroVoxel * GROUP_SIZE, macroVoxel * GROUP_SIZE + GROUP_SIZE - 1);
+            voxel = clamp(voxel, groupVoxel * GROUP_SIZE, groupVoxel * GROUP_SIZE + GROUP_SIZE - 1);
             
             for (int j = 0; j < 3; j++)
             {

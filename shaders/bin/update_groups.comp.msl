@@ -1,0 +1,39 @@
+#include <metal_stdlib>
+#include <simd/simd.h>
+
+using namespace metal;
+
+kernel void main0(texture3d<uint> blockTexture [[texture(0)]], texture3d<uint, access::write> groupTexture [[texture(1)]], uint3 gl_GlobalInvocationID [[thread_position_in_grid]])
+{
+    do
+    {
+        bool _40;
+        if (gl_GlobalInvocationID.x < 1024u)
+        {
+            _40 = gl_GlobalInvocationID.y >= 128u;
+        }
+        else
+        {
+            _40 = true;
+        }
+        bool _47;
+        if (!_40)
+        {
+            _47 = gl_GlobalInvocationID.z >= 1024u;
+        }
+        else
+        {
+            _47 = true;
+        }
+        if (_47)
+        {
+            break;
+        }
+        if (blockTexture.read(uint3(gl_GlobalInvocationID), 0u).x != 0u)
+        {
+            groupTexture.write(uint4(1u), uint3((gl_GlobalInvocationID / uint3(8u))));
+        }
+        break;
+    } while(false);
+}
+

@@ -62,7 +62,7 @@ constant float3 _95 = {};
 constant uint _96 = {};
 constant bool _97 = {};
 
-kernel void main0(constant type_UniformBuffer& UniformBuffer [[buffer(0)]], const device type_StructuredBuffer_CameraState& cameraState [[buffer(1)]], const device type_StructuredBuffer_WorldState& worldState [[buffer(2)]], const device type_StructuredBuffer_BlockState& blockState [[buffer(3)]], texture3d<uint> blockTexture [[texture(0)]], texture3d<uint> macroTexture [[texture(1)]], texture2d<uint> chunkTexture [[texture(2)]], texture2d<float, access::read_write> outTexture [[texture(3)]], uint3 gl_GlobalInvocationID [[thread_position_in_grid]])
+kernel void main0(constant type_UniformBuffer& UniformBuffer [[buffer(0)]], const device type_StructuredBuffer_CameraState& cameraState [[buffer(1)]], const device type_StructuredBuffer_WorldState& worldState [[buffer(2)]], const device type_StructuredBuffer_BlockState& blockState [[buffer(3)]], texture3d<uint> blockTexture [[texture(0)]], texture3d<uint> groupTexture [[texture(1)]], texture2d<uint> chunkTexture [[texture(2)]], texture2d<float, access::read_write> outTexture [[texture(3)]], uint3 gl_GlobalInvocationID [[thread_position_in_grid]])
 {
     do
     {
@@ -258,7 +258,7 @@ kernel void main0(constant type_UniformBuffer& UniformBuffer [[buffer(0)]], cons
                             int3 _423 = _369;
                             _423.x = (_368 - (_377.x * 32)) + (_419.x * 32);
                             _423.z = (_374 - (_377.y * 32)) + (_419.y * 32);
-                            if (macroTexture.read(uint3(uint3(_423 / int3(8))), 0u).x == 0u)
+                            if (groupTexture.read(uint3(uint3(_423 / int3(8))), 0u).x == 0u)
                             {
                                 int3 _110 = _106 >> int3(3);
                                 for (int _439 = 0; _439 < 3; _439++)
