@@ -25,6 +25,18 @@ struct Query
     float3 Normal;
 };
 
+int GetStepAxis(float3 distance)
+{
+    if (distance.x < distance.y)
+    {
+        return distance.x < distance.z ? 0 : 2;
+    }
+    else
+    {
+        return distance.y < distance.z ? 1 : 2;
+    }
+}
+
 Query Raycast(float3 origin, float3 direction, float ior)
 {
     int3 voxel = int3(floor(origin));
@@ -81,37 +93,9 @@ Query Raycast(float3 origin, float3 direction, float ior)
                     distToMacro[j] = distance[j] + (voxel[j] - nextMacroBoundary[j]) * delta[j];
             }
             
-            float t = 0.0f;
-            if (distToMacro.x < distToMacro.y)
-            {
-                if (distToMacro.x < distToMacro.z)
-                {
-                    t = distToMacro.x;
-                    macroVoxel.x += step.x;
-                    axis = 0;
-                }
-                else
-                {
-                    t = distToMacro.z;
-                    macroVoxel.z += step.z;
-                    axis = 2;
-                }
-            }
-            else
-            {
-                if (distToMacro.y < distToMacro.z)
-                {
-                    t = distToMacro.y;
-                    macroVoxel.y += step.y;
-                    axis = 1;
-                }
-                else
-                {
-                    t = distToMacro.z;
-                    macroVoxel.z += step.z;
-                    axis = 2;
-                }
-            }
+            axis = GetStepAxis(distToMacro);
+            float t = distToMacro[axis];
+            macroVoxel[axis] += step[axis];
             
             float3 hitPos = origin + direction * t;
             voxel = int3(floor(hitPos));
@@ -160,36 +144,9 @@ Query Raycast(float3 origin, float3 direction, float ior)
             query.Normal = normal;
             return query;
         }
-        if (distance.x < distance.y)
-        {
-            if (distance.x < distance.z)
-            {
-                distance.x += delta.x;
-                voxel.x += step.x;
-                axis = 0;
-            }
-            else
-            {
-                distance.z += delta.z;
-                voxel.z += step.z;
-                axis = 2;
-            }
-        }
-        else
-        {
-            if (distance.y < distance.z)
-            {
-                distance.y += delta.y;
-                voxel.y += step.y;
-                axis = 1;
-            }
-            else
-            {
-                distance.z += delta.z;
-                voxel.z += step.z;
-                axis = 2;
-            }
-        }
+        axis = GetStepAxis(distance);
+        distance[axis] += delta[axis];
+        voxel[axis] += step[axis];
     }
     Query query;
     query.Hit = false;
