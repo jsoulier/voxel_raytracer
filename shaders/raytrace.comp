@@ -9,10 +9,11 @@ cbuffer UniformBuffer : register(b0, space2)
 };
 
 Texture3D<uint> blockTexture : register(t0, space0);
-Texture2D<uint2> chunkTexture : register(t1, space0);
-StructuredBuffer<CameraState> cameraState : register(t2, space0);
-StructuredBuffer<WorldState> worldState : register(t3, space0);
-StructuredBuffer<BlockState> blockState : register(t4, space0);
+Texture3D<uint> macroTexture : register(t1, space0);
+Texture2D<uint2> chunkTexture : register(t2, space0);
+StructuredBuffer<CameraState> cameraState : register(t3, space0);
+StructuredBuffer<WorldState> worldState : register(t4, space0);
+StructuredBuffer<BlockState> blockState : register(t5, space0);
 [[vk::image_format("rgba32f")]]
 RWTexture2D<float4> outTexture : register(u0, space1);
 
@@ -60,6 +61,76 @@ Query Raycast(float3 origin, float3 direction, float ior)
         chunk = chunkTexture[chunk];
         position.x += chunk.x * CHUNK_WIDTH;
         position.z += chunk.y * CHUNK_WIDTH;
+        
+        int3 macroPosition = position / 8;
+        uint macroValue = macroTexture[macroPosition];
+        if (macroValue == 0)
+        {
+            int3 macroVoxel = voxel >> 3;
+            int3 nextMacroBoundary;
+            nextMacroBoundary.x = step.x > 0 ? (macroVoxel.x + 1) * 8 : macroVoxel.x * 8;
+            nextMacroBoundary.y = step.y > 0 ? (macroVoxel.y + 1) * 8 : macroVoxel.y * 8;
+            nextMacroBoundary.z = step.z > 0 ? (macroVoxel.z + 1) * 8 : macroVoxel.z * 8;
+            
+            float3 distToMacro;
+            for (int j = 0; j < 3; j++)
+            {
+                if (step[j] > 0)
+                    distToMacro[j] = distance[j] + (nextMacroBoundary[j] - voxel[j] - 1) * delta[j];
+                else
+                    distToMacro[j] = distance[j] + (voxel[j] - nextMacroBoundary[j]) * delta[j];
+            }
+            
+            float t = 0.0f;
+            if (distToMacro.x < distToMacro.y)
+            {
+                if (distToMacro.x < distToMacro.z)
+                {
+                    t = distToMacro.x;
+                    macroVoxel.x += step.x;
+                    axis = 0;
+                }
+                else
+                {
+                    t = distToMacro.z;
+                    macroVoxel.z += step.z;
+                    axis = 2;
+                }
+            }
+            else
+            {
+                if (distToMacro.y < distToMacro.z)
+                {
+                    t = distToMacro.y;
+                    macroVoxel.y += step.y;
+                    axis = 1;
+                }
+                else
+                {
+                    t = distToMacro.z;
+                    macroVoxel.z += step.z;
+                    axis = 2;
+                }
+            }
+            
+            float3 hitPos = origin + direction * t;
+            voxel = int3(floor(hitPos));
+            if (axis == 0) voxel.x = macroVoxel.x * 8 + (step.x > 0 ? 0 : 7);
+            if (axis == 1) voxel.y = macroVoxel.y * 8 + (step.y > 0 ? 0 : 7);
+            if (axis == 2) voxel.z = macroVoxel.z * 8 + (step.z > 0 ? 0 : 7);
+            
+            voxel = clamp(voxel, macroVoxel * 8, macroVoxel * 8 + 7);
+            
+            for (int j = 0; j < 3; j++)
+            {
+                if (step[j] > 0)
+                    distance[j] = (voxel[j] + 1.0f - origin[j]) * delta[j];
+                else
+                    distance[j] = (origin[j] - voxel[j]) * delta[j];
+            }
+            continue;
+        }
+
         uint hitBlock = blockTexture[position];
         BlockState block = blockState[hitBlock];
         bool refract = ior > kEpsilon || block.IOR > kEpsilon;

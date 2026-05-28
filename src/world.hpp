@@ -112,6 +112,7 @@ private:
     StaticBuffer<WorldState> WorldStateBuffer;
     StaticBuffer<BlockState> BlockStateBuffer;
     SDL_GPUTexture* BlockTexture;
+    SDL_GPUTexture* MacroTexture;
     SDL_GPUTexture* ChunkTexture;
     SDL_GPUTexture* ColorTexture;
     SDL_GPUComputePipeline* SetBlocksPipeline;
@@ -120,6 +121,7 @@ private:
     SDL_GPUComputePipeline* RaytracePipeline;
     SDL_GPUComputePipeline* ClearTexturePipeline;
     SDL_GPUComputePipeline* SampleTexturePipeline;
+    SDL_GPUComputePipeline* UpdateMacroBlocksPipeline;
     int Width;
     int Height;
     bool Dirty;

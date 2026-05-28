@@ -1,0 +1,101 @@
+#include <metal_stdlib>
+#include <simd/simd.h>
+
+using namespace metal;
+
+kernel void main0(texture3d<uint> blockTexture [[texture(0)]], texture3d<uint, access::write> macroTexture [[texture(1)]], uint3 gl_GlobalInvocationID [[thread_position_in_grid]])
+{
+    do
+    {
+        bool _41;
+        if (gl_GlobalInvocationID.x < 128u)
+        {
+            _41 = gl_GlobalInvocationID.y >= 8u;
+        }
+        else
+        {
+            _41 = true;
+        }
+        bool _48;
+        if (!_41)
+        {
+            _48 = gl_GlobalInvocationID.z >= 128u;
+        }
+        else
+        {
+            _48 = true;
+        }
+        if (_48)
+        {
+            break;
+        }
+        int3 _52 = int3(gl_GlobalInvocationID * uint3(8u));
+        uint _55;
+        uint _93;
+        uint _54 = 0u;
+        int _57 = 0;
+        for (;;)
+        {
+            if (_57 < 8)
+            {
+                uint _64;
+                uint _63 = _54;
+                int _66 = 0;
+                for (;;)
+                {
+                    if (_66 < 8)
+                    {
+                        int _72 = 0;
+                        for (;;)
+                        {
+                            if (_72 < 8)
+                            {
+                                if (blockTexture.read(uint3(uint3(_52 + int3(_57, _66, _72))), 0u).x != 0u)
+                                {
+                                    _64 = 1u;
+                                    break;
+                                }
+                                _72++;
+                                continue;
+                            }
+                            else
+                            {
+                                _64 = _63;
+                                break;
+                            }
+                        }
+                        if (_64 != 0u)
+                        {
+                            _55 = _64;
+                            break;
+                        }
+                        _63 = _64;
+                        _66++;
+                        continue;
+                    }
+                    else
+                    {
+                        _55 = _63;
+                        break;
+                    }
+                }
+                if (_55 != 0u)
+                {
+                    _93 = _55;
+                    break;
+                }
+                _54 = _55;
+                _57++;
+                continue;
+            }
+            else
+            {
+                _93 = _54;
+                break;
+            }
+        }
+        macroTexture.write(uint4(_93), uint3(gl_GlobalInvocationID));
+        break;
+    } while(false);
+}
+

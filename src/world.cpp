@@ -100,6 +100,7 @@ World::World()
     , RaytracePipeline{nullptr}
     , ClearTexturePipeline{nullptr}
     , Width{0}
+    , UpdateMacroBlocksPipeline{nullptr}
     , Height{0}
     , Dirty{true}
     , Sample{0}
@@ -135,6 +136,17 @@ bool World::Init(SDL_GPUDevice* device)
             SDL_Log("Failed to create chunk texture: %s", SDL_GetError());
             return false;
         }
+        info.format = SDL_GPU_TEXTUREFORMAT_R8_UINT;
+        info.type = SDL_GPU_TEXTURETYPE_3D;
+        info.width = kWidth * Chunk::kWidth / 8;
+        info.height = Chunk::kHeight / 8;
+        info.layer_count_or_depth = kWidth * Chunk::kWidth / 8;
+        MacroTexture = SDL_CreateGPUTexture(Device, &info);
+        if (!MacroTexture)
+        {
+            SDL_Log("Failed to create macro texture: %s", SDL_GetError());
+            return false;
+        }
     }
     {
         SetBlocksPipeline = LoadComputePipeline(Device, "set_blocks.comp");
@@ -162,7 +174,7 @@ bool World::Init(SDL_GPUDevice* device)
             return false;
         }
         ClearTexturePipeline = LoadComputePipeline(Device, "clear_texture.comp");
-        if (!RaytracePipeline)
+        if (!ClearTexturePipeline)
         {
             SDL_Log("Failed to load clear texture pipeline");
             return false;
@@ -171,6 +183,12 @@ bool World::Init(SDL_GPUDevice* device)
         if (!SampleTexturePipeline)
         {
             SDL_Log("Failed to load sample texture pipeline");
+            return false;
+        }
+        UpdateMacroBlocksPipeline = LoadComputePipeline(Device, "update_macro_blocks.comp");
+        if (!UpdateMacroBlocksPipeline)
+        {
+            SDL_Log("Failed to load update macro blocks pipeline");
             return false;
         }
     }
@@ -219,6 +237,7 @@ void World::Destroy()
     SDL_ReleaseGPUComputePipeline(Device, SetBlocksPipeline);
     SDL_ReleaseGPUComputePipeline(Device, SetChunksPipeline);
     SDL_ReleaseGPUComputePipeline(Device, ClearBlocksPipeline);
+    SDL_ReleaseGPUComputePipeline(Device, UpdateMacroBlocksPipeline);
     SDL_ReleaseGPUTexture(Device, ChunkTexture);
     SDL_ReleaseGPUTexture(Device, BlockTexture);
     SDL_ReleaseGPUTexture(Device, ColorTexture);
@@ -294,6 +313,7 @@ void World::Update(Camera& camera)
 
 void World::Dispatch(SDL_GPUCommandBuffer* commandBuffer)
 {
+    bool macroGridDirty = false;
     {
         DebugGroupBlock(commandBuffer, "World::Render::Upload");
         SDL_GPUCopyPass* copyPass = SDL_BeginGPUCopyPass(commandBuffer);
@@ -331,6 +351,7 @@ void World::Dispatch(SDL_GPUCommandBuffer* commandBuffer)
     }
     if (!ClearChunks.empty())
     {
+        macroGridDirty = true;
         DebugGroupBlock(commandBuffer, "World::Render::ClearBlocks");
         SDL_GPUStorageTextureReadWriteBinding writeTexture{};
         writeTexture.texture = BlockTexture;
@@ -353,6 +374,7 @@ void World::Dispatch(SDL_GPUCommandBuffer* commandBuffer)
     }
     if (SetBlocksBuffer.GetSize())
     {
+        macroGridDirty = true;
         DebugGroupBlock(commandBuffer, "World::Render::SetBlocks");
         SDL_GPUStorageTextureReadWriteBinding writeTexture{};
         writeTexture.texture = BlockTexture;
@@ -370,6 +392,27 @@ void World::Dispatch(SDL_GPUCommandBuffer* commandBuffer)
         SDL_BindGPUComputeStorageBuffers(computePass, 0, readBuffers, 1);
         SDL_PushGPUComputeUniformData(commandBuffer, 0, &numJobs, sizeof(numJobs));
         SDL_DispatchGPUCompute(computePass, groupsX, 1, 1);
+        SDL_EndGPUComputePass(computePass);
+    }
+    if (macroGridDirty)
+    {
+        DebugGroupBlock(commandBuffer, "World::Render::UpdateMacroGrid");
+        SDL_GPUStorageTextureReadWriteBinding writeTexture{};
+        writeTexture.texture = MacroTexture;
+        SDL_GPUComputePass* computePass = SDL_BeginGPUComputePass(commandBuffer, &writeTexture, 1, nullptr, 0);
+        if (!computePass)
+        {
+            SDL_Log("Failed to begin compute pass: %s", SDL_GetError());
+            return;
+        }
+        int groupsX = (kWidth * Chunk::kWidth / 8 + UPDATE_MACRO_BLOCKS_THREADS_X - 1) / UPDATE_MACRO_BLOCKS_THREADS_X;
+        int groupsY = (Chunk::kHeight / 8 + UPDATE_MACRO_BLOCKS_THREADS_Y - 1) / UPDATE_MACRO_BLOCKS_THREADS_Y;
+        int groupsZ = (kWidth * Chunk::kWidth / 8 + UPDATE_MACRO_BLOCKS_THREADS_Z - 1) / UPDATE_MACRO_BLOCKS_THREADS_Z;
+        SDL_GPUTexture* readTextures[1]{};
+        readTextures[0] = BlockTexture;
+        SDL_BindGPUComputePipeline(computePass, UpdateMacroBlocksPipeline);
+        SDL_BindGPUComputeStorageTextures(computePass, 0, readTextures, 1);
+        SDL_DispatchGPUCompute(computePass, groupsX, groupsY, groupsZ);
         SDL_EndGPUComputePass(computePass);
     }
 }
@@ -441,16 +484,17 @@ void World::Render(SDL_GPUCommandBuffer* commandBuffer, SDL_GPUTexture* colorTex
         }
         int groupsX = (Width + RAYTRACE_THREADS_X - 1) / RAYTRACE_THREADS_X;
         int groupsY = (Height + RAYTRACE_THREADS_Y - 1) / RAYTRACE_THREADS_Y;
-        SDL_GPUTexture* readTextures[2]{};
+        SDL_GPUTexture* readTextures[3]{};
         SDL_GPUBuffer* readBuffers[3]{};
         readTextures[0] = BlockTexture;
-        readTextures[1] = ChunkTexture;
+        readTextures[1] = MacroTexture;
+        readTextures[2] = ChunkTexture;
         readBuffers[0] = camera.GetBuffer();
         readBuffers[1] = WorldStateBuffer.GetBuffer();
         readBuffers[2] = BlockStateBuffer.GetBuffer();
         SDL_BindGPUComputePipeline(computePass, RaytracePipeline);
         SDL_PushGPUComputeUniformData(commandBuffer, 0, &Sample, sizeof(Sample));
-        SDL_BindGPUComputeStorageTextures(computePass, 0, readTextures, 2);
+        SDL_BindGPUComputeStorageTextures(computePass, 0, readTextures, 3);
         SDL_BindGPUComputeStorageBuffers(computePass, 0, readBuffers, 3);
         SDL_DispatchGPUCompute(computePass, groupsX, groupsY, 1);
         SDL_EndGPUComputePass(computePass);
