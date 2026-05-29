@@ -1,10 +1,17 @@
 #pragma once
 
 #include <SDL3/SDL.h>
+#define GLM_ENABLE_EXPERIMENTAL
 #include <glm/glm.hpp>
+#include <glm/gtx/hash.hpp>
 
 #include <cstdint>
 #include <vector>
+#include <array>
+#include <algorithm>
+#include <execution>
+#include <thread>
+#include <unordered_set>
 
 #include "block.hpp"
 #include "buffer.hpp"
@@ -106,12 +113,15 @@ private:
     Block Blocks[kWidth * Chunk::kWidth][Chunk::kHeight][kWidth * Chunk::kWidth];
     Chunk Chunks[kWidth][kWidth];
     glm::ivec2 ChunkMap[kWidth][kWidth];
-    DynamicBuffer<WorldSetBlockJob> SetBlocksBuffer;
+    std::vector<DynamicBuffer<WorldSetBlockJob>> SetBlocksBuffers;
+    int SetBlocksBufferCount;
+    std::unordered_set<glm::ivec2> UpdateGroups;
     DynamicBuffer<WorldSetChunkJob> SetChunksBuffer;
     std::vector<glm::ivec2> ClearChunks;
     StaticBuffer<WorldState> WorldStateBuffer;
     StaticBuffer<BlockState> BlockStateBuffer;
     SDL_GPUTexture* BlockTexture;
+    SDL_GPUTexture* GroupTexture;
     SDL_GPUTexture* ChunkTexture;
     SDL_GPUTexture* ColorTexture;
     SDL_GPUComputePipeline* SetBlocksPipeline;
@@ -120,6 +130,8 @@ private:
     SDL_GPUComputePipeline* RaytracePipeline;
     SDL_GPUComputePipeline* ClearTexturePipeline;
     SDL_GPUComputePipeline* SampleTexturePipeline;
+    SDL_GPUComputePipeline* ClearGroupPipeline;
+    SDL_GPUComputePipeline* UpdateGroupPipeline;
     int Width;
     int Height;
     bool Dirty;

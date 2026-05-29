@@ -1,8 +1,14 @@
 #include <SDL3/SDL.h>
 #include <glm/glm.hpp>
 
+#include <algorithm>
+#include <array>
 #include <cmath>
 #include <cstring>
+#include <execution>
+#include <numeric>
+#include <thread>
+#include <unordered_set>
 #include <vector>
 
 #include "block.hpp"
@@ -82,16 +88,19 @@ void WorldProxy::SetBlock(glm::ivec3 position, Block block)
 }
 
 World::World()
-    : Device{}
+    : Device{nullptr}
     , Blocks{}
     , Chunks{}
     , ChunkMap{}
-    , SetBlocksBuffer{}
+    , SetBlocksBuffers{}
+    , SetBlocksBufferCount{0}
+    , UpdateGroups{}
     , SetChunksBuffer{}
     , ClearChunks{}
     , WorldStateBuffer{}
     , BlockStateBuffer{}
     , BlockTexture{nullptr}
+    , GroupTexture{nullptr}
     , ChunkTexture{nullptr}
     , ColorTexture{nullptr}
     , SetBlocksPipeline{nullptr}
@@ -99,6 +108,9 @@ World::World()
     , ClearBlocksPipeline{nullptr}
     , RaytracePipeline{nullptr}
     , ClearTexturePipeline{nullptr}
+    , SampleTexturePipeline{nullptr}
+    , ClearGroupPipeline{nullptr}
+    , UpdateGroupPipeline{nullptr}
     , Width{0}
     , Height{0}
     , Dirty{true}
@@ -109,6 +121,13 @@ World::World()
 bool World::Init(SDL_GPUDevice* device)
 {
     Device = device;
+    // https://en.cppreference.com/cpp/17
+    // Somehow Apple Clang doesn't support execution policies yet (even with -fexperimental-library)
+#if !SDL_PLATFORM_APPLE
+    SetBlocksBuffers.resize(std::max(1u, std::thread::hardware_concurrency()));
+#else
+    SetBlocksBuffers.resize(1);
+#endif
     {
         SDL_GPUTextureCreateInfo info{};
         info.format = SDL_GPU_TEXTUREFORMAT_R8_UINT;
@@ -133,6 +152,17 @@ bool World::Init(SDL_GPUDevice* device)
         if (!ChunkTexture)
         {
             SDL_Log("Failed to create chunk texture: %s", SDL_GetError());
+            return false;
+        }
+        info.format = SDL_GPU_TEXTUREFORMAT_R8_UINT;
+        info.type = SDL_GPU_TEXTURETYPE_3D;
+        info.width = GROUP_WIDTH;
+        info.height = GROUP_HEIGHT;
+        info.layer_count_or_depth = GROUP_WIDTH;
+        GroupTexture = SDL_CreateGPUTexture(Device, &info);
+        if (!GroupTexture)
+        {
+            SDL_Log("Failed to create group texture: %s", SDL_GetError());
             return false;
         }
     }
@@ -162,7 +192,7 @@ bool World::Init(SDL_GPUDevice* device)
             return false;
         }
         ClearTexturePipeline = LoadComputePipeline(Device, "clear_texture.comp");
-        if (!RaytracePipeline)
+        if (!ClearTexturePipeline)
         {
             SDL_Log("Failed to load clear texture pipeline");
             return false;
@@ -171,6 +201,18 @@ bool World::Init(SDL_GPUDevice* device)
         if (!SampleTexturePipeline)
         {
             SDL_Log("Failed to load sample texture pipeline");
+            return false;
+        }
+        ClearGroupPipeline = LoadComputePipeline(Device, "clear_groups.comp");
+        if (!ClearGroupPipeline)
+        {
+            SDL_Log("Failed to load clear group pipeline");
+            return false;
+        }
+        UpdateGroupPipeline = LoadComputePipeline(Device, "update_groups.comp");
+        if (!UpdateGroupPipeline)
+        {
+            SDL_Log("Failed to load update group pipeline");
             return false;
         }
     }
@@ -212,13 +254,19 @@ void World::Destroy()
     BlockStateBuffer.Destroy(Device);
     WorldStateBuffer.Destroy(Device);
     SetChunksBuffer.Destroy(Device);
-    SetBlocksBuffer.Destroy(Device);
+    for (int i = 0; i < SetBlocksBuffers.size(); i++)
+    {
+        SetBlocksBuffers[i].Destroy(Device);
+    }
     SDL_ReleaseGPUComputePipeline(Device, SampleTexturePipeline);
     SDL_ReleaseGPUComputePipeline(Device, ClearTexturePipeline);
     SDL_ReleaseGPUComputePipeline(Device, RaytracePipeline);
     SDL_ReleaseGPUComputePipeline(Device, SetBlocksPipeline);
     SDL_ReleaseGPUComputePipeline(Device, SetChunksPipeline);
     SDL_ReleaseGPUComputePipeline(Device, ClearBlocksPipeline);
+    SDL_ReleaseGPUComputePipeline(Device, ClearGroupPipeline);
+    SDL_ReleaseGPUComputePipeline(Device, UpdateGroupPipeline);
+    SDL_ReleaseGPUTexture(Device, GroupTexture);
     SDL_ReleaseGPUTexture(Device, ChunkTexture);
     SDL_ReleaseGPUTexture(Device, BlockTexture);
     SDL_ReleaseGPUTexture(Device, ColorTexture);
@@ -273,9 +321,11 @@ void World::Update(Camera& camera)
             chunk.AddFlags(ChunkFlagsGenerate);
             SetChunksBuffer.Emplace(Device, x, z, position.x, position.y);
             ClearChunks.emplace_back(position.x, position.y);
+            UpdateGroups.insert(position);
         }
         SDL_assert(outOfBoundsChunks.empty());
     }
+    std::vector<glm::ivec2> jobs;
     for (int inX = 0; inX < kWidth; inX++)
     for (int inZ = 0; inZ < kWidth; inZ++)
     {
@@ -284,11 +334,44 @@ void World::Update(Camera& camera)
         Chunk& chunk = Chunks[outX][outZ];
         if (chunk.GetFlags() & ChunkFlagsGenerate)
         {
-            WorldProxy proxy{*this, SetBlocksBuffer, outX, outZ};
-            chunk.Generate(proxy, WorldStateBuffer->X + inX, WorldStateBuffer->Z + inZ);
-            Dirty = true;
-            return;
+            jobs.push_back({inX, inZ});
         }
+    }
+    if (!jobs.empty())
+    {
+        int maxJobs = std::min(jobs.size(), SetBlocksBuffers.size() - SetBlocksBufferCount);
+        std::vector<int> jobIndices(maxJobs);
+        std::iota(jobIndices.begin(), jobIndices.end(), 0);
+        // https://en.cppreference.com/cpp/17
+        // Somehow Apple Clang doesn't support execution policies yet (even with -fexperimental-library)
+#if !SDL_PLATFORM_APPLE
+        std::for_each(std::execution::par, jobIndices.begin(), jobIndices.end(), [this, &jobs](int i)
+#else
+        for (int i : jobIndices)
+#endif
+        {
+            int bufferIndex = SetBlocksBufferCount + i;
+            int inX = jobs[i].x;
+            int inZ = jobs[i].y;
+            int outX = ChunkMap[inX][inZ].x;
+            int outZ = ChunkMap[inX][inZ].y;
+            Chunk& chunk = Chunks[outX][outZ];
+            WorldProxy proxy{*this, SetBlocksBuffers[bufferIndex], outX, outZ};
+            chunk.Generate(proxy, WorldStateBuffer->X + inX, WorldStateBuffer->Z + inZ);
+        }
+#if !SDL_PLATFORM_APPLE
+        );
+#endif
+        for (int i = 0; i < maxJobs; i++)
+        {
+            int inX = jobs[i].x;
+            int inZ = jobs[i].y;
+            int outX = ChunkMap[inX][inZ].x;
+            int outZ = ChunkMap[inX][inZ].y;
+            UpdateGroups.insert({outX, outZ});
+        }
+        SetBlocksBufferCount += maxJobs;
+        Dirty = true;
     }
 }
 
@@ -304,7 +387,10 @@ void World::Dispatch(SDL_GPUCommandBuffer* commandBuffer)
         }
         WorldStateBuffer.Upload(Device, copyPass);
         BlockStateBuffer.Upload(Device, copyPass);
-        SetBlocksBuffer.Upload(Device, copyPass);
+        for (int i = 0; i < SetBlocksBufferCount; i++)
+        {
+            SetBlocksBuffers[i].Upload(Device, copyPass);
+        }
         SetChunksBuffer.Upload(Device, copyPass);
         SDL_EndGPUCopyPass(copyPass);
     }
@@ -351,7 +437,7 @@ void World::Dispatch(SDL_GPUCommandBuffer* commandBuffer)
         ClearChunks.clear();
         SDL_EndGPUComputePass(computePass);
     }
-    if (SetBlocksBuffer.GetSize())
+    if (SetBlocksBufferCount > 0)
     {
         DebugGroupBlock(commandBuffer, "World::Render::SetBlocks");
         SDL_GPUStorageTextureReadWriteBinding writeTexture{};
@@ -362,16 +448,71 @@ void World::Dispatch(SDL_GPUCommandBuffer* commandBuffer)
             SDL_Log("Failed to begin compute pass: %s", SDL_GetError());
             return;
         }
-        int numJobs = SetBlocksBuffer.GetSize();
-        int groupsX = (numJobs + SET_BLOCKS_THREADS_X - 1) / SET_BLOCKS_THREADS_X;
-        SDL_GPUBuffer* readBuffers[1]{};
-        readBuffers[0] = SetBlocksBuffer.GetBuffer();
         SDL_BindGPUComputePipeline(computePass, SetBlocksPipeline);
-        SDL_BindGPUComputeStorageBuffers(computePass, 0, readBuffers, 1);
-        SDL_PushGPUComputeUniformData(commandBuffer, 0, &numJobs, sizeof(numJobs));
-        SDL_DispatchGPUCompute(computePass, groupsX, 1, 1);
+        for (int i = 0; i < SetBlocksBufferCount; i++)
+        {
+            int numJobs = SetBlocksBuffers[i].GetSize();
+            if (numJobs > 0)
+            {
+                int groupsX = (numJobs + SET_BLOCKS_THREADS_X - 1) / SET_BLOCKS_THREADS_X;
+                SDL_GPUBuffer* readBuffers[1]{};
+                readBuffers[0] = SetBlocksBuffers[i].GetBuffer();
+                SDL_BindGPUComputeStorageBuffers(computePass, 0, readBuffers, 1);
+                SDL_PushGPUComputeUniformData(commandBuffer, 0, &numJobs, sizeof(numJobs));
+                SDL_DispatchGPUCompute(computePass, groupsX, 1, 1);
+            }
+        }
+        SDL_EndGPUComputePass(computePass);
+        SetBlocksBufferCount = 0;
+    }
+    if (!UpdateGroups.empty())
+    {
+        DebugGroupBlock(commandBuffer, "World::Render::ClearGroups");
+        SDL_GPUStorageTextureReadWriteBinding writeTexture{};
+        writeTexture.texture = GroupTexture;
+        SDL_GPUComputePass* computePass = SDL_BeginGPUComputePass(commandBuffer, &writeTexture, 1, nullptr, 0);
+        if (!computePass)
+        {
+            SDL_Log("Failed to begin compute pass: %s", SDL_GetError());
+            return;
+        }
+        SDL_BindGPUComputePipeline(computePass, ClearGroupPipeline);
+        for (const glm::ivec2& position : UpdateGroups)
+        {
+            int groupsX = (CHUNK_WIDTH / GROUP_SIZE + CLEAR_GROUPS_THREADS_X - 1) / CLEAR_GROUPS_THREADS_X;
+            int groupsY = (CHUNK_HEIGHT / GROUP_SIZE + CLEAR_GROUPS_THREADS_Y - 1) / CLEAR_GROUPS_THREADS_Y;
+            int groupsZ = (CHUNK_WIDTH / GROUP_SIZE + CLEAR_GROUPS_THREADS_Z - 1) / CLEAR_GROUPS_THREADS_Z;
+            SDL_PushGPUComputeUniformData(commandBuffer, 0, &position, sizeof(position));
+            SDL_DispatchGPUCompute(computePass, groupsX, groupsY, groupsZ);
+        }
         SDL_EndGPUComputePass(computePass);
     }
+    if (!UpdateGroups.empty())
+    {
+        DebugGroupBlock(commandBuffer, "World::Render::UpdateGroups");
+        SDL_GPUStorageTextureReadWriteBinding writeTexture{};
+        writeTexture.texture = GroupTexture;
+        SDL_GPUComputePass* computePass = SDL_BeginGPUComputePass(commandBuffer, &writeTexture, 1, nullptr, 0);
+        if (!computePass)
+        {
+            SDL_Log("Failed to begin compute pass: %s", SDL_GetError());
+            return;
+        }
+        SDL_GPUTexture* readTextures[1]{};
+        readTextures[0] = BlockTexture;
+        SDL_BindGPUComputePipeline(computePass, UpdateGroupPipeline);
+        SDL_BindGPUComputeStorageTextures(computePass, 0, readTextures, 1);
+        for (const glm::ivec2& position : UpdateGroups)
+        {
+            int groupsX = (CHUNK_WIDTH + UPDATE_GROUPS_THREADS_X - 1) / UPDATE_GROUPS_THREADS_X;
+            int groupsY = (CHUNK_HEIGHT + UPDATE_GROUPS_THREADS_Y - 1) / UPDATE_GROUPS_THREADS_Y;
+            int groupsZ = (CHUNK_WIDTH + UPDATE_GROUPS_THREADS_Z - 1) / UPDATE_GROUPS_THREADS_Z;
+            SDL_PushGPUComputeUniformData(commandBuffer, 0, &position, sizeof(position));
+            SDL_DispatchGPUCompute(computePass, groupsX, groupsY, groupsZ);
+        }
+        SDL_EndGPUComputePass(computePass);
+    }
+    UpdateGroups.clear();
 }
 
 void World::Render(SDL_GPUCommandBuffer* commandBuffer, SDL_GPUTexture* colorTexture, Camera& camera)
@@ -441,16 +582,17 @@ void World::Render(SDL_GPUCommandBuffer* commandBuffer, SDL_GPUTexture* colorTex
         }
         int groupsX = (Width + RAYTRACE_THREADS_X - 1) / RAYTRACE_THREADS_X;
         int groupsY = (Height + RAYTRACE_THREADS_Y - 1) / RAYTRACE_THREADS_Y;
-        SDL_GPUTexture* readTextures[2]{};
+        SDL_GPUTexture* readTextures[3]{};
         SDL_GPUBuffer* readBuffers[3]{};
         readTextures[0] = BlockTexture;
-        readTextures[1] = ChunkTexture;
+        readTextures[1] = GroupTexture;
+        readTextures[2] = ChunkTexture;
         readBuffers[0] = camera.GetBuffer();
         readBuffers[1] = WorldStateBuffer.GetBuffer();
         readBuffers[2] = BlockStateBuffer.GetBuffer();
         SDL_BindGPUComputePipeline(computePass, RaytracePipeline);
         SDL_PushGPUComputeUniformData(commandBuffer, 0, &Sample, sizeof(Sample));
-        SDL_BindGPUComputeStorageTextures(computePass, 0, readTextures, 2);
+        SDL_BindGPUComputeStorageTextures(computePass, 0, readTextures, 3);
         SDL_BindGPUComputeStorageBuffers(computePass, 0, readBuffers, 3);
         SDL_DispatchGPUCompute(computePass, groupsX, groupsY, 1);
         SDL_EndGPUComputePass(computePass);
@@ -499,7 +641,15 @@ void World::SetBlock(glm::ivec3 position, Block block)
 {
     if (WorldToLocalPosition(position))
     {
-        SetBlocksBuffer.Emplace(Device, position, block);
+        int chunkX = position.x / Chunk::kWidth;
+        int chunkZ = position.z / Chunk::kWidth;
+        // TODO: While I don't know if it can ever happen in game, this is technically not safe. We reserve the first
+        // SetBlocksBuffer for SetBlock calls. If a chunk generates in the same chunk that this block is placed in,
+        // the chunk generation will overwrite the SetBlock call. However, since we trigger all dispatches to update_blocks.comp
+        // in the same compute pass, the order on the GPU is undefined since there's no barrier
+        SetBlocksBuffers[0].Emplace(Device, position, block);
+        SetBlocksBufferCount = std::max(SetBlocksBufferCount, 1);
+        UpdateGroups.insert({chunkX, chunkZ});
         Blocks[position.x][position.y][position.z] = block;
         Dirty = true;
     }

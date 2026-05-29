@@ -9,10 +9,11 @@ cbuffer UniformBuffer : register(b0, space2)
 };
 
 Texture3D<uint> blockTexture : register(t0, space0);
-Texture2D<uint2> chunkTexture : register(t1, space0);
-StructuredBuffer<CameraState> cameraState : register(t2, space0);
-StructuredBuffer<WorldState> worldState : register(t3, space0);
-StructuredBuffer<BlockState> blockState : register(t4, space0);
+Texture3D<uint> groupTexture : register(t1, space0);
+Texture2D<uint2> chunkTexture : register(t2, space0);
+StructuredBuffer<CameraState> cameraState : register(t3, space0);
+StructuredBuffer<WorldState> worldState : register(t4, space0);
+StructuredBuffer<BlockState> blockState : register(t5, space0);
 [[vk::image_format("rgba32f")]]
 RWTexture2D<float4> outTexture : register(u0, space1);
 
@@ -23,6 +24,18 @@ struct Query
     float3 Position;
     float3 Normal;
 };
+
+int GetStepAxis(float3 distance)
+{
+    if (distance.x < distance.y)
+    {
+        return distance.x < distance.z ? 0 : 2;
+    }
+    else
+    {
+        return distance.y < distance.z ? 1 : 2;
+    }
+}
 
 Query Raycast(float3 origin, float3 direction, float ior)
 {
@@ -60,28 +73,64 @@ Query Raycast(float3 origin, float3 direction, float ior)
         chunk = chunkTexture[chunk];
         position.x += chunk.x * CHUNK_WIDTH;
         position.z += chunk.y * CHUNK_WIDTH;
+        int3 groupPosition = position / GROUP_SIZE;
+        uint groupValue = groupTexture[groupPosition];
+        if (groupValue == 0)
+        {
+            int3 groupVoxel = voxel >> 3;
+            int3 groupBoundary;
+            for (int j = 0; j < 3; j++)
+            {
+                if (step[j] > 0)
+                {
+                    groupBoundary[j] = (groupVoxel[j] + 1) * GROUP_SIZE;
+
+                }
+                else
+                {
+                    groupBoundary[j] = groupVoxel[j] * GROUP_SIZE;
+                }
+            }
+            float3 groupDistance;
+            for (int j = 0; j < 3; j++)
+            {
+                if (step[j] > 0)
+                {
+                    groupDistance[j] = distance[j] + (groupBoundary[j] - voxel[j] - 1) * delta[j];
+                }
+                else
+                {
+                    groupDistance[j] = distance[j] + (voxel[j] - groupBoundary[j]) * delta[j];
+                }
+            }
+            axis = GetStepAxis(groupDistance);
+            float t = groupDistance[axis];
+            groupVoxel[axis] += step[axis];
+            float3 hitPosition = origin + direction * t;
+            voxel = int3(floor(hitPosition));
+            voxel[axis] = groupVoxel[axis] * GROUP_SIZE + (step[axis] > 0 ? 0 : (GROUP_SIZE - 1));
+            voxel = clamp(voxel, groupVoxel * GROUP_SIZE, groupVoxel * GROUP_SIZE + GROUP_SIZE - 1);
+            for (int j = 0; j < 3; j++)
+            {
+                if (step[j] > 0)
+                {
+                    distance[j] = (voxel[j] + 1.0f - origin[j]) * delta[j];
+                }
+                else
+                {
+                    distance[j] = (origin[j] - voxel[j]) * delta[j];
+                }
+            }
+            continue;
+        }
         uint hitBlock = blockTexture[position];
         BlockState block = blockState[hitBlock];
         bool refract = ior > kEpsilon || block.IOR > kEpsilon;
         if ((!refract && hitBlock != kBlockAir) || (refract && abs(block.IOR - ior) > kEpsilon))
         {
             float3 normal = float3(0.0f, 0.0f, 0.0f);
-            float t = 0.0f;
-            if (axis == 0)
-            {
-                normal.x = -step.x;
-                t = distance.x - delta.x;
-            }
-            else if (axis == 1)
-            {
-                normal.y = -step.y;
-                t = distance.y - delta.y;
-            }
-            else if (axis == 2)
-            {
-                normal.z = -step.z;
-                t = distance.z - delta.z;
-            }
+            normal[axis] = -step[axis];
+            float t = distance[axis] - delta[axis];
             Query query;
             query.Hit = true;
             query.Block = hitBlock;
@@ -89,36 +138,9 @@ Query Raycast(float3 origin, float3 direction, float ior)
             query.Normal = normal;
             return query;
         }
-        if (distance.x < distance.y)
-        {
-            if (distance.x < distance.z)
-            {
-                distance.x += delta.x;
-                voxel.x += step.x;
-                axis = 0;
-            }
-            else
-            {
-                distance.z += delta.z;
-                voxel.z += step.z;
-                axis = 2;
-            }
-        }
-        else
-        {
-            if (distance.y < distance.z)
-            {
-                distance.y += delta.y;
-                voxel.y += step.y;
-                axis = 1;
-            }
-            else
-            {
-                distance.z += delta.z;
-                voxel.z += step.z;
-                axis = 2;
-            }
-        }
+        axis = GetStepAxis(distance);
+        distance[axis] += delta[axis];
+        voxel[axis] += step[axis];
     }
     Query query;
     query.Hit = false;
