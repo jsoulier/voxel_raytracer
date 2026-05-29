@@ -88,7 +88,7 @@ void WorldProxy::SetBlock(glm::ivec3 position, Block block)
 }
 
 World::World()
-    : Device{}
+    : Device{nullptr}
     , Blocks{}
     , Chunks{}
     , ChunkMap{}
@@ -121,7 +121,13 @@ World::World()
 bool World::Init(SDL_GPUDevice* device)
 {
     Device = device;
+    // https://en.cppreference.com/cpp/17
+    // Somehow Apple Clang doesn't support execution policies yet (even with -fexperimental-library)
+#if !SDL_PLATFORM_APPLE
     SetBlocksBuffers.resize(std::max(1u, std::thread::hardware_concurrency()));
+#else
+    SetBlocksBuffers.resize(1);
+#endif
     {
         SDL_GPUTextureCreateInfo info{};
         info.format = SDL_GPU_TEXTUREFORMAT_R8_UINT;
@@ -336,7 +342,13 @@ void World::Update(Camera& camera)
         int maxJobs = std::min(jobs.size(), SetBlocksBuffers.size() - SetBlocksBufferCount);
         std::vector<int> jobIndices(maxJobs);
         std::iota(jobIndices.begin(), jobIndices.end(), 0);
+        // https://en.cppreference.com/cpp/17
+        // Somehow Apple Clang doesn't support execution policies yet (even with -fexperimental-library)
+#if !SDL_PLATFORM_APPLE
         std::for_each(std::execution::par, jobIndices.begin(), jobIndices.end(), [this, &jobs](int i)
+#else
+        for (int i : jobIndices)
+#endif
         {
             int bufferIndex = SetBlocksBufferCount + i;
             int inX = jobs[i].x;
@@ -346,7 +358,10 @@ void World::Update(Camera& camera)
             Chunk& chunk = Chunks[outX][outZ];
             WorldProxy proxy{*this, SetBlocksBuffers[bufferIndex], outX, outZ};
             chunk.Generate(proxy, WorldStateBuffer->X + inX, WorldStateBuffer->Z + inZ);
-        });
+        }
+#if !SDL_PLATFORM_APPLE
+        );
+#endif
         for (int i = 0; i < maxJobs; i++)
         {
             int inX = jobs[i].x;
@@ -628,6 +643,10 @@ void World::SetBlock(glm::ivec3 position, Block block)
     {
         int chunkX = position.x / Chunk::kWidth;
         int chunkZ = position.z / Chunk::kWidth;
+        // TODO: While I don't know if it can ever happen in game, this is technically not safe. We reserve the first
+        // SetBlocksBuffer for SetBlock calls. If a chunk generates in the same chunk that this block is placed in,
+        // the chunk generation will overwrite the SetBlock call. However, since we trigger all dispatches to update_blocks.comp
+        // in the same compute pass, the order on the GPU is undefined since there's no barrier
         SetBlocksBuffers[0].Emplace(Device, position, block);
         SetBlocksBufferCount = std::max(SetBlocksBufferCount, 1);
         UpdateGroups.insert({chunkX, chunkZ});

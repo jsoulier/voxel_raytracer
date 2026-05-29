@@ -29,9 +29,6 @@ add_executable(voxel_raytracer WIN32
 )
 target_link_libraries(voxel_raytracer SDL3::SDL3 FastNoiseLite glm imgui nlohmann_json)
 set_target_properties(voxel_raytracer PROPERTIES CXX_STANDARD 23)
-if(APPLE)
-    target_compile_options(voxel_raytracer PRIVATE -fexperimental-library)
-endif()
 target_precompile_headers(voxel_raytracer PRIVATE
     <array>
     <algorithm>
