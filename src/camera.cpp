@@ -27,7 +27,7 @@ bool Camera::Init(SDL_GPUDevice* device)
         SDL_Log("Failed to initialize state");
         return false;
     }
-    State.Get().Position.y = 32.0f;
+    State.Get().Position.y = 64.0f;
     Rotate(0.0f, 0.0f, true);
     Resize(1, 1);
     SetFov(60.0f);

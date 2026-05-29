@@ -331,6 +331,8 @@ static void Render()
         }
         focus = false;
         int value = int(block) - BlockFirst;
+        ImGui::Text("GPU: %s", SDL_GetStringProperty(SDL_GetGPUDeviceProperties(device), SDL_PROP_GPU_DEVICE_NAME_STRING, "?"));
+        ImGui::Text("Driver: %s", SDL_GetGPUDeviceDriver(device));
         ImGui::Text("Delta Time: %f ms", dt / 1000000.0f);
         if (ImGui::Combo("Block", &value, BlockGetStrings() + BlockFirst, BlockCount - BlockFirst))
         {
@@ -341,7 +343,7 @@ static void Render()
         bool setOptions = false;
         int maxSteps = worldOptions.MaxSteps;
         int maxBounces = worldOptions.MaxBounces;
-        setOptions |= ImGui::SliderInt("Max Steps", &maxSteps, 0, 1000);
+        setOptions |= ImGui::SliderInt("Max Steps", &maxSteps, 0, 2500);
         setOptions |= ImGui::SliderInt("Max Bounces", &maxBounces, 0, 100);
         setOptions |= ImGui::ColorEdit3("Sky Bottom", glm::value_ptr(worldOptions.SkyBottom));
         setOptions |= ImGui::ColorEdit3("Sky Top", glm::value_ptr(worldOptions.SkyTop));

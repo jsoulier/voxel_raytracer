@@ -8,13 +8,32 @@
 #define BLOCKS \
     X(Air) \
     X(Grass) \
+    X(BirchGrass) \
+    X(JungleGrass) \
+    X(CherryGrass) \
+    X(AutumnGrass) \
+    X(BlueGrass) \
     X(Dirt) \
     X(Sand) \
     X(Water) \
     X(Glass) \
     X(Stone) \
-    X(Wood) \
-    X(Leaves) \
+    X(OakWood) \
+    X(OakLeaves) \
+    X(Snow) \
+    X(PineWood) \
+    X(PineLeaves) \
+    X(BirchWood) \
+    X(BirchLeaves) \
+    X(JungleWood) \
+    X(JungleLeaves) \
+    X(CherryWood) \
+    X(CherryLeaves) \
+    X(MapleWood) \
+    X(MapleLeaves) \
+    X(BlueWood) \
+    X(BlueLeaves) \
+    X(Clay) \
     X(Steel) \
     X(RedLight) \
     X(GreenLight) \

@@ -15,7 +15,7 @@ kernel void main0(constant type_UniformBuffer& UniformBuffer [[buffer(0)]], text
         uint3 _38 = gl_GlobalInvocationID + uint3(int3(UniformBuffer.ChunkCoord.x * 4, 0, UniformBuffer.ChunkCoord.y * 4));
         int3 _39 = int3(_38);
         bool _46;
-        if (_39.x < 128)
+        if (_39.x < 256)
         {
             _46 = _39.y >= 16;
         }
@@ -26,7 +26,7 @@ kernel void main0(constant type_UniformBuffer& UniformBuffer [[buffer(0)]], text
         bool _52;
         if (!_46)
         {
-            _52 = _39.z >= 128;
+            _52 = _39.z >= 256;
         }
         else
         {
