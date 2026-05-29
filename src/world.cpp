@@ -109,8 +109,8 @@ World::World()
     , RaytracePipeline{nullptr}
     , ClearTexturePipeline{nullptr}
     , SampleTexturePipeline{nullptr}
-    , ClearGroupPipeline{nullptr}
-    , UpdateGroupPipeline{nullptr}
+    , ClearGroupsPipeline{nullptr}
+    , SetGroupsPipeline{nullptr}
     , Width{0}
     , Height{0}
     , Dirty{true}
@@ -203,16 +203,16 @@ bool World::Init(SDL_GPUDevice* device)
             SDL_Log("Failed to load sample texture pipeline");
             return false;
         }
-        ClearGroupPipeline = LoadComputePipeline(Device, "clear_groups.comp");
-        if (!ClearGroupPipeline)
+        ClearGroupsPipeline = LoadComputePipeline(Device, "clear_groups.comp");
+        if (!ClearGroupsPipeline)
         {
-            SDL_Log("Failed to load clear group pipeline");
+            SDL_Log("Failed to load clear groups pipeline");
             return false;
         }
-        UpdateGroupPipeline = LoadComputePipeline(Device, "update_groups.comp");
-        if (!UpdateGroupPipeline)
+        SetGroupsPipeline = LoadComputePipeline(Device, "set_groups.comp");
+        if (!SetGroupsPipeline)
         {
-            SDL_Log("Failed to load update group pipeline");
+            SDL_Log("Failed to load set groups pipeline");
             return false;
         }
     }
@@ -264,8 +264,8 @@ void World::Destroy()
     SDL_ReleaseGPUComputePipeline(Device, SetBlocksPipeline);
     SDL_ReleaseGPUComputePipeline(Device, SetChunksPipeline);
     SDL_ReleaseGPUComputePipeline(Device, ClearBlocksPipeline);
-    SDL_ReleaseGPUComputePipeline(Device, ClearGroupPipeline);
-    SDL_ReleaseGPUComputePipeline(Device, UpdateGroupPipeline);
+    SDL_ReleaseGPUComputePipeline(Device, ClearGroupsPipeline);
+    SDL_ReleaseGPUComputePipeline(Device, SetGroupsPipeline);
     SDL_ReleaseGPUTexture(Device, GroupTexture);
     SDL_ReleaseGPUTexture(Device, ChunkTexture);
     SDL_ReleaseGPUTexture(Device, BlockTexture);
@@ -476,7 +476,7 @@ void World::Dispatch(SDL_GPUCommandBuffer* commandBuffer)
             SDL_Log("Failed to begin compute pass: %s", SDL_GetError());
             return;
         }
-        SDL_BindGPUComputePipeline(computePass, ClearGroupPipeline);
+        SDL_BindGPUComputePipeline(computePass, ClearGroupsPipeline);
         for (const glm::ivec2& position : UpdateGroups)
         {
             int groupsX = (CHUNK_WIDTH / GROUP_SIZE + CLEAR_GROUPS_THREADS_X - 1) / CLEAR_GROUPS_THREADS_X;
@@ -500,7 +500,7 @@ void World::Dispatch(SDL_GPUCommandBuffer* commandBuffer)
         }
         SDL_GPUTexture* readTextures[1]{};
         readTextures[0] = BlockTexture;
-        SDL_BindGPUComputePipeline(computePass, UpdateGroupPipeline);
+        SDL_BindGPUComputePipeline(computePass, SetGroupsPipeline);
         SDL_BindGPUComputeStorageTextures(computePass, 0, readTextures, 1);
         for (const glm::ivec2& position : UpdateGroups)
         {

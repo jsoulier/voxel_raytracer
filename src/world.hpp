@@ -130,8 +130,8 @@ private:
     SDL_GPUComputePipeline* RaytracePipeline;
     SDL_GPUComputePipeline* ClearTexturePipeline;
     SDL_GPUComputePipeline* SampleTexturePipeline;
-    SDL_GPUComputePipeline* ClearGroupPipeline;
-    SDL_GPUComputePipeline* UpdateGroupPipeline;
+    SDL_GPUComputePipeline* ClearGroupsPipeline;
+    SDL_GPUComputePipeline* SetGroupsPipeline;
     int Width;
     int Height;
     bool Dirty;
