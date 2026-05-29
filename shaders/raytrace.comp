@@ -78,33 +78,33 @@ Query Raycast(float3 origin, float3 direction, float ior)
         if (groupValue == 0)
         {
             int3 groupVoxel = voxel >> 3;
-            int3 nextMacroBoundary;
+            int3 groupBoundary;
             for (int j = 0; j < 3; j++)
             {
                 if (step[j] > 0)
                 {
-                    nextMacroBoundary[j] = (groupVoxel[j] + 1) * GROUP_SIZE;
+                    groupBoundary[j] = (groupVoxel[j] + 1) * GROUP_SIZE;
 
                 }
                 else
                 {
-                    nextMacroBoundary[j] = groupVoxel[j] * GROUP_SIZE;
+                    groupBoundary[j] = groupVoxel[j] * GROUP_SIZE;
                 }
             }
-            float3 distToMacro;
+            float3 groupDistance;
             for (int j = 0; j < 3; j++)
             {
                 if (step[j] > 0)
                 {
-                    distToMacro[j] = distance[j] + (nextMacroBoundary[j] - voxel[j] - 1) * delta[j];
+                    groupDistance[j] = distance[j] + (groupBoundary[j] - voxel[j] - 1) * delta[j];
                 }
                 else
                 {
-                    distToMacro[j] = distance[j] + (voxel[j] - nextMacroBoundary[j]) * delta[j];
+                    groupDistance[j] = distance[j] + (voxel[j] - groupBoundary[j]) * delta[j];
                 }
             }
-            axis = GetStepAxis(distToMacro);
-            float t = distToMacro[axis];
+            axis = GetStepAxis(groupDistance);
+            float t = groupDistance[axis];
             groupVoxel[axis] += step[axis];
             float3 hitPos = origin + direction * t;
             voxel = int3(floor(hitPos));
