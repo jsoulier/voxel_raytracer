@@ -2,7 +2,7 @@
 
 cbuffer UniformBuffer : register(b0, space2)
 {
-    int2 ChunkCoord;
+    int2 Position;
 };
 
 [[vk::image_format("r8ui")]]
@@ -11,7 +11,7 @@ RWTexture3D<uint> groupTexture : register(u0, space1);
 [numthreads(CLEAR_GROUPS_THREADS_X, CLEAR_GROUPS_THREADS_Y, CLEAR_GROUPS_THREADS_Z)]
 void main(uint3 id : SV_DispatchThreadID)
 {
-    int3 position = id + int3(ChunkCoord.x * (CHUNK_WIDTH / GROUP_SIZE), 0, ChunkCoord.y * (CHUNK_WIDTH / GROUP_SIZE));
+    int3 position = id + int3(Position.x * (CHUNK_WIDTH / GROUP_SIZE), 0, Position.y * (CHUNK_WIDTH / GROUP_SIZE));
     if (position.x >= GROUP_WIDTH || position.y >= GROUP_HEIGHT || position.z >= GROUP_WIDTH)
     {
         return;

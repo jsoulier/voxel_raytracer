@@ -47,7 +47,7 @@ static constexpr BlockState kBlocks =
         .Roughness = 0.8f,
         .IOR = 0.0f,
     },
-    // blue grass (natural sea green)
+    // blue grass
     {
         .Color = 0x3F76E4FF,
         .Light = 0.0f,
@@ -173,21 +173,21 @@ static constexpr BlockState kBlocks =
         .Roughness = 0.7f,
         .IOR = 0.0f,
     },
-    // maple leaves (constant red)
+    // maple leaves 
     {
         .Color = 0xB22222FF,
         .Light = 0.0f,
         .Roughness = 0.9f,
         .IOR = 0.0f,
     },
-    // blue wood (dark natural bark)
+    // blue wood 
     {
         .Color = 0x3B2F2FFF,
         .Light = 0.0f,
         .Roughness = 0.7f,
         .IOR = 0.0f,
     },
-    // blue leaves (natural sea blue)
+    // blue leaves
     {
         .Color = 0x006994FF,
         .Light = 0.0f,

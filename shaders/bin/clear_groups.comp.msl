@@ -5,14 +5,14 @@ using namespace metal;
 
 struct type_UniformBuffer
 {
-    int2 ChunkCoord;
+    int2 Position;
 };
 
 kernel void main0(constant type_UniformBuffer& UniformBuffer [[buffer(0)]], texture3d<uint, access::write> groupTexture [[texture(0)]], uint3 gl_GlobalInvocationID [[thread_position_in_grid]])
 {
     do
     {
-        uint3 _38 = gl_GlobalInvocationID + uint3(int3(UniformBuffer.ChunkCoord.x * 4, 0, UniformBuffer.ChunkCoord.y * 4));
+        uint3 _38 = gl_GlobalInvocationID + uint3(int3(UniformBuffer.Position.x * 4, 0, UniformBuffer.Position.y * 4));
         int3 _39 = int3(_38);
         bool _46;
         if (_39.x < 256)

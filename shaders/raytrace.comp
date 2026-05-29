@@ -106,8 +106,8 @@ Query Raycast(float3 origin, float3 direction, float ior)
             axis = GetStepAxis(groupDistance);
             float t = groupDistance[axis];
             groupVoxel[axis] += step[axis];
-            float3 hitPos = origin + direction * t;
-            voxel = int3(floor(hitPos));
+            float3 hitPosition = origin + direction * t;
+            voxel = int3(floor(hitPosition));
             voxel[axis] = groupVoxel[axis] * GROUP_SIZE + (step[axis] > 0 ? 0 : (GROUP_SIZE - 1));
             voxel = clamp(voxel, groupVoxel * GROUP_SIZE, groupVoxel * GROUP_SIZE + GROUP_SIZE - 1);
             for (int j = 0; j < 3; j++)
