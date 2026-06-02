@@ -1,7 +1,6 @@
 # Voxel Raytracer
 
-![](doc/image1.png)
-![](doc/image2.png)
+![](doc/image.png)
 
 Simple Voxel Raytracer using the new SDL3 GPU API with compute shaders
 

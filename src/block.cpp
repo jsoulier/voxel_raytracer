@@ -71,7 +71,7 @@ static constexpr BlockState kBlocks =
     // water
     {
         .Color = 0x0055FFFF,
-        .Light = 0.05f,
+        .Light = 0.0f,
         .Roughness = 0.01f,
         .IOR = 0.33f,
     },
