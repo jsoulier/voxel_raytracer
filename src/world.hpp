@@ -53,6 +53,10 @@ struct WorldOptions
     int32_t MaxSteps;
     glm::vec3 SkyTop;
     int32_t MaxBounces;
+    glm::vec3 SunColor;
+    float SunIntensity;
+    glm::vec3 SunDirection;
+    float TimeOfDay;
 };
 
 struct WorldState

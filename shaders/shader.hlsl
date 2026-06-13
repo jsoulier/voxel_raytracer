@@ -10,6 +10,10 @@ struct WorldState
     int MaxSteps;
     float3 SkyTop;
     int MaxBounces;
+    float3 SunColor;
+    float SunIntensity;
+    float3 SunDirection;
+    float TimeOfDay;
     int2 Position;
 };
 

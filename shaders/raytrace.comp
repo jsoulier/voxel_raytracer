@@ -1,7 +1,20 @@
 #include "random.hlsl"
 #include "shader.hlsl"
 
+struct Query
+{
+    bool Hit;
+    uint Block;
+    float3 Position;
+    float3 Normal;
+};
+
 #define DEBUG 0
+
+static const float kSunDiskInner = 0.9992f;
+static const float kSunDiskOuter = 0.9996f;
+static const float kSunGlowFalloff = 512.0f;
+static const float kSunDiskBrightness = 4.0f;
 
 cbuffer UniformBuffer : register(b0, space2)
 {
@@ -16,14 +29,6 @@ StructuredBuffer<WorldState> worldState : register(t4, space0);
 StructuredBuffer<BlockState> blockState : register(t5, space0);
 [[vk::image_format("rgba32f")]]
 RWTexture2D<float4> outTexture : register(u0, space1);
-
-struct Query
-{
-    bool Hit;
-    uint Block;
-    float3 Position;
-    float3 Normal;
-};
 
 int GetStepAxis(float3 distance)
 {
@@ -147,6 +152,7 @@ Query Raycast(float3 origin, float3 direction, float ior)
     return query;
 }
 
+// https://en.wikipedia.org/wiki/Schlick's_approximation
 float FresnelSchlick(float3 direction, float3 normal, float iorFrom, float iorTo)
 {
     float cosTheta = saturate(dot(-direction, normal));
@@ -155,6 +161,16 @@ float FresnelSchlick(float3 direction, float3 normal, float iorFrom, float iorTo
     float r0 = (iorFrom - iorTo) / (iorFrom + iorTo);
     r0 = r0 * r0;
     return r0 + (1.0f - r0) * pow(1.0f - cosTheta, 5.0f);
+}
+
+float3 GetSky(float3 direction)
+{
+    float3 sky = lerp(worldState[0].SkyBottom, worldState[0].SkyTop, saturate((direction.y + 1.0f) / 2.0f));
+    float ambient = saturate(worldState[0].SunDirection.y * 4.0f + 0.15f);
+    float disk = smoothstep(kSunDiskInner, kSunDiskOuter, dot(direction, worldState[0].SunDirection));
+    float glow = pow(saturate(dot(direction, worldState[0].SunDirection)), kSunGlowFalloff);
+    float3 emission = worldState[0].SunColor * worldState[0].SunIntensity * (disk * kSunDiskBrightness + glow);
+    return sky * ambient + emission * saturate(worldState[0].SunDirection.y + 0.1f);
 }
 
 [numthreads(RAYTRACE_THREADS_X, RAYTRACE_THREADS_Y, 1)]
@@ -181,8 +197,7 @@ void main(uint3 id : SV_DispatchThreadID)
         Query query = Raycast(origin, direction, ior);
         if (!query.Hit)
         {
-            radiance += throughput * lerp(worldState[0].SkyBottom,
-                worldState[0].SkyTop, saturate((direction.y + 1.0f) / 2.0f));
+            radiance += throughput * GetSky(direction);
             break;
         }
 #if DEBUG == 0
@@ -204,8 +219,7 @@ void main(uint3 id : SV_DispatchThreadID)
         }
         if (block.IOR > kEpsilon || (ior > kEpsilon && query.Block == kBlockAir))
         {
-            if (Random(float4(id.xy, Sample * 11.0f, bounce)) >
-                FresnelSchlick(direction, query.Normal, ior, block.IOR))
+            if (Random(float4(id.xy, Sample * 11.0f, bounce)) > FresnelSchlick(direction, query.Normal, ior, block.IOR))
             {
                 float3 refracted = refract(direction, query.Normal, (1.0f + ior) / (1.0f + block.IOR));
                 if (length(refracted) > kEpsilon)
@@ -214,6 +228,34 @@ void main(uint3 id : SV_DispatchThreadID)
                     origin = query.Position + direction * 0.001f;
                     ior = block.IOR;
                     continue;
+                }
+            }
+        }
+        if (bounce == 0 && query.Block != kBlockAir && worldState[0].SunDirection.y > 0.0f)
+        {
+            float sunFactor = saturate(dot(query.Normal, worldState[0].SunDirection));
+            if (sunFactor > 0.0f)
+            {
+                float3 shadowOrigin = query.Position + query.Normal * 0.001f;
+                bool isInShadow = false;
+                for (int shadowStep = 0; shadowStep < worldState[0].MaxBounces; shadowStep++)
+                {
+                    Query shadow = Raycast(shadowOrigin, worldState[0].SunDirection, 0.0f);
+                    if (!shadow.Hit)
+                    {
+                        break;
+                    }
+                    BlockState shadowBlock = blockState[shadow.Block];
+                    if (shadow.Block != kBlockAir && shadowBlock.IOR <= kEpsilon)
+                    {
+                        isInShadow = true;
+                        break;
+                    }
+                    shadowOrigin = shadow.Position + worldState[0].SunDirection * 0.001f;
+                }
+                if (!isInShadow)
+                {
+                    radiance += throughput * block.Roughness * sunFactor * worldState[0].SunColor * worldState[0].SunIntensity;
                 }
             }
         }

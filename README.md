@@ -1,8 +1,15 @@
 # Voxel Raytracer
 
-![](doc/image.png)
+![](doc/image1.png)
+![](doc/image2.png)
 
 Simple Voxel Raytracer using the new SDL3 GPU API with compute shaders
+
+### Features
+
+- Procedural world generation
+- Parallel chunk loading
+- Hierarchical DDA tracing
 
 ### Building
 

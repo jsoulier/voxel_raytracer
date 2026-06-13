@@ -70,6 +70,7 @@ static bool Init()
         SDL_Log("Failed to initialize world");
         return false;
     }
+    world.SetOptions(worldOptions);
     if (!camera.Init(device))
     {
         SDL_Log("Failed to initialize camera");
@@ -347,6 +348,9 @@ static void Render()
         setOptions |= ImGui::SliderInt("Max Bounces", &maxBounces, 0, 100);
         setOptions |= ImGui::ColorEdit3("Sky Bottom", glm::value_ptr(worldOptions.SkyBottom));
         setOptions |= ImGui::ColorEdit3("Sky Top", glm::value_ptr(worldOptions.SkyTop));
+        setOptions |= ImGui::SliderFloat("Time of Day", &worldOptions.TimeOfDay, 0.0f, 24.0f, "%.2f h");
+        setOptions |= ImGui::ColorEdit3("Sun Color", glm::value_ptr(worldOptions.SunColor));
+        setOptions |= ImGui::SliderFloat("Sun Intensity", &worldOptions.SunIntensity, 0.0f, 20.0f);
         worldOptions.MaxSteps = maxSteps;
         worldOptions.MaxBounces = maxBounces;
         if (setOptions)

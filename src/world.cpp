@@ -1,5 +1,6 @@
 #include <SDL3/SDL.h>
 #include <glm/glm.hpp>
+#include <glm/gtc/constants.hpp>
 
 #include <algorithm>
 #include <array>
@@ -56,6 +57,10 @@ WorldOptions::WorldOptions()
     , MaxSteps{512}
     , SkyTop{0.5f, 0.7f, 1.0f}
     , MaxBounces{8}
+    , SunColor{1.0f, 0.9f, 0.7f}
+    , SunIntensity{3.0f}
+    , SunDirection{0.0f, 1.0f, 0.0f}
+    , TimeOfDay{10.0f}
 {
 }
 
@@ -739,6 +744,9 @@ WorldQuery World::Raycast(const glm::vec3& position, const glm::vec3& direction,
 
 void World::SetOptions(const WorldOptions& options)
 {
-    WorldStateBuffer.Get().Options = options;
+    WorldState& state = WorldStateBuffer.Get();
+    state.Options = options;
+    float theta = (options.TimeOfDay - 6.0f) / 12.0f * glm::pi<float>();
+    state.Options.SunDirection = glm::normalize(glm::vec3(std::cos(theta), std::sin(theta), 0.0f));
     Dirty = true;
 }

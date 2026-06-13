@@ -89,7 +89,8 @@ void Chunk::Generate(WorldProxy& proxy, int chunkX, int chunkZ)
         float z = chunkZ * Chunk::kWidth + j;
         float ridge = 0.0f;
         float mountain = (mountainNoise.GetNoise(x, z) + 1.0f) * 0.5f;
-        if (mountain > 0.45f)
+        float detail = (detailNoise.GetNoise(x, z) + 1.0f) * 0.5f;
+        if (mountain > 0.45f + (detail - 0.5f) * 0.05f)
         {
             biome = BiomeMountain;
             float weight = (mountain - 0.45f) / 0.55f;
@@ -97,7 +98,6 @@ void Chunk::Generate(WorldProxy& proxy, int chunkX, int chunkZ)
             ridge = (ridgeNoise.GetNoise(x, z) + 1.0f) * 0.5f * 120.0f * weight;
         }
         float base = (baseNoise.GetNoise(x, z) + 1.0f) * 0.5f * 15.0f;
-        float detail = (detailNoise.GetNoise(x, z) + 1.0f) * 0.5f;
         int height = base + detail * 4.0f + ridge;
         height = std::clamp(height, 1, kMaxHeight);
         if (height < kWaterLevel)
@@ -124,7 +124,7 @@ void Chunk::Generate(WorldProxy& proxy, int chunkX, int chunkZ)
         {
             if (biome == BiomeMountain)
             {
-                if (y >= height - 1 && height > kSnowThreshold)
+                if (y >= height - 1 && height > kSnowThreshold + (detail - 0.5f) * 6.0f)
                 {
                     proxy.SetBlock({i, y, j}, BlockSnow);
                 }
