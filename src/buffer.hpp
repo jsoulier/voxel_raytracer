@@ -85,6 +85,42 @@ public:
         Data[TransferBufferSize++] = T{std::forward<Args>(args)...};
     }
 
+    void Assign(SDL_GPUDevice* device, const T* values, int count)
+    {
+        if (count > TransferBufferCapacity)
+        {
+            if (Data)
+            {
+                SDL_UnmapGPUTransferBuffer(device, TransferBuffer);
+                Data = nullptr;
+            }
+            int capacity = std::max(kStartingCapacity, count);
+            SDL_GPUTransferBufferCreateInfo info{};
+            info.usage = SDL_GPU_TRANSFERBUFFERUSAGE_UPLOAD;
+            info.size = capacity * sizeof(T);
+            SDL_GPUTransferBuffer* transferBuffer = SDL_CreateGPUTransferBuffer(device, &info);
+            if (!transferBuffer)
+            {
+                SDL_Log("Failed to create transfer buffer: %s", SDL_GetError());
+                return;
+            }
+            SDL_ReleaseGPUTransferBuffer(device, TransferBuffer);
+            TransferBuffer = transferBuffer;
+            TransferBufferCapacity = capacity;
+        }
+        if (!Data)
+        {
+            Data = static_cast<T*>(SDL_MapGPUTransferBuffer(device, TransferBuffer, true));
+            if (!Data)
+            {
+                SDL_Log("Failed to map transfer buffer: %s", SDL_GetError());
+                return;
+            }
+        }
+        std::copy(values, values + count, Data);
+        TransferBufferSize = count;
+    }
+
     void Upload(SDL_GPUDevice* device, SDL_GPUCopyPass* copyPass)
     {
         if (Data)

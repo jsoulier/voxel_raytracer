@@ -233,6 +233,7 @@ void main(uint3 id : SV_DispatchThreadID)
         }
         if (bounce == 0 && query.Block != kBlockAir && worldState[0].SunDirection.y > 0.0f)
         {
+            float shadowIOR = 0.0f;
             float sunFactor = saturate(dot(query.Normal, worldState[0].SunDirection));
             if (sunFactor > 0.0f)
             {
@@ -240,7 +241,7 @@ void main(uint3 id : SV_DispatchThreadID)
                 bool isInShadow = false;
                 for (int shadowStep = 0; shadowStep < worldState[0].MaxBounces; shadowStep++)
                 {
-                    Query shadow = Raycast(shadowOrigin, worldState[0].SunDirection, 0.0f);
+                    Query shadow = Raycast(shadowOrigin, worldState[0].SunDirection, shadowIOR);
                     if (!shadow.Hit)
                     {
                         break;
@@ -251,6 +252,7 @@ void main(uint3 id : SV_DispatchThreadID)
                         isInShadow = true;
                         break;
                     }
+                    shadowIOR = shadowBlock.IOR;
                     shadowOrigin = shadow.Position + worldState[0].SunDirection * 0.001f;
                 }
                 if (!isInShadow)
