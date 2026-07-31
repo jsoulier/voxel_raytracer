@@ -160,6 +160,30 @@ public:
         BufferSize = size;
     }
 
+    void Upload(SDL_GPUDevice* device, SDL_GPUCommandBuffer* commandBuffer)
+    {
+        SDL_GPUCopyPass* copyPass = SDL_BeginGPUCopyPass(commandBuffer);
+        if (!copyPass)
+        {
+            SDL_Log("Failed to begin copy pass: %s", SDL_GetError());
+            return;
+        }
+        Upload(device, copyPass);
+        SDL_EndGPUCopyPass(copyPass);
+    }
+
+    void Upload(SDL_GPUDevice* device)
+    {
+        SDL_GPUCommandBuffer* commandBuffer = SDL_AcquireGPUCommandBuffer(device);
+        if (!commandBuffer)
+        {
+            SDL_Log("Failed to acquire command buffer: %s", SDL_GetError());
+            return;
+        }
+        Upload(device, commandBuffer);
+        SDL_SubmitGPUCommandBuffer(commandBuffer);
+    }
+
     SDL_GPUBuffer* GetBuffer() const
     {
         SDL_assert(!Data);
@@ -252,20 +276,33 @@ public:
         Dirty = false;
     }
 
+    void Upload(SDL_GPUDevice* device, SDL_GPUCommandBuffer* commandBuffer)
+    {
+        SDL_GPUCopyPass* copyPass = SDL_BeginGPUCopyPass(commandBuffer);
+        if (!copyPass)
+        {
+            SDL_Log("Failed to begin copy pass: %s", SDL_GetError());
+            return;
+        }
+        Upload(device, copyPass);
+        SDL_EndGPUCopyPass(copyPass);
+    }
+
+    void Upload(SDL_GPUDevice* device)
+    {
+        SDL_GPUCommandBuffer* commandBuffer = SDL_AcquireGPUCommandBuffer(device);
+        if (!commandBuffer)
+        {
+            SDL_Log("Failed to acquire command buffer: %s", SDL_GetError());
+            return;
+        }
+        Upload(device, commandBuffer);
+        SDL_SubmitGPUCommandBuffer(commandBuffer);
+    }
+
     SDL_GPUBuffer* GetBuffer() const
     {
         return Buffer;
-    }
-
-    T* GetPointer()
-    {
-        Dirty = true;
-        return &Data;
-    }
-
-    const T* operator->() const
-    {
-        return &Data;
     }
 
     T& Get()
@@ -277,6 +314,11 @@ public:
     const T& operator*() const
     {
         return Data;
+    }
+
+    const T* operator->() const
+    {
+        return &Data;
     }
 
     bool GetDirty() const

@@ -27,7 +27,6 @@ static World world;
 static uint64_t time1;
 static uint64_t time2;
 static float dt;
-static bool focus;
 static WorldQuery worldQuery;
 static WorldOptions worldOptions;
 static Block block = BlockWhiteLight;
@@ -43,7 +42,7 @@ static bool Init()
         SDL_Log("Failed to initialize SDL: %s", SDL_GetError());
         return false;
     }
-    window = SDL_CreateWindow("Voxel Raytracer", 960, 720, SDL_WINDOW_HIDDEN);
+    window = SDL_CreateWindow("Voxel Raytracer", 960, 720, SDL_WINDOW_RESIZABLE);
     if (!window)
     {
         SDL_Log("Failed to create window: %s", SDL_GetError());
@@ -76,13 +75,7 @@ static bool Init()
         SDL_Log("Failed to initialize camera");
         return false;
     }
-    if (SDL_WindowSupportsGPUPresentMode(device, window, SDL_GPU_PRESENTMODE_MAILBOX))
-    {
-        SDL_SetGPUSwapchainParameters(device, window,
-            SDL_GPU_SWAPCHAINCOMPOSITION_SDR, SDL_GPU_PRESENTMODE_MAILBOX);
-    }
-    SDL_ShowWindow(window);
-    SDL_SetWindowResizable(window, true);
+    SDL_SetGPUSwapchainParameters(device, window, SDL_GPU_SWAPCHAINCOMPOSITION_SDR, SDL_GPU_PRESENTMODE_MAILBOX);
     SDL_FlashWindow(window, SDL_FLASH_BRIEFLY);
     {
         IMGUI_CHECKVERSION();
@@ -117,10 +110,17 @@ static bool Poll()
     while (SDL_PollEvent(&event))
     {
         ImGui_ImplSDL3_ProcessEvent(&event);
+        if (event.type == SDL_EVENT_QUIT)
+        {
+            return false;
+        }
+        const ImGuiIO& io = ImGui::GetIO();
+        if (!SDL_GetWindowRelativeMouseMode(window) && (io.WantCaptureMouse || io.WantCaptureKeyboard))
+        {
+            continue;
+        }
         switch (event.type)
         {
-        case SDL_EVENT_QUIT:
-            return false;
         case SDL_EVENT_MOUSE_BUTTON_DOWN:
             if (event.button.button == SDL_BUTTON_LEFT)
             {
@@ -134,7 +134,7 @@ static bool Poll()
                 }
                 else
                 {
-                    focus = true;
+                    SDL_SetWindowRelativeMouseMode(window, true);
                 }
             }
             else if (event.button.button == SDL_BUTTON_RIGHT)
@@ -184,10 +184,7 @@ static bool Poll()
                 else
                 {
                     SDL_SetWindowFullscreen(window, true);
-                    if (!SDL_GetWindowRelativeMouseMode(window))
-                    {
-                        focus = true;
-                    }
+                    SDL_SetWindowRelativeMouseMode(window, true);
                 }
             }
             break;
@@ -324,13 +321,6 @@ static void Render()
             ImVec2(centerX + kCrosshairThickness / 2, centerY + kCrosshairWidth / 2),
             kCrosshairColor);
         ImGui::BeginDisabled(SDL_GetWindowRelativeMouseMode(window));
-        static constexpr int kFlags = ImGuiHoveredFlags_AnyWindow |
-            ImGuiHoveredFlags_AllowWhenBlockedByActiveItem | ImGuiHoveredFlags_AllowWhenBlockedByPopup;
-        if (focus && !ImGui::IsWindowHovered(kFlags))
-        {
-            SDL_SetWindowRelativeMouseMode(window, true);
-        }
-        focus = false;
         int value = int(block) - BlockFirst;
         ImGui::Text("GPU: %s", SDL_GetStringProperty(SDL_GetGPUDeviceProperties(device), SDL_PROP_GPU_DEVICE_NAME_STRING, "?"));
         ImGui::Text("Driver: %s", SDL_GetGPUDeviceDriver(device));
