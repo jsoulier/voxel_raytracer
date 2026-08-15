@@ -14,6 +14,8 @@ static const float kSunDiskInner = 0.9992f;
 static const float kSunDiskOuter = 0.9996f;
 static const float kSunGlowFalloff = 512.0f;
 static const float kSunDiskBrightness = 4.0f;
+static const int kRouletteBounce = 2;
+static const int kMaxShadowSteps = 4;
 
 cbuffer UniformBuffer : register(b0, space2)
 {
@@ -35,18 +37,20 @@ static uint seed;
 float Random()
 {
     seed = seed * 747796405u + 2891336453u;
-    uint x = ((seed >> ((seed >> 28u) + 4u)) ^ seed) * 277803737u;
+    const uint x = ((seed >> ((seed >> 28u) + 4u)) ^ seed) * 277803737u;
     return float((x >> 22u) ^ x) / 4294967296.0f;
 }
 
 float3 RandomHemisphere(float3 normal)
 {
-    float theta = acos(sqrt(1.0f - Random()));
+    float r = Random();
+    float sinTheta = sqrt(r);
+    float cosTheta = sqrt(1.0f - r);
     float phi = 2.0f * 3.14159265f * Random();
     float3 direction;
-    direction.x = sin(theta) * cos(phi);
-    direction.y = cos(theta);
-    direction.z = sin(theta) * sin(phi);
+    direction.x = sinTheta * cos(phi);
+    direction.y = cosTheta;
+    direction.z = sinTheta * sin(phi);
     float3 up;
     if (abs(normal.y) < 0.999f)
     {
@@ -93,27 +97,32 @@ Query Raycast(float3 origin, float3 direction, float ior)
             distance[i] = (voxel[i] + 1.0f - origin[i]) * delta[i];
         }
     }
-    for (int i = 0; i < worldState[0].MaxSteps; i++)
+    int maxSteps = worldState[0].MaxSteps;
+    int offsetX = worldState[0].Position.x * CHUNK_WIDTH;
+    int offsetZ = worldState[0].Position.y * CHUNK_WIDTH;
+    for (int i = 0; i < maxSteps; i++)
     {
         int3 position = voxel;
-        position.x -= worldState[0].Position.x * CHUNK_WIDTH;
-        position.z -= worldState[0].Position.y * CHUNK_WIDTH;
-        int2 chunk = position.xz / CHUNK_WIDTH;
-        if (position.x < 0 || position.z < 0 || chunk.x >= WORLD_WIDTH ||
-            chunk.y >= WORLD_WIDTH || (step.y > 0 && position.y > CHUNK_HEIGHT))
+        position.x -= offsetX;
+        position.z -= offsetZ;
+        if (position.x < 0 || position.z < 0 ||
+            position.x >= WORLD_WIDTH * CHUNK_WIDTH ||
+            position.z >= WORLD_WIDTH * CHUNK_WIDTH ||
+            (step.y > 0 && position.y > CHUNK_HEIGHT))
         {
             break;
         }
+        uint2 chunk = uint2(position.xz) >> CHUNK_SHIFT;
         position.x -= chunk.x * CHUNK_WIDTH;
         position.z -= chunk.y * CHUNK_WIDTH;
         chunk = chunkTexture[chunk];
         position.x += chunk.x * CHUNK_WIDTH;
         position.z += chunk.y * CHUNK_WIDTH;
-        int3 groupPosition = position / GROUP_SIZE;
+        int3 groupPosition = position >> GROUP_SHIFT;
         uint groupValue = groupTexture[groupPosition];
         if (groupValue == 0)
         {
-            int3 groupVoxel = voxel >> 3;
+            int3 groupVoxel = voxel >> GROUP_SHIFT;
             int3 groupBoundary;
             for (int j = 0; j < 3; j++)
             {
@@ -160,19 +169,22 @@ Query Raycast(float3 origin, float3 direction, float ior)
             continue;
         }
         uint hitBlock = blockTexture[position];
-        BlockState block = blockState[hitBlock];
-        bool refract = ior > kEpsilon || block.IOR > kEpsilon;
-        if ((!refract && hitBlock != kBlockAir) || (refract && abs(block.IOR - ior) > kEpsilon))
+        if (ior > kEpsilon || hitBlock != kBlockAir)
         {
-            float3 normal = float3(0.0f, 0.0f, 0.0f);
-            normal[axis] = -step[axis];
-            float t = distance[axis] - delta[axis];
-            Query query;
-            query.Hit = true;
-            query.Block = hitBlock;
-            query.Position = origin + direction * t;
-            query.Normal = normal;
-            return query;
+            BlockState block = blockState[hitBlock];
+            bool refract = ior > kEpsilon || block.IOR > kEpsilon;
+            if ((!refract && hitBlock != kBlockAir) || (refract && abs(block.IOR - ior) > kEpsilon))
+            {
+                float3 normal = float3(0.0f, 0.0f, 0.0f);
+                normal[axis] = -step[axis];
+                float t = distance[axis] - delta[axis];
+                Query query;
+                query.Hit = true;
+                query.Block = hitBlock;
+                query.Position = origin + direction * t;
+                query.Normal = normal;
+                return query;
+            }
         }
         axis = GetStepAxis(distance);
         distance[axis] += delta[axis];
@@ -224,7 +236,8 @@ void main(uint3 id : SV_DispatchThreadID)
     float ior = 0.0f;
     float3 radiance = 0.0f;
     float3 throughput = 1.0f;
-    for (int bounce = 0; bounce < worldState[0].MaxBounces; bounce++)
+    int maxBounces = worldState[0].MaxBounces;
+    for (int bounce = 0; bounce < maxBounces; bounce++)
     {
         Query query = Raycast(origin, direction, ior);
         if (!query.Hit)
@@ -271,7 +284,7 @@ void main(uint3 id : SV_DispatchThreadID)
             {
                 float3 shadowOrigin = query.Position + query.Normal * 0.001f;
                 bool isInShadow = false;
-                for (int shadowStep = 0; shadowStep < worldState[0].MaxBounces; shadowStep++)
+                for (int shadowStep = 0; shadowStep < kMaxShadowSteps; shadowStep++)
                 {
                     Query shadow = Raycast(shadowOrigin, worldState[0].SunDirection, shadowIOR);
                     if (!shadow.Hit)
@@ -300,6 +313,15 @@ void main(uint3 id : SV_DispatchThreadID)
         if (block.Light > kEpsilon)
         {
             break;
+        }
+        if (bounce >= kRouletteBounce)
+        {
+            float probability = saturate(max(throughput.r, max(throughput.g, throughput.b)));
+            if (probability < kEpsilon || Random() > probability)
+            {
+                break;
+            }
+            throughput /= probability;
         }
 #elif DEBUG == 1
         float3 color = 0.0f;
