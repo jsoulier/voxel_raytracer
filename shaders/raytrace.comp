@@ -8,12 +8,11 @@ struct Query
     float3 Normal;
 };
 
-#define DEBUG 0
-
 static const float kSunDiskInner = 0.9992f;
 static const float kSunDiskOuter = 0.9996f;
 static const float kSunGlowFalloff = 512.0f;
 static const float kSunDiskBrightness = 4.0f;
+static const float kFogAlpha = 12.0f;
 static const int kRouletteBounce = 2;
 static const int kMaxShadowSteps = 4;
 
@@ -69,11 +68,25 @@ int GetStepAxis(float3 distance)
 {
     if (distance.x < distance.y)
     {
-        return distance.x < distance.z ? 0 : 2;
+        if (distance.x < distance.z)
+        {
+            return 0;
+        }
+        else
+        {
+            return 2;
+        }
     }
     else
     {
-        return distance.y < distance.z ? 1 : 2;
+        if (distance.y < distance.z)
+        {
+            return 1;
+        }
+        else
+        {
+            return 2;
+        }
     }
 }
 
@@ -195,25 +208,28 @@ Query Raycast(float3 origin, float3 direction, float ior)
     return query;
 }
 
-// https://en.wikipedia.org/wiki/Schlick's_approximation
 float FresnelSchlick(float3 direction, float3 normal, float iorFrom, float iorTo)
 {
-    float cosTheta = saturate(dot(-direction, normal));
     iorFrom += 1.0f;
     iorTo += 1.0f;
-    float r0 = (iorFrom - iorTo) / (iorFrom + iorTo);
-    r0 = r0 * r0;
-    return r0 + (1.0f - r0) * pow(1.0f - cosTheta, 5.0f);
+    float r0 = pow((iorFrom - iorTo) / (iorFrom + iorTo), 2.0f);
+    return r0 + (1.0f - r0) * pow(1.0f - saturate(dot(-direction, normal)), 5.0f);
 }
 
-float3 GetSky(float3 direction)
+float3 GetSkyColor(float3 direction)
 {
-    float3 sky = lerp(worldState[0].SkyBottom, worldState[0].SkyTop, saturate((direction.y + 1.0f) / 2.0f));
+    float alpha = saturate((direction.y + 1.0f) / 2.0f);
+    float3 sky = lerp(worldState[0].SkyBottom, worldState[0].SkyTop, alpha);
     float ambient = saturate(worldState[0].SunDirection.y * 4.0f + 0.15f);
+    return sky * ambient;
+}
+
+float3 GetSunColor(float3 direction)
+{
     float disk = smoothstep(kSunDiskInner, kSunDiskOuter, dot(direction, worldState[0].SunDirection));
     float glow = pow(saturate(dot(direction, worldState[0].SunDirection)), kSunGlowFalloff);
     float3 emission = worldState[0].SunColor * worldState[0].SunIntensity * (disk * kSunDiskBrightness + glow);
-    return sky * ambient + emission * saturate(worldState[0].SunDirection.y + 0.1f);
+    return emission * saturate(worldState[0].SunDirection.y + 0.1f);
 }
 
 [numthreads(RAYTRACE_THREADS_X, RAYTRACE_THREADS_Y, 1)]
@@ -232,20 +248,27 @@ void main(uint3 id : SV_DispatchThreadID)
     float u = (2.0f * (id.x + i) / width - 1.0f) * cameraState[0].AspectRatio * cameraState[0].TanHalfFov;
     float v = (1.0f - 2.0f * (id.y + j) / height) * cameraState[0].TanHalfFov;
     float3 direction = normalize(u * cameraState[0].Right - v * cameraState[0].Up + cameraState[0].Forward);
+    float3 skyColor = GetSkyColor(direction);
     float3 origin = cameraState[0].Position;
     float ior = 0.0f;
     float3 radiance = 0.0f;
     float3 throughput = 1.0f;
+    float fogAlpha = 0.0f;
     int maxBounces = worldState[0].MaxBounces;
     for (int bounce = 0; bounce < maxBounces; bounce++)
     {
         Query query = Raycast(origin, direction, ior);
         if (!query.Hit)
         {
-            radiance += throughput * GetSky(direction);
+            radiance += throughput * (GetSkyColor(direction) + GetSunColor(direction));
             break;
         }
-#if DEBUG == 0
+        if (bounce == 0)
+        {
+            float travelled = distance(query.Position, cameraState[0].Position);
+            float ratio = saturate(travelled / worldState[0].MaxSteps);
+            fogAlpha = exp2(-kFogAlpha * (1.0f - ratio));
+        }
         BlockState block = blockState[query.Block];
         if (bounce == 0 && length(query.Normal) < kEpsilon)
         {
@@ -323,39 +346,7 @@ void main(uint3 id : SV_DispatchThreadID)
             }
             throughput /= probability;
         }
-#elif DEBUG == 1
-        float3 color = 0.0f;
-        if (query.Normal.x == 1.0f)
-        {
-            color = float3(1.0f, 0.0f, 0.0f);
-        }
-        else if (query.Normal.x == -1.0f)
-        {
-            color = float3(0.0f, 1.0f, 0.0f);
-        }
-        else if (query.Normal.y == 1.0f)
-        {
-            color = float3(0.0f, 0.0f, 1.0f);
-        }
-        else if (query.Normal.y == -1.0f)
-        {
-            color = float3(1.0f, 1.0f, 0.0f);
-        }
-        else if (query.Normal.z == 1.0f)
-        {
-            color = float3(0.0f, 1.0f, 1.0f);
-        }
-        else if (query.Normal.z == -1.0f)
-        {
-            color = float3(1.0f, 0.0f, 1.0f);
-        }
-        else
-        {
-            color = float3(1.0f, 1.0f, 1.0f);
-        }
-        outTexture[id.xy] += float4(color, 1.0f);
-        return;
-#endif
     }
+    radiance = lerp(radiance, skyColor, fogAlpha);
     outTexture[id.xy] += float4(radiance, 1.0f);
 }
