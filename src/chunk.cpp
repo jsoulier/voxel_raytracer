@@ -3,7 +3,6 @@
 
 #include "block.hpp"
 #include "chunk.hpp"
-#include "helpers.hpp"
 #include "world.hpp"
 
 static constexpr int kWaterLevel = 8;

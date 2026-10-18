@@ -22,8 +22,9 @@ add_executable(voxel_raytracer WIN32
     src/block.cpp
     src/camera.cpp
     src/chunk.cpp
-    src/helpers.cpp
+    src/debug_group.cpp
     src/main.cpp
+    src/shader.cpp
     src/world.cpp
 )
 target_link_libraries(voxel_raytracer SDL3::SDL3 FastNoiseLite glm imgui nlohmann_json)

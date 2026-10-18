@@ -9,7 +9,7 @@
 #include <cstdint>
 
 #include "camera.hpp"
-#include "helpers.hpp"
+#include "debug_group.hpp"
 #include "world.hpp"
 
 static constexpr float kSpeed = 0.000000035f;
@@ -48,7 +48,6 @@ static bool Init()
         SDL_Log("Failed to create window: %s", SDL_GetError());
         return false;
     }
-    // Skipping d3d12 since there's issues with debug groups
 #ifndef NDEBUG
     device = SDL_CreateGPUDevice(SDL_GPU_SHADERFORMAT_SPIRV | SDL_GPU_SHADERFORMAT_MSL, true, nullptr);
 #else

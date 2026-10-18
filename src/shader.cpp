@@ -10,18 +10,7 @@
 #include <iterator>
 #include <string>
 
-#include "helpers.hpp"
-
-DebugGroupClass::DebugGroupClass(SDL_GPUCommandBuffer* commandBuffer, const char* name)
-    : CommandBuffer{commandBuffer}
-{
-    SDL_PushGPUDebugGroup(CommandBuffer, name);
-}
-
-DebugGroupClass::~DebugGroupClass()
-{
-    SDL_PopGPUDebugGroup(CommandBuffer);
-}
+#include "shader.hpp"
 
 static void* Load(SDL_GPUDevice* device, const char* name)
 {

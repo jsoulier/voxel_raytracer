@@ -16,7 +16,8 @@
 #include "camera.hpp"
 #include "chunk.hpp"
 #include "config.h"
-#include "helpers.hpp"
+#include "debug_group.hpp"
+#include "shader.hpp"
 #include "world.hpp"
 
 static int FloorChunkIndex(float index)

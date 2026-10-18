@@ -14,6 +14,3 @@ public:
 private:
     SDL_GPUCommandBuffer* CommandBuffer;
 };
-
-SDL_GPUShader* LoadShader(SDL_GPUDevice* device, const char* name);
-SDL_GPUComputePipeline* LoadComputePipeline(SDL_GPUDevice* device, const char* name);
