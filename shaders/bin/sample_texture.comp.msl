@@ -12,21 +12,22 @@ kernel void main0(constant type_UniformBuffer& UniformBuffer [[buffer(0)]], text
 {
     do
     {
-        uint2 _35 = uint2(outTexture.get_width(), outTexture.get_height());
-        bool _46;
-        if (gl_GlobalInvocationID.x < _35.x)
+        uint2 _47 = uint2(outTexture.get_width(), outTexture.get_height());
+        bool _58;
+        if (gl_GlobalInvocationID.x < _47.x)
         {
-            _46 = gl_GlobalInvocationID.y >= _35.y;
+            _58 = gl_GlobalInvocationID.y >= _47.y;
         }
         else
         {
-            _46 = true;
+            _58 = true;
         }
-        if (_46)
+        if (_58)
         {
             break;
         }
-        outTexture.write(float4(inTexture.read(uint2(gl_GlobalInvocationID.xy), 0u).xyz / float3(float(UniformBuffer.Sample)), 1.0), uint2(gl_GlobalInvocationID.xy));
+        float3 _70 = fast::clamp(inTexture.read(uint2(gl_GlobalInvocationID.xy), 0u).xyz / float3(float(UniformBuffer.Sample)), float3(0.0), float3(1.0));
+        outTexture.write(float4(mix((powr(_70, float3(0.4166666567325592041015625)) * 1.05499994754791259765625) - float3(0.054999999701976776123046875), _70 * 12.9200000762939453125, step(_70, float3(0.003130800090730190277099609375))), 1.0), uint2(gl_GlobalInvocationID.xy));
         break;
     } while(false);
 }

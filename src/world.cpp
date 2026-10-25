@@ -1,5 +1,6 @@
 #include <SDL3/SDL.h>
 #include <glm/glm.hpp>
+#include <glm/gtc/color_space.hpp>
 #include <glm/gtc/constants.hpp>
 
 #include <algorithm>
@@ -747,6 +748,9 @@ void World::SetOptions(const WorldOptions& options)
 {
     WorldState& state = WorldStateBuffer.Get();
     state.Options = options;
+    state.Options.SkyBottom = glm::convertSRGBToLinear(options.SkyBottom);
+    state.Options.SkyTop = glm::convertSRGBToLinear(options.SkyTop);
+    state.Options.SunColor = glm::convertSRGBToLinear(options.SunColor);
     float theta = (options.TimeOfDay - 6.0f) / 12.0f * glm::pi<float>();
     state.Options.SunDirection = glm::normalize(glm::vec3(std::cos(theta), std::sin(theta), 0.0f));
     Dirty = true;

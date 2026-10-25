@@ -19,5 +19,5 @@ void main(uint3 id : SV_DispatchThreadID)
     {
         return;
     }
-    outTexture[id.xy] = float4(inTexture[id.xy].rgb / Sample, 1.0f);
+    outTexture[id.xy] = float4(LinearToSRGB(saturate(inTexture[id.xy].rgb / Sample)), 1.0f);
 }
