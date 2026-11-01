@@ -106,6 +106,7 @@ World::World()
     , ClearChunks{}
     , WorldStateBuffer{}
     , BlockStateBuffer{}
+    , LightBuffer{}
     , BlockTexture{nullptr}
     , GroupTexture{nullptr}
     , ChunkTexture{nullptr}
@@ -234,6 +235,11 @@ bool World::Init(SDL_GPUDevice* device)
             SDL_Log("Failed to initialize block state");
             return false;
         }
+        if (!LightBuffer.Init(Device))
+        {
+            SDL_Log("Failed to initialize light buffer");
+            return false;
+        }
         BlockStateBuffer.Get() = BlockGetState();
         WorldStateBuffer.Get().X = 0;
         WorldStateBuffer.Get().Z = 0;
@@ -260,6 +266,7 @@ void World::Destroy()
 {
     BlockStateBuffer.Destroy(Device);
     WorldStateBuffer.Destroy(Device);
+    LightBuffer.Destroy(Device);
     SetChunksBuffer.Destroy(Device);
     for (int i = 0; i < SetBlocksBuffers.size(); i++)
     {
@@ -331,6 +338,11 @@ void World::Update(Camera& camera)
             UpdateGroups.insert(position);
         }
         SDL_assert(outOfBoundsChunks.empty());
+        int minX = cameraX * Chunk::kWidth;
+        int minZ = cameraZ * Chunk::kWidth;
+        int maxX = minX + kWidth * Chunk::kWidth;
+        int maxZ = minZ + kWidth * Chunk::kWidth;
+        LightBuffer.Resize({minX, minZ}, {maxX, maxZ});
     }
     std::vector<glm::ivec2> jobs;
     for (int inX = 0; inX < kWidth; inX++)
@@ -520,6 +532,7 @@ void World::Dispatch(SDL_GPUCommandBuffer* commandBuffer)
         SDL_EndGPUComputePass(computePass);
     }
     UpdateGroups.clear();
+    LightBuffer.Update(Device, commandBuffer);
 }
 
 void World::Render(SDL_GPUCommandBuffer* commandBuffer, SDL_GPUTexture* colorTexture, Camera& camera)
@@ -590,17 +603,23 @@ void World::Render(SDL_GPUCommandBuffer* commandBuffer, SDL_GPUTexture* colorTex
         int groupsX = (Width + RAYTRACE_THREADS_X - 1) / RAYTRACE_THREADS_X;
         int groupsY = (Height + RAYTRACE_THREADS_Y - 1) / RAYTRACE_THREADS_Y;
         SDL_GPUTexture* readTextures[3]{};
-        SDL_GPUBuffer* readBuffers[3]{};
+        SDL_GPUBuffer* readBuffers[4]{};
         readTextures[0] = BlockTexture;
         readTextures[1] = GroupTexture;
         readTextures[2] = ChunkTexture;
         readBuffers[0] = camera.GetBuffer();
         readBuffers[1] = WorldStateBuffer.GetBuffer();
         readBuffers[2] = BlockStateBuffer.GetBuffer();
+        readBuffers[3] = LightBuffer.GetBuffer();
+        struct RaytraceUniforms
+        {
+            int32_t Sample;
+            int32_t LightCount;
+        } raytraceUniforms{Sample, static_cast<int32_t>(LightBuffer.GetSize())};
         SDL_BindGPUComputePipeline(computePass, RaytracePipeline);
-        SDL_PushGPUComputeUniformData(commandBuffer, 0, &Sample, sizeof(Sample));
+        SDL_PushGPUComputeUniformData(commandBuffer, 0, &raytraceUniforms, sizeof(raytraceUniforms));
         SDL_BindGPUComputeStorageTextures(computePass, 0, readTextures, 3);
-        SDL_BindGPUComputeStorageBuffers(computePass, 0, readBuffers, 3);
+        SDL_BindGPUComputeStorageBuffers(computePass, 0, readBuffers, 4);
         SDL_DispatchGPUCompute(computePass, groupsX, groupsY, 1);
         SDL_EndGPUComputePass(computePass);
     }
@@ -646,8 +665,19 @@ bool World::WorldToLocalPosition(glm::ivec3& position) const
 
 void World::SetBlock(glm::ivec3 position, Block block)
 {
+    glm::ivec3 worldPosition = position;
     if (WorldToLocalPosition(position))
     {
+        Block previous = Blocks[position.x][position.y][position.z];
+        const BlockState& state = BlockGetState();
+        if (state[previous].Light > 0.0f)
+        {
+            LightBuffer.Remove(worldPosition);
+        }
+        if (state[block].Light > 0.0f)
+        {
+            LightBuffer.Add(worldPosition, LightTraits::FromPosition(worldPosition));
+        }
         int chunkX = position.x / Chunk::kWidth;
         int chunkZ = position.z / Chunk::kWidth;
         // TODO: While I don't know if it can ever happen in game, this is technically not safe. We reserve the first

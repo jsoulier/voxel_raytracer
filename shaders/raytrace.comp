@@ -19,6 +19,7 @@ static const int kMaxShadowSteps = 4;
 cbuffer UniformBuffer : register(b0, space2)
 {
     int Sample;
+    int LightCount;
 };
 
 Texture3D<uint> blockTexture : register(t0, space0);
@@ -27,6 +28,7 @@ Texture2D<uint2> chunkTexture : register(t2, space0);
 StructuredBuffer<CameraState> cameraState : register(t3, space0);
 StructuredBuffer<WorldState> worldState : register(t4, space0);
 StructuredBuffer<BlockState> blockState : register(t5, space0);
+StructuredBuffer<int4> lights : register(t6, space0);
 [[vk::image_format("rgba32f")]]
 RWTexture2D<float4> outTexture : register(u0, space1);
 
@@ -333,6 +335,19 @@ void main(uint3 id : SV_DispatchThreadID)
         float3 reflected = reflect(direction, query.Normal);
         float3 diffuse = RandomHemisphere(query.Normal);
         direction = normalize(lerp(reflected, diffuse, block.Roughness));
+        if (LightCount > 0 && Random() <= block.Roughness)
+        {
+            int start = min(Random() * LightCount, LightCount - 1);
+            for (int probe = 0; probe < LightCount; probe++)
+            {
+                int light = (start + probe) % LightCount;
+                if (lights[light].w != 0)
+                {
+                    direction = normalize(lights[light].xyz + 0.5f - query.Position);
+                    break;
+                }
+            }
+        }
         origin = query.Position + query.Normal * 0.001f;
         if (block.Light > kEpsilon)
         {

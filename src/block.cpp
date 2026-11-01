@@ -262,7 +262,7 @@ static constexpr BlockState kBlocks =
 static_assert(BlockAir == 0);
 static_assert(SDL_arraysize(kBlocks) == BlockCount);
 
-BlockState BlockGetState()
+const BlockState& BlockGetState()
 {
     return kBlocks;
 }

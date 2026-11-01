@@ -1,7 +1,6 @@
 #pragma once
 
 #include <SDL3/SDL.h>
-#define GLM_ENABLE_EXPERIMENTAL
 #include <glm/glm.hpp>
 #include <glm/gtx/hash.hpp>
 
@@ -57,6 +56,26 @@ struct WorldOptions
     float SunIntensity;
     glm::vec3 SunDirection;
     float TimeOfDay;
+};
+
+struct LightTraits
+{
+    static constexpr glm::ivec4 kInvalid = glm::ivec4(0);
+
+    static bool IsValid(const glm::ivec4& light)
+    {
+        return light.w != kInvalid.w;
+    }
+
+    static glm::ivec4 FromPosition(const glm::ivec3& position)
+    {
+        return glm::ivec4(position, 1);
+    }
+
+    static glm::ivec3 ToPosition(const glm::ivec4& light)
+    {
+        return glm::ivec3(light);
+    }
 };
 
 struct WorldState
@@ -124,6 +143,7 @@ private:
     std::vector<glm::ivec2> ClearChunks;
     StaticBuffer<WorldState> WorldStateBuffer;
     StaticBuffer<BlockState> BlockStateBuffer;
+    SpatialBuffer<glm::ivec4, LightTraits> LightBuffer;
     SDL_GPUTexture* BlockTexture;
     SDL_GPUTexture* GroupTexture;
     SDL_GPUTexture* ChunkTexture;
