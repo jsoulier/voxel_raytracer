@@ -11,6 +11,8 @@
 #include <utility>
 #include <vector>
 
+#include "profile.hpp"
+
 template<typename T, SDL_GPUBufferUsageFlags U>
 class GPUBuffer
 {
@@ -23,6 +25,7 @@ public:
 
     void Destroy(SDL_GPUDevice* device)
     {
+        Profile();
         SDL_ReleaseGPUBuffer(device, Buffer);
         Buffer = nullptr;
         Capacity = 0;
@@ -30,6 +33,7 @@ public:
 
     bool Resize(SDL_GPUDevice* device, int capacity, bool copy)
     {
+        Profile();
         if (capacity <= Capacity)
         {
             return true;
@@ -107,6 +111,7 @@ public:
 
     void Destroy(SDL_GPUDevice* device)
     {
+        Profile();
         if (Data)
         {
             SDL_UnmapGPUTransferBuffer(device, TransferBuffer);
@@ -141,6 +146,7 @@ public:
         SDL_assert(TransferBufferSize <= TransferBufferCapacity);
         if (TransferBufferSize == TransferBufferCapacity)
         {
+            ProfileBlock("DynamicBuffer::Emplace::Grow");
             int capacity = std::max(kStartingCapacity, TransferBufferSize * kGrowthRate);
             SDL_GPUTransferBufferCreateInfo info{};
             info.usage = SDL_GPU_TRANSFERBUFFERUSAGE_UPLOAD;
@@ -174,6 +180,7 @@ public:
 
     void AssignRange(SDL_GPUDevice* device, const T* values, int count, int start, bool copy)
     {
+        Profile();
         int end = start + count;
         if (!Buffer.Resize(device, end, copy))
         {
@@ -220,6 +227,7 @@ public:
 
     bool UploadRange(SDL_GPUDevice* device, SDL_GPUCopyPass* copyPass, int count, int start, bool cycle)
     {
+        Profile();
         if (!Buffer.Resize(device, start + count, false))
         {
             return false;
@@ -243,6 +251,7 @@ public:
 
     void Upload(SDL_GPUDevice* device, SDL_GPUCopyPass* copyPass)
     {
+        Profile();
         if (Data)
         {
             SDL_UnmapGPUTransferBuffer(device, TransferBuffer);
@@ -261,6 +270,7 @@ public:
 
     void Upload(SDL_GPUDevice* device, SDL_GPUCommandBuffer* commandBuffer)
     {
+        Profile();
         SDL_GPUCopyPass* copyPass = SDL_BeginGPUCopyPass(commandBuffer);
         if (!copyPass)
         {
@@ -273,6 +283,7 @@ public:
 
     void Upload(SDL_GPUDevice* device)
     {
+        Profile();
         SDL_GPUCommandBuffer* commandBuffer = SDL_AcquireGPUCommandBuffer(device);
         if (!commandBuffer)
         {
@@ -318,6 +329,7 @@ public:
 
     bool Init(SDL_GPUDevice* device)
     {
+        Profile();
         SDL_GPUTransferBufferCreateInfo info{};
         info.usage = SDL_GPU_TRANSFERBUFFERUSAGE_UPLOAD;
         info.size = sizeof(T);
@@ -332,6 +344,7 @@ public:
 
     void Destroy(SDL_GPUDevice* device)
     {
+        Profile();
         Buffer.Destroy(device);
         SDL_ReleaseGPUTransferBuffer(device, TransferBuffer);
         TransferBuffer = nullptr;
@@ -339,6 +352,7 @@ public:
 
     void Upload(SDL_GPUDevice* device, SDL_GPUCopyPass* copyPass)
     {
+        Profile();
         if (!Dirty)
         {
             return;
@@ -362,6 +376,7 @@ public:
 
     void Upload(SDL_GPUDevice* device, SDL_GPUCommandBuffer* commandBuffer)
     {
+        Profile();
         SDL_GPUCopyPass* copyPass = SDL_BeginGPUCopyPass(commandBuffer);
         if (!copyPass)
         {
@@ -374,6 +389,7 @@ public:
 
     void Upload(SDL_GPUDevice* device)
     {
+        Profile();
         SDL_GPUCommandBuffer* commandBuffer = SDL_AcquireGPUCommandBuffer(device);
         if (!commandBuffer)
         {
@@ -441,6 +457,7 @@ public:
 
     bool Init(SDL_GPUDevice* device)
     {
+        Profile();
         Values.clear();
         Values.push_back(TraitsT::kInvalid);
         Indices.clear();
@@ -451,11 +468,13 @@ public:
 
     void Destroy(SDL_GPUDevice* device)
     {
+        Profile();
         Buffer.Destroy(device);
     }
 
     void Add(const glm::ivec3& position, const T& value)
     {
+        Profile();
         auto it = Indices.find(position);
         if (it != Indices.end())
         {
@@ -481,6 +500,7 @@ public:
 
     void Remove(const glm::ivec3& position)
     {
+        Profile();
         auto it = Indices.find(position);
         if (it != Indices.end())
         {
@@ -494,6 +514,7 @@ public:
 
     void Resize(const glm::ivec2& min, const glm::ivec2& max)
     {
+        Profile();
         for (auto it = Indices.begin(); it != Indices.end();)
         {
             glm::ivec3 position = it->first;
@@ -505,36 +526,43 @@ public:
         }
     }
 
+    void ShrinkToFit()
+    {
+        Profile();
+        Uploads.clear();
+        int lastIndex = Values.size() - 1;
+        while (!FreeIndices.empty() && lastIndex >= Indices.size())
+        {
+            int freeIndex = FreeIndices.back();
+            if (freeIndex >= Indices.size())
+            {
+                FreeIndices.pop_back();
+                continue;
+            }
+            if (!TraitsT::IsValid(Values[lastIndex]))
+            {
+                lastIndex--;
+                continue;
+            }
+            FreeIndices.pop_back();
+            Values[freeIndex] = Values[lastIndex];
+            auto it = Indices.find(TraitsT::GetPosition(Values[freeIndex]));
+            SDL_assert(it != Indices.end());
+            it->second = freeIndex;
+            Uploads.push_back({freeIndex, Values[freeIndex]});
+            lastIndex--;
+        }
+        FreeIndices.clear();
+        Values.resize(Indices.size());
+        Buffer.Reset();
+    }
+
     void Update(SDL_GPUDevice* device, SDL_GPUCommandBuffer* commandBuffer)
     {
+        Profile();
         if (FreeIndices.size() > kMaxTombstones)
         {
-            Uploads.clear();
-            int lastIndex = Values.size() - 1;
-            while (!FreeIndices.empty() && lastIndex >= Indices.size())
-            {
-                int freeIndex = FreeIndices.back();
-                if (freeIndex >= Indices.size())
-                {
-                    FreeIndices.pop_back();
-                    continue;
-                }
-                if (!TraitsT::IsValid(Values[lastIndex]))
-                {
-                    lastIndex--;
-                    continue;
-                }
-                FreeIndices.pop_back();
-                Values[freeIndex] = Values[lastIndex];
-                auto it = Indices.find(TraitsT::GetPosition(Values[freeIndex]));
-                SDL_assert(it != Indices.end());
-                it->second = freeIndex;
-                Uploads.push_back({freeIndex, Values[freeIndex]});
-                lastIndex--;
-            }
-            FreeIndices.clear();
-            Values.resize(Indices.size());
-            Buffer.Reset();
+            ShrinkToFit();
         }
         if (Uploads.empty())
         {

@@ -10,6 +10,7 @@
 
 #include "camera.hpp"
 #include "debug_group.hpp"
+#include "profile.hpp"
 #include "world.hpp"
 
 static constexpr float kSpeed = 0.000000035f;
@@ -33,6 +34,7 @@ static Block block = BlockWhiteLight;
 
 static bool Init()
 {
+    Profile();
 #ifndef NDEBUG
     SDL_SetLogPriorities(SDL_LOG_PRIORITY_VERBOSE);
 #endif
@@ -90,6 +92,7 @@ static bool Init()
 
 static void Quit()
 {
+    Profile();
     SDL_HideWindow(window);
     ImGui_ImplSDLGPU3_Shutdown();
     ImGui_ImplSDL3_Shutdown();
@@ -105,6 +108,7 @@ static void Quit()
 
 static bool Poll()
 {
+    Profile();
     SDL_Event event;
     while (SDL_PollEvent(&event))
     {
@@ -222,6 +226,7 @@ static bool Poll()
 
 static void Update()
 {
+    Profile();
     if (SDL_GetWindowRelativeMouseMode(window))
     {
         float dx = 0.0f;
@@ -254,6 +259,7 @@ static void Update()
 
 static bool Resize(uint32_t width, uint32_t height)
 {
+    Profile();
     float aspectRatio = float(width) / float(height);
     camera.Resize(kWidth, kWidth / aspectRatio);
     SDL_ReleaseGPUTexture(device, colorTexture);
@@ -278,6 +284,7 @@ static bool Resize(uint32_t width, uint32_t height)
 
 static void Render()
 {
+    Profile();
     SDL_GPUCommandBuffer* commandBuffer = SDL_AcquireGPUCommandBuffer(device);
     if (!commandBuffer)
     {
@@ -307,6 +314,7 @@ static void Render()
     }
     {
         DebugGroupBlock(commandBuffer, "Render::PrepareImGui");
+        ProfileBlock("Render::PrepareImGui");
         ImGuiIO& io = ImGui::GetIO();
         io.DisplaySize.x = width;
         io.DisplaySize.y = height;
@@ -361,6 +369,7 @@ static void Render()
     world.Render(commandBuffer, colorTexture, camera);
     {
         DebugGroupBlock(commandBuffer, "Render::Blit");
+        ProfileBlock("Render::Blit");
         SDL_GPUBlitInfo info{};
         info.source.texture = colorTexture;
         info.source.w = camera.GetWidth();
@@ -372,6 +381,7 @@ static void Render()
     }
     {
         DebugGroupBlock(commandBuffer, "Render::RenderImGui");
+        ProfileBlock("Render::RenderImGui");
         SDL_GPUColorTargetInfo info{};
         info.texture = swapchainTexture;
         info.load_op = SDL_GPU_LOADOP_LOAD;
@@ -399,6 +409,7 @@ int main(int argc, char** argv)
     time1 = time2;
     while (true)
     {
+        ProfileBlock("Main::Frame");
         time2 = SDL_GetTicksNS();
         dt = time2 - time1;
         time1 = time2;
@@ -408,6 +419,7 @@ int main(int argc, char** argv)
         }
         Update();
         Render();
+        ProfileFrame();
     }
     Quit();
     return 0;

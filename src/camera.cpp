@@ -6,6 +6,7 @@
 #include <cmath>
 
 #include "camera.hpp"
+#include "profile.hpp"
 
 static constexpr float kMaxPitch = glm::pi<float>() / 2.0f - 0.01f;
 static constexpr float kEpsilon = glm::epsilon<float>();
@@ -22,6 +23,7 @@ Camera::Camera()
 
 bool Camera::Init(SDL_GPUDevice* device)
 {
+    Profile();
     if (!State.Init(device))
     {
         SDL_Log("Failed to initialize state");
@@ -36,11 +38,13 @@ bool Camera::Init(SDL_GPUDevice* device)
 
 void Camera::Destroy(SDL_GPUDevice* device)
 {
+    Profile();
     State.Destroy(device);
 }
 
 void Camera::Resize(int width, int height)
 {
+    Profile();
     if (Width == width && Height == height)
     {
         return;
@@ -52,6 +56,7 @@ void Camera::Resize(int width, int height)
 
 void Camera::Move(float dx, float dy, float dz)
 {
+    Profile();
     if (glm::length(glm::vec3(dx, dy, dz)) < kEpsilon)
     {
         return;
@@ -63,6 +68,7 @@ void Camera::Move(float dx, float dy, float dz)
 
 void Camera::Rotate(float dx, float dy, bool force)
 {
+    Profile();
     if (!force && std::abs(dx) < kEpsilon && std::abs(dy) < kEpsilon)
     {
         return;
@@ -81,11 +87,13 @@ void Camera::Rotate(float dx, float dy, bool force)
 
 void Camera::SetFov(float fov)
 {
+    Profile();
     State.Get().TanHalfFov = std::tan(glm::radians(fov) * 0.5f);
 }
 
 void Camera::Upload(SDL_GPUDevice* device, SDL_GPUCopyPass* copyPass)
 {
+    Profile();
     State.Upload(device, copyPass);
 }
 
