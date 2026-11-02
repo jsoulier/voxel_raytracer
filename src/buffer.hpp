@@ -526,7 +526,7 @@ public:
                 }
                 FreeIndices.pop_back();
                 Values[freeIndex] = Values[lastIndex];
-                auto it = Indices.find(TraitsT::ToPosition(Values[freeIndex]));
+                auto it = Indices.find(TraitsT::GetPosition(Values[freeIndex]));
                 SDL_assert(it != Indices.end());
                 it->second = freeIndex;
                 Uploads.push_back({freeIndex, Values[freeIndex]});

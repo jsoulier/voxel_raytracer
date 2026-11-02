@@ -64,15 +64,15 @@ struct LightTraits
 
     static bool IsValid(const glm::ivec4& light)
     {
-        return light.w != kInvalid.w;
+        return light.w != BlockAir;
     }
 
-    static glm::ivec4 FromPosition(const glm::ivec3& position)
+    static glm::ivec4 Create(const glm::ivec3& position, Block block)
     {
-        return glm::ivec4(position, 1);
+        return glm::ivec4(position, block);
     }
 
-    static glm::ivec3 ToPosition(const glm::ivec4& light)
+    static glm::ivec3 GetPosition(const glm::ivec4& light)
     {
         return glm::ivec3(light);
     }

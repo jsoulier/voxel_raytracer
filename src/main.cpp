@@ -128,7 +128,14 @@ static bool Poll()
                     WorldQuery query = world.Raycast(camera.GetPosition(), camera.GetDirection(), kRaycast);
                     if (query.HitBlock != BlockAir)
                     {
-                        world.SetBlock(query.Position, BlockAir);
+                        if (SDL_GetModState() & SDL_KMOD_LSHIFT)
+                        {
+                            world.SetBlock(query.PreviousPosition, block);
+                        }
+                        else
+                        {
+                            world.SetBlock(query.Position, BlockAir);
+                        }
                     }
                 }
                 else

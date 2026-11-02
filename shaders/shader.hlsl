@@ -41,6 +41,14 @@ static const uint kBlockAir = 0;
 static const uint kBlockWater = 9;
 static const float kEpsilon = 0.001f;
 
+float3 GetColor(uint color)
+{
+    float red = (color >> 24) & 0xFFu;
+    float green = (color >> 16) & 0xFFu;
+    float blue = (color >> 8) & 0xFFu;
+    return float3(red, green, blue) / 255.0f;
+}
+
 // https://gamedev.stackexchange.com/questions/92015/optimized-linear-to-srgb-glsl
 float3 SRGBToLinear(float3 color)
 {

@@ -60,7 +60,7 @@ WorldOptions::WorldOptions()
     , SkyTop{0.5f, 0.7f, 1.0f}
     , MaxBounces{8}
     , SunColor{1.0f, 0.9f, 0.7f}
-    , SunIntensity{3.0f}
+    , SunIntensity{1.0f}
     , SunDirection{0.0f, 1.0f, 0.0f}
     , TimeOfDay{10.0f}
 {
@@ -676,7 +676,7 @@ void World::SetBlock(glm::ivec3 position, Block block)
         }
         if (state[block].Light > 0.0f)
         {
-            LightBuffer.Add(worldPosition, LightTraits::FromPosition(worldPosition));
+            LightBuffer.Add(worldPosition, LightTraits::Create(worldPosition, block));
         }
         int chunkX = position.x / Chunk::kWidth;
         int chunkZ = position.z / Chunk::kWidth;
