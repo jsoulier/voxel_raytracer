@@ -47,25 +47,22 @@ float Random()
 float3 RandomHemisphere(float3 normal)
 {
     float r = Random();
-    float sinTheta = sqrt(r);
-    float cosTheta = sqrt(1.0f - r);
-    float phi = 2.0f * 3.14159265f * Random();
-    float3 direction;
-    direction.x = sinTheta * cos(phi);
-    direction.y = cosTheta;
-    direction.z = sinTheta * sin(phi);
-    float3 up;
-    if (abs(normal.y) < 0.999f)
+    float phi = 6.2831853f * Random();
+    float u = sqrt(r) * cos(phi);
+    float v = sqrt(r) * sin(phi);
+    float w = sqrt(1.0f - r);
+    if (normal.x != 0.0f)
     {
-        up = float3(0.0f, 1.0f, 0.0f);
+        return float3(w * normal.x, u, v);
+    }
+    else if (normal.y != 0.0f)
+    {
+        return float3(u, w * normal.y, v);
     }
     else
     {
-        up = float3(1.0f, 0.0f, 0.0f);
+        return float3(u, v, w * normal.z);
     }
-    float3 tangent = normalize(cross(up, normal));
-    float3 bitangent = cross(normal, tangent);
-    return tangent * direction.x + normal * direction.y + bitangent * direction.z;
 }
 
 int GetStepAxis(float3 distance)
@@ -370,14 +367,14 @@ void main(uint3 id : SV_DispatchThreadID)
                 float3 lightPath = lightPosition - query.Position;
                 float distanceSquared = max(dot(lightPath, lightPath), 1.0f);
                 float3 lightDirection = lightPath * rsqrt(distanceSquared);
-                float ratio = saturate(dot(query.Normal, lightDirection));
-                if (ratio > kEpsilon && distanceSquared < kLightCutoffSquared)
+                float angle = saturate(dot(query.Normal, lightDirection));
+                if (angle > kEpsilon && distanceSquared < kLightCutoffSquared)
                 {
                     Query neeQuery = TransparentRaycast(query.Position, query.Normal, lightDirection);
                     if (!neeQuery.Hit || blockState[neeQuery.Block].IOR > kEpsilon || distance(neeQuery.Position, lightPosition) < 1.0f)
                     {
                         float3 lightColor = SRGBToLinear(GetColor(lightState.Color));
-                        radiance += throughput * block.Roughness * lightState.Light * lightColor * ratio * LightCount / distanceSquared;
+                        radiance += throughput * block.Roughness * lightState.Light * lightColor * angle * LightCount / distanceSquared;
                     }
                 }
             }
