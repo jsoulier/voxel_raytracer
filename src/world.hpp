@@ -14,10 +14,10 @@
 
 #include "block.hpp"
 #include "buffer.hpp"
-#include "camera.hpp"
 #include "chunk.hpp"
 #include "config.h"
 
+class Camera;
 class World;
 
 struct WorldSetBlockJob
@@ -123,10 +123,10 @@ public:
     void Update(Camera& camera);
     void Dispatch(SDL_GPUCommandBuffer* commandBuffer);
     void Render(SDL_GPUCommandBuffer* commandBuffer, SDL_GPUTexture* colorTexture, Camera& camera);
+    void RenderImGui();
     void SetBlock(glm::ivec3 position, Block block);
     Block GetBlock(glm::ivec3 position) const;
-    WorldQuery Raycast(const glm::vec3& position, const glm::vec3& direction, float length);
-    void SetOptions(const WorldOptions& options);
+    WorldQuery Raycast(const glm::vec3& position, const glm::vec3& direction, float length) const;
 
 private:
     bool WorldToLocalPosition(glm::ivec3& position) const;
@@ -144,6 +144,7 @@ private:
     StaticBuffer<WorldState> WorldStateBuffer;
     StaticBuffer<BlockState> BlockStateBuffer;
     SpatialBuffer<glm::ivec4, LightTraits> LightBuffer;
+    WorldOptions Options;
     SDL_GPUTexture* BlockTexture;
     SDL_GPUTexture* GroupTexture;
     SDL_GPUTexture* ChunkTexture;
@@ -152,6 +153,7 @@ private:
     SDL_GPUComputePipeline* SetChunksPipeline;
     SDL_GPUComputePipeline* ClearBlocksPipeline;
     SDL_GPUComputePipeline* RaytracePipeline;
+    SDL_GPUGraphicsPipeline* RaycastPipeline;
     SDL_GPUComputePipeline* ClearTexturePipeline;
     SDL_GPUComputePipeline* SampleTexturePipeline;
     SDL_GPUComputePipeline* ClearGroupsPipeline;

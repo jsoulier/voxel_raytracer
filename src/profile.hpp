@@ -2,7 +2,6 @@
 
 #if TRACY_ENABLE
 #include <tracy/Tracy.hpp>
-
 #define Profile() ZoneScoped
 #define ProfileBlock(name) ZoneScopedN(name)
 #define ProfileFrame() FrameMark

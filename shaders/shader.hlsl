@@ -22,11 +22,12 @@ struct CameraState
     float3 Position;
     float AspectRatio;
     float3 Forward;
-    float TanHalfFov;
+    float Fov;
     float3 Right;
-    float Padding1;
+    float TanHalfFov;
     float3 Up;
-    float Padding2;
+    float Padding;
+    float4x4 ViewProjection;
 };
 
 struct BlockState

@@ -1,7 +1,6 @@
 #include <SDL3/SDL.h>
 #include <SDL3/SDL_main.h>
 #include <glm/glm.hpp>
-#include <glm/gtc/type_ptr.hpp>
 #include <imgui.h>
 #include <imgui_impl_sdl3.h>
 #include <imgui_impl_sdlgpu3.h>
@@ -16,7 +15,6 @@
 static constexpr float kSpeed = 0.000000035f;
 static constexpr float kSensitivity = 0.001f;
 static constexpr float kWidth = 1280.0f;
-static constexpr float kRaycast = 10.0f;
 
 static SDL_Window* window;
 static SDL_GPUDevice* device;
@@ -28,8 +26,6 @@ static World world;
 static uint64_t time1;
 static uint64_t time2;
 static float dt;
-static WorldQuery worldQuery;
-static WorldOptions worldOptions;
 static Block block = BlockWhiteLight;
 
 static bool Init()
@@ -70,7 +66,6 @@ static bool Init()
         SDL_Log("Failed to initialize world");
         return false;
     }
-    world.SetOptions(worldOptions);
     if (!camera.Init(device))
     {
         SDL_Log("Failed to initialize camera");
@@ -129,16 +124,15 @@ static bool Poll()
             {
                 if (SDL_GetWindowRelativeMouseMode(window))
                 {
-                    WorldQuery query = world.Raycast(camera.GetPosition(), camera.GetDirection(), kRaycast);
-                    if (query.HitBlock != BlockAir)
+                    if (camera.GetHitBlock() != BlockAir)
                     {
                         if (SDL_GetModState() & SDL_KMOD_LSHIFT)
                         {
-                            world.SetBlock(query.PreviousPosition, block);
+                            world.SetBlock(camera.GetPreviousHitPosition(), block);
                         }
                         else
                         {
-                            world.SetBlock(query.Position, BlockAir);
+                            world.SetBlock(camera.GetHitPosition(), BlockAir);
                         }
                     }
                 }
@@ -151,10 +145,9 @@ static bool Poll()
             {
                 if (SDL_GetWindowRelativeMouseMode(window))
                 {
-                    WorldQuery query = world.Raycast(camera.GetPosition(), camera.GetDirection(), kRaycast);
-                    if (query.HitBlock != BlockAir)
+                    if (camera.GetHitBlock() != BlockAir)
                     {
-                        world.SetBlock(query.PreviousPosition, block);
+                        world.SetBlock(camera.GetPreviousHitPosition(), block);
                     }
                 }
             }
@@ -162,10 +155,9 @@ static bool Poll()
             {
                 if (SDL_GetWindowRelativeMouseMode(window))
                 {
-                    WorldQuery query = world.Raycast(camera.GetPosition(), camera.GetDirection(), kRaycast);
-                    if (query.HitBlock != BlockAir)
+                    if (camera.GetHitBlock() != BlockAir)
                     {
-                        block = query.HitBlock;
+                        block = camera.GetHitBlock();
                     }
                 }
             }
@@ -252,8 +244,8 @@ static void Update()
         dy *= speed;
         dz *= speed;
         camera.Move(dx, dy, dz);
-        worldQuery = world.Raycast(camera.GetPosition(), camera.GetDirection(), kRaycast);
     }
+    camera.Update(world);
     world.Update(camera);
 }
 
@@ -266,7 +258,7 @@ static bool Resize(uint32_t width, uint32_t height)
     SDL_GPUTextureCreateInfo info{};
     info.format = SDL_GPU_TEXTUREFORMAT_R8G8B8A8_UNORM;
     info.type = SDL_GPU_TEXTURETYPE_2D;
-    info.usage = SDL_GPU_TEXTUREUSAGE_COMPUTE_STORAGE_WRITE | SDL_GPU_TEXTUREUSAGE_SAMPLER;
+    info.usage = SDL_GPU_TEXTUREUSAGE_COMPUTE_STORAGE_WRITE | SDL_GPU_TEXTUREUSAGE_SAMPLER | SDL_GPU_TEXTUREUSAGE_COLOR_TARGET;
     info.width = camera.GetWidth();
     info.height = camera.GetHeight();
     info.layer_count_or_depth = 1;
@@ -343,24 +335,10 @@ static void Render()
         {
             block = Block(value + BlockFirst);
         }
-        ImGui::Text("Raycast Block: %s", BlockToString(worldQuery.HitBlock));
-        ImGui::Text("Raycast Position: %d, %d, %d", worldQuery.Position.x, worldQuery.Position.y, worldQuery.Position.z);
-        bool setOptions = false;
-        int maxSteps = worldOptions.MaxSteps;
-        int maxBounces = worldOptions.MaxBounces;
-        setOptions |= ImGui::SliderInt("Max Steps", &maxSteps, 0, 2500);
-        setOptions |= ImGui::SliderInt("Max Bounces", &maxBounces, 0, 100);
-        setOptions |= ImGui::ColorEdit3("Sky Bottom", glm::value_ptr(worldOptions.SkyBottom));
-        setOptions |= ImGui::ColorEdit3("Sky Top", glm::value_ptr(worldOptions.SkyTop));
-        setOptions |= ImGui::SliderFloat("Time of Day", &worldOptions.TimeOfDay, 0.0f, 24.0f, "%.2f h");
-        setOptions |= ImGui::ColorEdit3("Sun Color", glm::value_ptr(worldOptions.SunColor));
-        setOptions |= ImGui::SliderFloat("Sun Intensity", &worldOptions.SunIntensity, 0.0f, 20.0f);
-        worldOptions.MaxSteps = maxSteps;
-        worldOptions.MaxBounces = maxBounces;
-        if (setOptions)
-        {
-            world.SetOptions(worldOptions);
-        }
+        ImGui::Text("Raycast Block: %s", BlockToString(camera.GetHitBlock()));
+        const glm::ivec3& hitPosition = camera.GetHitPosition();
+        ImGui::Text("Raycast Position: %d, %d, %d", hitPosition.x, hitPosition.y, hitPosition.z);
+        world.RenderImGui();
         ImGui::EndDisabled();
         ImGui::Render();
         ImGui_ImplSDLGPU3_PrepareDrawData(ImGui::GetDrawData(), commandBuffer);

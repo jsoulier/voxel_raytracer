@@ -2,6 +2,8 @@
 #include <glm/glm.hpp>
 #include <glm/gtc/color_space.hpp>
 #include <glm/gtc/constants.hpp>
+#include <glm/gtc/type_ptr.hpp>
+#include <imgui.h>
 
 #include <algorithm>
 #include <array>
@@ -37,6 +39,33 @@ static void TestFloorChunkIndex()
     SDL_assert(FloorChunkIndex(-Chunk::kWidth + 1) == -1);
     SDL_assert(FloorChunkIndex(-Chunk::kWidth) == -1);
     SDL_assert(FloorChunkIndex(-Chunk::kWidth - 1) == -2);
+}
+
+static SDL_GPUGraphicsPipeline* CreateRaycastPipeline(SDL_GPUDevice* device)
+{
+    SDL_GPUColorTargetDescription targets[1]{};
+    targets[0].format = SDL_GPU_TEXTUREFORMAT_R8G8B8A8_UNORM;
+    targets[0].blend_state.enable_blend = true;
+    targets[0].blend_state.src_alpha_blendfactor = SDL_GPU_BLENDFACTOR_SRC_ALPHA;
+    targets[0].blend_state.dst_alpha_blendfactor = SDL_GPU_BLENDFACTOR_ONE_MINUS_SRC_ALPHA;
+    targets[0].blend_state.src_color_blendfactor = SDL_GPU_BLENDFACTOR_SRC_ALPHA;
+    targets[0].blend_state.dst_color_blendfactor = SDL_GPU_BLENDFACTOR_ONE_MINUS_SRC_ALPHA;
+    targets[0].blend_state.color_blend_op = SDL_GPU_BLENDOP_ADD;
+    targets[0].blend_state.alpha_blend_op = SDL_GPU_BLENDOP_ADD;
+    SDL_GPUGraphicsPipelineCreateInfo info{};
+    info.vertex_shader = LoadShader(device, "raycast.vert");
+    info.fragment_shader = LoadShader(device, "raycast.frag");
+    info.target_info.num_color_targets = 1;
+    info.target_info.color_target_descriptions = targets;
+    info.primitive_type = SDL_GPU_PRIMITIVETYPE_TRIANGLELIST;
+    SDL_GPUGraphicsPipeline* pipeline = nullptr;
+    if (info.vertex_shader && info.fragment_shader)
+    {
+        pipeline = SDL_CreateGPUGraphicsPipeline(device, &info);
+    }
+    SDL_ReleaseGPUShader(device, info.vertex_shader);
+    SDL_ReleaseGPUShader(device, info.fragment_shader);
+    return pipeline;
 }
 
 WorldSetBlockJob::WorldSetBlockJob(const glm::ivec3& position, Block block)
@@ -108,6 +137,7 @@ World::World()
     , WorldStateBuffer{}
     , BlockStateBuffer{}
     , LightBuffer{}
+    , Options{}
     , BlockTexture{nullptr}
     , GroupTexture{nullptr}
     , ChunkTexture{nullptr}
@@ -116,6 +146,7 @@ World::World()
     , SetChunksPipeline{nullptr}
     , ClearBlocksPipeline{nullptr}
     , RaytracePipeline{nullptr}
+    , RaycastPipeline{nullptr}
     , ClearTexturePipeline{nullptr}
     , SampleTexturePipeline{nullptr}
     , ClearGroupsPipeline{nullptr}
@@ -201,6 +232,12 @@ bool World::Init(SDL_GPUDevice* device)
             SDL_Log("Failed to load raytrace pipeline");
             return false;
         }
+        RaycastPipeline = CreateRaycastPipeline(Device);
+        if (!RaycastPipeline)
+        {
+            SDL_Log("Failed to create raycast pipeline: %s", SDL_GetError());
+            return false;
+        }
         ClearTexturePipeline = LoadComputePipeline(Device, "clear_texture.comp");
         if (!ClearTexturePipeline)
         {
@@ -245,6 +282,7 @@ bool World::Init(SDL_GPUDevice* device)
         BlockStateBuffer.Get() = BlockGetState();
         WorldStateBuffer.Get().X = 0;
         WorldStateBuffer.Get().Z = 0;
+        WorldStateBuffer.Get().Options = Options;
         for (int x = 0; x < kWidth; x++)
         for (int z = 0; z < kWidth; z++)
         {
@@ -278,6 +316,7 @@ void World::Destroy()
     SDL_ReleaseGPUComputePipeline(Device, SampleTexturePipeline);
     SDL_ReleaseGPUComputePipeline(Device, ClearTexturePipeline);
     SDL_ReleaseGPUComputePipeline(Device, RaytracePipeline);
+    SDL_ReleaseGPUGraphicsPipeline(Device, RaycastPipeline);
     SDL_ReleaseGPUComputePipeline(Device, SetBlocksPipeline);
     SDL_ReleaseGPUComputePipeline(Device, SetChunksPipeline);
     SDL_ReleaseGPUComputePipeline(Device, ClearBlocksPipeline);
@@ -558,8 +597,7 @@ void World::Render(SDL_GPUCommandBuffer* commandBuffer, SDL_GPUTexture* colorTex
         SDL_GPUTextureCreateInfo info{};
         info.format = SDL_GPU_TEXTUREFORMAT_R32G32B32A32_FLOAT;
         info.type = SDL_GPU_TEXTURETYPE_2D;
-        info.usage = SDL_GPU_TEXTUREUSAGE_COMPUTE_STORAGE_READ |
-            SDL_GPU_TEXTUREUSAGE_COMPUTE_STORAGE_SIMULTANEOUS_READ_WRITE;
+        info.usage = SDL_GPU_TEXTUREUSAGE_COMPUTE_STORAGE_READ | SDL_GPU_TEXTUREUSAGE_COMPUTE_STORAGE_SIMULTANEOUS_READ_WRITE;
         info.width = camera.GetWidth();
         info.height = camera.GetHeight();
         info.layer_count_or_depth = 1;
@@ -627,13 +665,9 @@ void World::Render(SDL_GPUCommandBuffer* commandBuffer, SDL_GPUTexture* colorTex
         readBuffers[1] = WorldStateBuffer.GetBuffer();
         readBuffers[2] = BlockStateBuffer.GetBuffer();
         readBuffers[3] = LightBuffer.GetBuffer();
-        struct RaytraceUniforms
-        {
-            int32_t Sample;
-            int32_t LightCount;
-        } raytraceUniforms{Sample, static_cast<int32_t>(LightBuffer.GetSize())};
+        glm::ivec2 raytraceParameters{Sample, static_cast<int32_t>(LightBuffer.GetSize())};
         SDL_BindGPUComputePipeline(computePass, RaytracePipeline);
-        SDL_PushGPUComputeUniformData(commandBuffer, 0, &raytraceUniforms, sizeof(raytraceUniforms));
+        SDL_PushGPUComputeUniformData(commandBuffer, 0, &raytraceParameters, sizeof(raytraceParameters));
         SDL_BindGPUComputeStorageTextures(computePass, 0, readTextures, 3);
         SDL_BindGPUComputeStorageBuffers(computePass, 0, readBuffers, 4);
         SDL_DispatchGPUCompute(computePass, groupsX, groupsY, 1);
@@ -659,6 +693,28 @@ void World::Render(SDL_GPUCommandBuffer* commandBuffer, SDL_GPUTexture* colorTex
         SDL_BindGPUComputeStorageTextures(computePass, 0, readTextures, 1);
         SDL_DispatchGPUCompute(computePass, groupsX, groupsY, 1);
         SDL_EndGPUComputePass(computePass);
+    }
+    if (camera.GetHitBlock() != BlockAir)
+    {
+        DebugGroupBlock(commandBuffer, "World::Render::Raycast");
+        ProfileBlock("World::Render::Raycast");
+        SDL_GPUColorTargetInfo colorInfo{};
+        colorInfo.texture = colorTexture;
+        colorInfo.load_op = SDL_GPU_LOADOP_LOAD;
+        colorInfo.store_op = SDL_GPU_STOREOP_STORE;
+        SDL_GPURenderPass* renderPass = SDL_BeginGPURenderPass(commandBuffer, &colorInfo, 1, nullptr);
+        if (!renderPass)
+        {
+            SDL_Log("Failed to begin render pass: %s", SDL_GetError());
+            return;
+        }
+        glm::ivec4 position = {camera.GetPreviousHitPosition(), 1};
+        SDL_GPUBuffer* cameraBuffer = camera.GetBuffer();
+        SDL_BindGPUGraphicsPipeline(renderPass, RaycastPipeline);
+        SDL_BindGPUVertexStorageBuffers(renderPass, 0, &cameraBuffer, 1);
+        SDL_PushGPUVertexUniformData(commandBuffer, 0, &position, sizeof(position));
+        SDL_DrawGPUPrimitives(renderPass, 36, 1, 0, 0);
+        SDL_EndGPURenderPass(renderPass);
     }
 }
 
@@ -728,7 +784,7 @@ Block World::GetBlock(glm::ivec3 position) const
     }
 }
 
-WorldQuery World::Raycast(const glm::vec3& position, const glm::vec3& direction, float length)
+WorldQuery World::Raycast(const glm::vec3& position, const glm::vec3& direction, float length) const
 {
     Profile();
     WorldQuery query;
@@ -795,15 +851,20 @@ WorldQuery World::Raycast(const glm::vec3& position, const glm::vec3& direction,
     return query;
 }
 
-void World::SetOptions(const WorldOptions& options)
+void World::RenderImGui()
 {
     Profile();
-    WorldState& state = WorldStateBuffer.Get();
-    state.Options = options;
-    state.Options.SkyBottom = glm::convertSRGBToLinear(options.SkyBottom);
-    state.Options.SkyTop = glm::convertSRGBToLinear(options.SkyTop);
-    state.Options.SunColor = glm::convertSRGBToLinear(options.SunColor);
-    float theta = (options.TimeOfDay - 6.0f) / 12.0f * glm::pi<float>();
-    state.Options.SunDirection = glm::normalize(glm::vec3(std::cos(theta), std::sin(theta), 0.0f));
-    Dirty = true;
+    bool modified = false;
+    modified |= ImGui::SliderInt("Max Steps", &Options.MaxSteps, 0, 2500);
+    modified |= ImGui::SliderInt("Max Bounces", &Options.MaxBounces, 0, 100);
+    modified |= ImGui::ColorEdit3("Sky Bottom", glm::value_ptr(Options.SkyBottom));
+    modified |= ImGui::ColorEdit3("Sky Top", glm::value_ptr(Options.SkyTop));
+    modified |= ImGui::SliderFloat("Time of Day", &Options.TimeOfDay, 0.0f, 24.0f, "%.2f h");
+    modified |= ImGui::ColorEdit3("Sun Color", glm::value_ptr(Options.SunColor));
+    modified |= ImGui::SliderFloat("Sun Intensity", &Options.SunIntensity, 0.0f, 20.0f);
+    if (modified)
+    {
+        WorldStateBuffer.Get().Options = Options;
+        Dirty = true;
+    }
 }
