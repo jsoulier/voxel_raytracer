@@ -15,6 +15,7 @@ static const float kSunDiskBrightness = 4.0f;
 static const float kFogAlpha = 12.0f;
 static const float kLightCutoff = 32.0f;
 static const float kLightCutoffSquared = kLightCutoff * kLightCutoff;
+static const int kMaxTransparentSteps = 4;
 static const int kRouletteBounce = 2;
 
 cbuffer UniformBuffer : register(b0, space2)
@@ -211,6 +212,35 @@ Query Raycast(float3 origin, float3 direction, float ior)
     return query;
 }
 
+Query TransparentRaycast(float3 origin, float3 normal, float3 direction)
+{
+    float ior = 0.0f;
+    origin = origin + normal * kEpsilon;
+    Query query = (Query) 0;
+    for (int step = 0; step < kMaxTransparentSteps; step++)
+    {
+        query = Raycast(origin, direction, ior);
+        if (!query.Hit)
+        {
+            break;
+        }
+        BlockState block = blockState[query.Block];
+        if (query.Block != kBlockAir && block.IOR <= kEpsilon)
+        {
+            break;
+        }
+        float3 refracted = refract(direction, query.Normal, (1.0f + ior) / (1.0f + block.IOR));
+        if (length(refracted) <= kEpsilon)
+        {
+            break;
+        }
+        direction = refracted;
+        ior = block.IOR;
+        origin = query.Position + direction * kEpsilon;
+    }
+    return query;
+}
+
 float FresnelSchlick(float3 direction, float3 normal, float iorFrom, float iorTo)
 {
     iorFrom += 1.0f;
@@ -257,6 +287,7 @@ void main(uint3 id : SV_DispatchThreadID)
     float3 radiance = 0.0f;
     float3 throughput = 1.0f;
     float fogAlpha = 0.0f;
+    bool previousNee = false;
     int maxBounces = worldState[0].Options.MaxBounces;
     Query previous = (Query) 0;
     for (int bounce = 0; bounce < maxBounces; bounce++)
@@ -290,9 +321,17 @@ void main(uint3 id : SV_DispatchThreadID)
         {
             float3 albedo = SRGBToLinear(GetColor(block.Color));
             float3 emission = albedo * block.Light;
-            radiance += throughput * emission;
+            if (!previousNee)
+            {
+                radiance += throughput * emission;
+            }
+            if (block.Light > kEpsilon)
+            {
+                break;
+            }
             throughput *= albedo;
         }
+        previousNee = false;
         if (block.IOR > kEpsilon || (ior > kEpsilon && query.Block == kBlockAir))
         {
             if (Random() > FresnelSchlick(direction, query.Normal, ior, block.IOR))
@@ -307,37 +346,46 @@ void main(uint3 id : SV_DispatchThreadID)
                 }
             }
         }
-        float3 reflected = reflect(direction, query.Normal);
-        float3 diffuse = RandomHemisphere(query.Normal);
-        direction = normalize(lerp(reflected, diffuse, block.Roughness));
-        if (block.Light <= kEpsilon && Random() <= block.Roughness)
+        if (bounce == 0 && query.Block != kBlockAir && worldState[0].SunDirection.y > 0.0f)
         {
-            if (worldState[0].SunDirection.y > 0.0f && Random() < 0.5f)
+            float sunFactor = saturate(dot(query.Normal, worldState[0].SunDirection));
+            if (sunFactor > 0.0f)
             {
-                direction = worldState[0].SunDirection;
-            }
-            else if (LightCount > 0)
-            {
-                int light = Random() * LightCount;
-                BlockState lightState = blockState[lights[light].w];
-                if (lightState.Light > kEpsilon)
+                Query sunQuery = TransparentRaycast(query.Position, query.Normal, worldState[0].SunDirection);
+                if (!sunQuery.Hit || blockState[sunQuery.Block].IOR > kEpsilon)
                 {
-                    float3 lightPath = lights[light].xyz + 0.5f - query.Position;
-                    float distanceSquared = max(dot(lightPath, lightPath), kEpsilon);
-                    float3 lightDirection = lightPath * rsqrt(distanceSquared);
-                    float ratio = dot(query.Normal, lightDirection);
-                    if (distanceSquared < kLightCutoffSquared && ratio > -kEpsilon && Random() >= distanceSquared / kLightCutoffSquared)
+                    float3 sunColor = SRGBToLinear(worldState[0].Options.SunColor);
+                    radiance += throughput * block.Roughness * sunFactor * sunColor * worldState[0].Options.SunIntensity;
+                }
+            }
+        }
+        if (LightCount > 0 && block.Roughness > kEpsilon)
+        {
+            int light = Random() * LightCount;
+            BlockState lightState = blockState[lights[light].w];
+            if (lightState.Light > kEpsilon)
+            {
+                previousNee = true;
+                float3 lightPosition = lights[light].xyz + 0.5f;
+                float3 lightPath = lightPosition - query.Position;
+                float distanceSquared = max(dot(lightPath, lightPath), 1.0f);
+                float3 lightDirection = lightPath * rsqrt(distanceSquared);
+                float ratio = saturate(dot(query.Normal, lightDirection));
+                if (ratio > kEpsilon && distanceSquared < kLightCutoffSquared)
+                {
+                    Query neeQuery = TransparentRaycast(query.Position, query.Normal, lightDirection);
+                    if (!neeQuery.Hit || blockState[neeQuery.Block].IOR > kEpsilon || distance(neeQuery.Position, lightPosition) < 1.0f)
                     {
-                        direction = lightDirection;
+                        float3 lightColor = SRGBToLinear(GetColor(lightState.Color));
+                        radiance += throughput * block.Roughness * lightState.Light * lightColor * ratio * LightCount / distanceSquared;
                     }
                 }
             }
         }
+        float3 reflected = reflect(direction, query.Normal);
+        float3 diffuse = RandomHemisphere(query.Normal);
+        direction = normalize(lerp(reflected, diffuse, block.Roughness));
         origin = query.Position + query.Normal * 0.001f;
-        if (block.Light > kEpsilon)
-        {
-            break;
-        }
         if (bounce >= kRouletteBounce)
         {
             float probability = saturate(max(throughput.r, max(throughput.g, throughput.b)));

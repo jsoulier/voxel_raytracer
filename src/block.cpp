@@ -212,49 +212,49 @@ static constexpr BlockState kBlocks =
     // red light
     {
         .Color = 0xFF0000FF,
-        .Light = 10.0f,
+        .Light = 5.0f,
         .Roughness = 0.0f,
         .IOR = 0.0f,
     },
     // green light
     {
         .Color = 0x00FF00FF,
-        .Light = 10.0f,
+        .Light = 5.0f,
         .Roughness = 0.0f,
         .IOR = 0.0f,
     },
     // blue light
     {
         .Color = 0x0000FFFF,
-        .Light = 10.0f,
+        .Light = 5.0f,
         .Roughness = 0.0f,
         .IOR = 0.0f,
     },
     // cyan light
     {
         .Color = 0x00FFFFFF,
-        .Light = 10.0f,
+        .Light = 5.0f,
         .Roughness = 0.0f,
         .IOR = 0.0f,
     },
     // magenta light
     {
         .Color = 0xFF00FFFF,
-        .Light = 10.0f,
+        .Light = 5.0f,
         .Roughness = 0.0f,
         .IOR = 0.0f,
     },
     // yellow light
     {
         .Color = 0xFFFF00FF,
-        .Light = 10.0f,
+        .Light = 5.0f,
         .Roughness = 0.0f,
         .IOR = 0.0f,
     },
     // white light
     {
         .Color = 0xFFFFFFFF,
-        .Light = 10.0f,
+        .Light = 5.0f,
         .Roughness = 0.0f,
         .IOR = 0.0f,
     },

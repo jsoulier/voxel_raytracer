@@ -72,7 +72,7 @@ WorldOptions::WorldOptions()
     , SkyTop{0.5f, 0.7f, 1.0f}
     , MaxBounces{8}
     , SunColor{1.0f, 0.9f, 0.7f}
-    , SunIntensity{1.0f}
+    , SunIntensity{1.5f}
     , TimeOfDay{10.0f}
 {
 }
@@ -692,7 +692,7 @@ void World::Render(SDL_GPUCommandBuffer* commandBuffer, SDL_GPUTexture* colorTex
             SDL_Log("Failed to begin render pass: %s", SDL_GetError());
             return;
         }
-        glm::ivec4 position = {camera.GetPreviousHitPosition(), 1};
+        glm::ivec4 position = {camera.GetHitPosition(), 1};
         SDL_GPUBuffer* cameraBuffer = camera.GetBuffer();
         SDL_BindGPUGraphicsPipeline(renderPass, RaycastPipeline);
         SDL_BindGPUVertexStorageBuffers(renderPass, 0, &cameraBuffer, 1);
