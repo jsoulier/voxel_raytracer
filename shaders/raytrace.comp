@@ -113,7 +113,7 @@ Query Raycast(float3 origin, float3 direction, float ior)
             distance[i] = (voxel[i] + 1.0f - origin[i]) * delta[i];
         }
     }
-    int maxSteps = worldState[0].MaxSteps;
+    int maxSteps = worldState[0].Options.MaxSteps;
     int offsetX = worldState[0].Position.x * CHUNK_WIDTH;
     int offsetZ = worldState[0].Position.y * CHUNK_WIDTH;
     for (int i = 0; i < maxSteps; i++)
@@ -222,7 +222,7 @@ float FresnelSchlick(float3 direction, float3 normal, float iorFrom, float iorTo
 float3 GetSkyColor(float3 direction)
 {
     float alpha = saturate((direction.y + 1.0f) / 2.0f);
-    float3 sky = lerp(worldState[0].SkyBottom, worldState[0].SkyTop, alpha);
+    float3 sky = lerp(SRGBToLinear(worldState[0].Options.SkyBottom), SRGBToLinear(worldState[0].Options.SkyTop), alpha);
     float ambient = saturate(worldState[0].SunDirection.y * 4.0f + 0.15f);
     return sky * ambient;
 }
@@ -231,7 +231,7 @@ float3 GetSunColor(float3 direction)
 {
     float disk = smoothstep(kSunDiskInner, kSunDiskOuter, dot(direction, worldState[0].SunDirection));
     float glow = pow(saturate(dot(direction, worldState[0].SunDirection)), kSunGlowFalloff);
-    float3 emission = worldState[0].SunColor * worldState[0].SunIntensity * (disk * kSunDiskBrightness + glow);
+    float3 emission = SRGBToLinear(worldState[0].Options.SunColor) * worldState[0].Options.SunIntensity * (disk * kSunDiskBrightness + glow);
     return emission * saturate(worldState[0].SunDirection.y + 0.1f);
 }
 
@@ -250,14 +250,14 @@ void main(uint3 id : SV_DispatchThreadID)
     float j = Random();
     float u = (2.0f * (id.x + i) / width - 1.0f) * cameraState[0].AspectRatio * cameraState[0].TanHalfFov;
     float v = (1.0f - 2.0f * (id.y + j) / height) * cameraState[0].TanHalfFov;
-    float3 direction = normalize(u * cameraState[0].Right - v * cameraState[0].Up + cameraState[0].Forward);
+    float3 direction = normalize(u * cameraState[0].Right + v * cameraState[0].Up + cameraState[0].Forward);
     float3 skyColor = GetSkyColor(direction);
     float3 origin = cameraState[0].Position;
     float ior = 0.0f;
     float3 radiance = 0.0f;
     float3 throughput = 1.0f;
     float fogAlpha = 0.0f;
-    int maxBounces = worldState[0].MaxBounces;
+    int maxBounces = worldState[0].Options.MaxBounces;
     Query previous = (Query) 0;
     for (int bounce = 0; bounce < maxBounces; bounce++)
     {
@@ -270,7 +270,7 @@ void main(uint3 id : SV_DispatchThreadID)
         if (bounce == 0)
         {
             float travelled = distance(query.Position, cameraState[0].Position);
-            float ratio = saturate(travelled / worldState[0].MaxSteps);
+            float ratio = saturate(travelled / worldState[0].Options.MaxSteps);
             fogAlpha = exp2(-kFogAlpha * (1.0f - ratio));
         }
         BlockState block = blockState[query.Block];

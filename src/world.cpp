@@ -1,6 +1,5 @@
 #include <SDL3/SDL.h>
 #include <glm/glm.hpp>
-#include <glm/gtc/color_space.hpp>
 #include <glm/gtc/constants.hpp>
 #include <glm/gtc/type_ptr.hpp>
 #include <imgui.h>
@@ -23,23 +22,6 @@
 #include "profile.hpp"
 #include "shader.hpp"
 #include "world.hpp"
-
-static int FloorChunkIndex(float index)
-{
-    return std::floor(index / Chunk::kWidth);
-}
-
-static void TestFloorChunkIndex()
-{
-    SDL_assert(FloorChunkIndex(0) == 0);
-    SDL_assert(FloorChunkIndex(Chunk::kWidth - 1) == 0);
-    SDL_assert(FloorChunkIndex(Chunk::kWidth) == 1);
-    SDL_assert(FloorChunkIndex(Chunk::kWidth + 1) == 1);
-    SDL_assert(FloorChunkIndex(-1) == -1);
-    SDL_assert(FloorChunkIndex(-Chunk::kWidth + 1) == -1);
-    SDL_assert(FloorChunkIndex(-Chunk::kWidth) == -1);
-    SDL_assert(FloorChunkIndex(-Chunk::kWidth - 1) == -2);
-}
 
 static SDL_GPUGraphicsPipeline* CreateRaycastPipeline(SDL_GPUDevice* device)
 {
@@ -91,7 +73,6 @@ WorldOptions::WorldOptions()
     , MaxBounces{8}
     , SunColor{1.0f, 0.9f, 0.7f}
     , SunIntensity{1.0f}
-    , SunDirection{0.0f, 1.0f, 0.0f}
     , TimeOfDay{10.0f}
 {
 }
@@ -280,9 +261,12 @@ bool World::Init(SDL_GPUDevice* device)
             return false;
         }
         BlockStateBuffer.Get() = BlockGetState();
-        WorldStateBuffer.Get().X = 0;
-        WorldStateBuffer.Get().Z = 0;
-        WorldStateBuffer.Get().Options = Options;
+        WorldState& state = WorldStateBuffer.Get();
+        state.X = 0;
+        state.Z = 0;
+        state.Options = Options;
+        float theta = (Options.TimeOfDay - 6.0f) / 12.0f * glm::pi<float>();
+        state.SunDirection = glm::vec3(std::cos(theta), std::sin(theta), 0.0f);
         for (int x = 0; x < kWidth; x++)
         for (int z = 0; z < kWidth; z++)
         {
@@ -724,8 +708,8 @@ bool World::WorldToLocalPosition(glm::ivec3& position) const
     position.x -= WorldStateBuffer->X * Chunk::kWidth;
     position.z -= WorldStateBuffer->Z * Chunk::kWidth;
     glm::ivec2 chunk;
-    chunk.x = FloorChunkIndex(position.x);
-    chunk.y = FloorChunkIndex(position.z);
+    chunk.x = int(std::floor(position.x / Chunk::kWidth));
+    chunk.y = int(std::floor(position.z / Chunk::kWidth));
     position.x -= chunk.x * Chunk::kWidth;
     position.z -= chunk.y * Chunk::kWidth;
     chunk = ChunkMap[chunk.x][chunk.y];
@@ -864,7 +848,10 @@ void World::RenderImGui()
     modified |= ImGui::SliderFloat("Sun Intensity", &Options.SunIntensity, 0.0f, 20.0f);
     if (modified)
     {
-        WorldStateBuffer.Get().Options = Options;
+        float theta = (Options.TimeOfDay - 6.0f) / 12.0f * glm::pi<float>();
+        WorldState& state = WorldStateBuffer.Get();
+        state.Options = Options;
+        state.SunDirection = glm::vec3(std::cos(theta), std::sin(theta), 0.0f);
         Dirty = true;
     }
 }

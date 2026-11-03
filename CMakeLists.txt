@@ -32,6 +32,7 @@ add_executable(voxel_raytracer WIN32
     src/world.cpp
 )
 target_link_libraries(voxel_raytracer SDL3::SDL3 FastNoiseLite Tracy::TracyClient glm imgui nlohmann_json)
+target_compile_definitions(voxel_raytracer PRIVATE GLM_FORCE_DEPTH_ZERO_TO_ONE)
 target_compile_definitions(voxel_raytracer PRIVATE GLM_ENABLE_EXPERIMENTAL)
 set_target_properties(voxel_raytracer PROPERTIES CXX_STANDARD 23)
 target_precompile_headers(voxel_raytracer PRIVATE

@@ -4,7 +4,7 @@
 // https://github.com/libsdl-org/SDL_shadercross/issues/211
 #include "../src/config.h"
 
-struct WorldState
+struct WorldOptions
 {
     float3 SkyBottom;
     int MaxSteps;
@@ -12,8 +12,17 @@ struct WorldState
     int MaxBounces;
     float3 SunColor;
     float SunIntensity;
-    float3 SunDirection;
     float TimeOfDay;
+    float Padding0;
+    float Padding1;
+    float Padding2;
+};
+
+struct WorldState
+{
+    WorldOptions Options;
+    float3 SunDirection;
+    float Padding;
     int2 Position;
 };
 

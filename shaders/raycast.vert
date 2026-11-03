@@ -1,8 +1,8 @@
 #include "shader.hlsl"
 
-cbuffer PlaceBuffer : register(b0, space1)
+cbuffer UniformBuffer : register(b0, space1)
 {
-    int4 PlacePosition;
+    int4 Position;
 };
 
 StructuredBuffer<CameraState> cameraState : register(t0, space0);
@@ -29,7 +29,7 @@ static const uint kIndices[36] =
     4, 5, 1, 4, 1, 0,
 };
 
-static const float4 kColor = float4(1.0f, 0.7f, 0.2f, 0.1f);
+static const float4 kColor = float4(1.0f, 1.0f, 1.0f, 0.1f);
 
 struct Output
 {
@@ -40,10 +40,10 @@ struct Output
 Output main(uint VertexID : SV_VertexID)
 {
     float3 position = kPositions[kIndices[VertexID]] * 1.025f;
-    position += PlacePosition.xyz + 0.5f;
+    position += Position.xyz + 0.5f;
     Output output;
     output.Position = mul(cameraState[0].ViewProjection, float4(position, 1.0f));
-    output.Position.y *= -1.0f;
+    output.Position.x *= -1.0f;
     output.Color = kColor;
     return output;
 }

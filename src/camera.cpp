@@ -33,10 +33,10 @@ bool Camera::Init(SDL_GPUDevice* device)
         return false;
     }
     State.Get().Position.y = 64.0f;
-    Rotate(0.0f, -0.1f);
-    Resize(1, 1);
     State.Get().Fov = glm::radians(60.0f);
     State.Get().TanHalfFov = std::tan(State->Fov * 0.5f);
+    Rotate(0.0f, -0.1f);
+    Resize(1, 1);
     return true;
 }
 
@@ -85,13 +85,13 @@ void Camera::Rotate(float dx, float dy)
     {
         return;
     }
-    Yaw += dx;
+    Yaw -= dx;
     Pitch = std::clamp(Pitch - dy, -kMaxPitch, kMaxPitch);
     State.Get().Forward.x = std::cos(Pitch) * std::cos(Yaw);
     State.Get().Forward.y = std::sin(Pitch);
     State.Get().Forward.z = std::cos(Pitch) * std::sin(Yaw);
     State.Get().Forward = glm::normalize(State->Forward);
-    State.Get().Right = glm::cross(State->Forward, kUp);
+    State.Get().Right = glm::cross(kUp, State->Forward);
     State.Get().Right = glm::normalize(State->Right);
     State.Get().Up = glm::cross(State->Forward, State->Right);
     State.Get().Up = glm::normalize(State->Up);

@@ -54,8 +54,10 @@ struct WorldOptions
     int32_t MaxBounces;
     glm::vec3 SunColor;
     float SunIntensity;
-    glm::vec3 SunDirection;
     float TimeOfDay;
+    float Padding0;
+    float Padding1;
+    float Padding2;
 };
 
 struct LightTraits
@@ -81,6 +83,8 @@ struct LightTraits
 struct WorldState
 {
     WorldOptions Options;
+    glm::vec3 SunDirection;
+    float Padding;
     int32_t X;
     int32_t Z;
 };
