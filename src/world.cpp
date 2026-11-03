@@ -265,8 +265,6 @@ bool World::Init(SDL_GPUDevice* device)
         state.X = 0;
         state.Z = 0;
         state.Options = Options;
-        float theta = (Options.TimeOfDay - 6.0f) / 12.0f * glm::pi<float>();
-        state.SunDirection = glm::vec3(std::cos(theta), std::sin(theta), 0.0f);
         for (int x = 0; x < kWidth; x++)
         for (int z = 0; z < kWidth; z++)
         {
@@ -315,6 +313,11 @@ void World::Destroy()
 void World::Update(Camera& camera)
 {
     Profile();
+    if (WorldStateBuffer.GetDirty())
+    {
+        float theta = (Options.TimeOfDay - 6.0f) / 12.0f * glm::pi<float>();
+        WorldStateBuffer.Get().SunDirection = glm::vec3(std::cos(theta), std::sin(theta), 0.0f);
+    }
     int cameraX = camera.GetPosition().x / Chunk::kWidth - kWidth / 2;
     int cameraZ = camera.GetPosition().z / Chunk::kWidth - kWidth / 2;
     int offsetX = cameraX - WorldStateBuffer->X;
@@ -848,10 +851,7 @@ void World::RenderImGui()
     modified |= ImGui::SliderFloat("Sun Intensity", &Options.SunIntensity, 0.0f, 20.0f);
     if (modified)
     {
-        float theta = (Options.TimeOfDay - 6.0f) / 12.0f * glm::pi<float>();
-        WorldState& state = WorldStateBuffer.Get();
-        state.Options = Options;
-        state.SunDirection = glm::vec3(std::cos(theta), std::sin(theta), 0.0f);
+        WorldStateBuffer.Get().Options = Options;
         Dirty = true;
     }
 }

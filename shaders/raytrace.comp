@@ -13,8 +13,8 @@ static const float kSunDiskOuter = 0.9996f;
 static const float kSunGlowFalloff = 512.0f;
 static const float kSunDiskBrightness = 4.0f;
 static const float kFogAlpha = 12.0f;
-static const float kLightCutoff = 32.0f;
-static const float kLightCutoffSquared = kLightCutoff * kLightCutoff;
+static const float kMaxLightDistance = 32.0f;
+static const float kMaxLightDistanceSquared = kMaxLightDistance * kMaxLightDistance;
 static const int kMaxTransparentSteps = 4;
 static const int kRouletteBounce = 2;
 
@@ -283,11 +283,10 @@ void main(uint3 id : SV_DispatchThreadID)
     float ior = 0.0f;
     float3 radiance = 0.0f;
     float3 throughput = 1.0f;
-    float fogAlpha = 0.0f;
+    float fog = 0.0f;
     bool previousNee = false;
-    int maxBounces = worldState[0].Options.MaxBounces;
     Query previous = (Query) 0;
-    for (int bounce = 0; bounce < maxBounces; bounce++)
+    for (int bounce = 0; bounce < worldState[0].Options.MaxBounces; bounce++)
     {
         Query query = Raycast(origin, direction, ior);
         if (!query.Hit)
@@ -299,7 +298,7 @@ void main(uint3 id : SV_DispatchThreadID)
         {
             float travelled = distance(query.Position, cameraState[0].Position);
             float ratio = saturate(travelled / worldState[0].Options.MaxSteps);
-            fogAlpha = exp2(-kFogAlpha * (1.0f - ratio));
+            fog = exp2(-kFogAlpha * (1.0f - ratio));
         }
         BlockState block = blockState[query.Block];
         if (previous.Hit && block.Light > kEpsilon)
@@ -368,7 +367,7 @@ void main(uint3 id : SV_DispatchThreadID)
                 float distanceSquared = max(dot(lightPath, lightPath), 1.0f);
                 float3 lightDirection = lightPath * rsqrt(distanceSquared);
                 float angle = saturate(dot(query.Normal, lightDirection));
-                if (angle > kEpsilon && distanceSquared < kLightCutoffSquared)
+                if (angle > kEpsilon && distanceSquared < kMaxLightDistanceSquared)
                 {
                     Query neeQuery = TransparentRaycast(query.Position, query.Normal, lightDirection);
                     if (!neeQuery.Hit || blockState[neeQuery.Block].IOR > kEpsilon || distance(neeQuery.Position, lightPosition) < 1.0f)
@@ -393,6 +392,6 @@ void main(uint3 id : SV_DispatchThreadID)
             throughput /= probability;
         }
     }
-    radiance = lerp(radiance, skyColor, fogAlpha);
+    radiance = lerp(radiance, skyColor, fog);
     outTexture[id.xy] += float4(radiance, 1.0f);
 }

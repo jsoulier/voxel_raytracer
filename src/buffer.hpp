@@ -323,7 +323,7 @@ public:
         : Buffer{}
         , TransferBuffer{nullptr}
         , Data{}
-        , Dirty{false}
+        , Dirty{true}
     {
     }
 
