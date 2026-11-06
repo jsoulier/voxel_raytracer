@@ -1,0 +1,88 @@
+#pragma clang diagnostic ignored "-Wmissing-prototypes"
+#pragma clang diagnostic ignored "-Wmissing-braces"
+
+#include <metal_stdlib>
+#include <simd/simd.h>
+
+using namespace metal;
+
+template<typename T, size_t Num>
+struct spvUnsafeArray
+{
+    T elements[Num ? Num : 1];
+    
+    thread T& operator [] (size_t pos) thread
+    {
+        return elements[pos];
+    }
+    constexpr const thread T& operator [] (size_t pos) const thread
+    {
+        return elements[pos];
+    }
+    
+    device T& operator [] (size_t pos) device
+    {
+        return elements[pos];
+    }
+    constexpr const device T& operator [] (size_t pos) const device
+    {
+        return elements[pos];
+    }
+    
+    constexpr const constant T& operator [] (size_t pos) const constant
+    {
+        return elements[pos];
+    }
+    
+    threadgroup T& operator [] (size_t pos) threadgroup
+    {
+        return elements[pos];
+    }
+    constexpr const threadgroup T& operator [] (size_t pos) const threadgroup
+    {
+        return elements[pos];
+    }
+};
+
+struct type_UniformBuffer
+{
+    int4 Position;
+};
+
+struct CameraState
+{
+    packed_float3 Position;
+    float AspectRatio;
+    packed_float3 Forward;
+    float Fov;
+    packed_float3 Right;
+    float TanHalfFov;
+    packed_float3 Up;
+    float Padding;
+    float4x4 ViewProjection;
+};
+
+struct type_StructuredBuffer_CameraState
+{
+    CameraState _m0[1];
+};
+
+constant spvUnsafeArray<float3, 8> _61 = spvUnsafeArray<float3, 8>({ float3(-0.5), float3(0.5, -0.5, -0.5), float3(0.5, 0.5, -0.5), float3(-0.5, 0.5, -0.5), float3(-0.5, -0.5, 0.5), float3(0.5, -0.5, 0.5), float3(0.5), float3(-0.5, 0.5, 0.5) });
+constant spvUnsafeArray<uint, 36> _62 = spvUnsafeArray<uint, 36>({ 0u, 1u, 2u, 0u, 2u, 3u, 5u, 4u, 7u, 5u, 7u, 6u, 4u, 0u, 3u, 4u, 3u, 7u, 1u, 5u, 6u, 1u, 6u, 2u, 3u, 2u, 6u, 3u, 6u, 7u, 4u, 5u, 1u, 4u, 1u, 0u });
+
+struct main0_out
+{
+    float4 out_var_COLOR0 [[user(locn0)]];
+    float4 gl_Position [[position]];
+};
+
+vertex main0_out main0(constant type_UniformBuffer& UniformBuffer [[buffer(0)]], const device type_StructuredBuffer_CameraState& cameraState [[buffer(1)]], uint gl_VertexIndex [[vertex_id]])
+{
+    main0_out out = {};
+    float4 _83 = cameraState._m0[0u].ViewProjection * float4((_61[_62[gl_VertexIndex]] * 1.02499997615814208984375) + (float3(UniformBuffer.Position.xyz) + float3(0.5)), 1.0);
+    _83.x = _83.x * (-1.0);
+    out.gl_Position = _83;
+    out.out_var_COLOR0 = float4(1.0, 1.0, 1.0, 0.100000001490116119384765625);
+    return out;
+}
+

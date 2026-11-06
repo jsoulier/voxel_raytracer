@@ -1,7 +1,8 @@
 #include <SDL3/SDL.h>
 #include <glm/glm.hpp>
-#include <glm/gtc/color_space.hpp>
 #include <glm/gtc/constants.hpp>
+#include <glm/gtc/type_ptr.hpp>
+#include <imgui.h>
 
 #include <algorithm>
 #include <array>
@@ -18,24 +19,35 @@
 #include "chunk.hpp"
 #include "config.h"
 #include "debug_group.hpp"
+#include "profile.hpp"
 #include "shader.hpp"
 #include "world.hpp"
 
-static int FloorChunkIndex(float index)
+static SDL_GPUGraphicsPipeline* CreateRaycastPipeline(SDL_GPUDevice* device)
 {
-    return std::floor(index / Chunk::kWidth);
-}
-
-static void TestFloorChunkIndex()
-{
-    SDL_assert(FloorChunkIndex(0) == 0);
-    SDL_assert(FloorChunkIndex(Chunk::kWidth - 1) == 0);
-    SDL_assert(FloorChunkIndex(Chunk::kWidth) == 1);
-    SDL_assert(FloorChunkIndex(Chunk::kWidth + 1) == 1);
-    SDL_assert(FloorChunkIndex(-1) == -1);
-    SDL_assert(FloorChunkIndex(-Chunk::kWidth + 1) == -1);
-    SDL_assert(FloorChunkIndex(-Chunk::kWidth) == -1);
-    SDL_assert(FloorChunkIndex(-Chunk::kWidth - 1) == -2);
+    SDL_GPUColorTargetDescription targets[1]{};
+    targets[0].format = SDL_GPU_TEXTUREFORMAT_R8G8B8A8_UNORM;
+    targets[0].blend_state.enable_blend = true;
+    targets[0].blend_state.src_alpha_blendfactor = SDL_GPU_BLENDFACTOR_SRC_ALPHA;
+    targets[0].blend_state.dst_alpha_blendfactor = SDL_GPU_BLENDFACTOR_ONE_MINUS_SRC_ALPHA;
+    targets[0].blend_state.src_color_blendfactor = SDL_GPU_BLENDFACTOR_SRC_ALPHA;
+    targets[0].blend_state.dst_color_blendfactor = SDL_GPU_BLENDFACTOR_ONE_MINUS_SRC_ALPHA;
+    targets[0].blend_state.color_blend_op = SDL_GPU_BLENDOP_ADD;
+    targets[0].blend_state.alpha_blend_op = SDL_GPU_BLENDOP_ADD;
+    SDL_GPUGraphicsPipelineCreateInfo info{};
+    info.vertex_shader = LoadShader(device, "raycast.vert");
+    info.fragment_shader = LoadShader(device, "raycast.frag");
+    info.target_info.num_color_targets = 1;
+    info.target_info.color_target_descriptions = targets;
+    info.primitive_type = SDL_GPU_PRIMITIVETYPE_TRIANGLELIST;
+    SDL_GPUGraphicsPipeline* pipeline = nullptr;
+    if (info.vertex_shader && info.fragment_shader)
+    {
+        pipeline = SDL_CreateGPUGraphicsPipeline(device, &info);
+    }
+    SDL_ReleaseGPUShader(device, info.vertex_shader);
+    SDL_ReleaseGPUShader(device, info.fragment_shader);
+    return pipeline;
 }
 
 WorldSetBlockJob::WorldSetBlockJob(const glm::ivec3& position, Block block)
@@ -60,8 +72,7 @@ WorldOptions::WorldOptions()
     , SkyTop{0.5f, 0.7f, 1.0f}
     , MaxBounces{8}
     , SunColor{1.0f, 0.9f, 0.7f}
-    , SunIntensity{3.0f}
-    , SunDirection{0.0f, 1.0f, 0.0f}
+    , SunIntensity{1.5f}
     , TimeOfDay{10.0f}
 {
 }
@@ -106,6 +117,8 @@ World::World()
     , ClearChunks{}
     , WorldStateBuffer{}
     , BlockStateBuffer{}
+    , LightBuffer{}
+    , Options{}
     , BlockTexture{nullptr}
     , GroupTexture{nullptr}
     , ChunkTexture{nullptr}
@@ -114,6 +127,7 @@ World::World()
     , SetChunksPipeline{nullptr}
     , ClearBlocksPipeline{nullptr}
     , RaytracePipeline{nullptr}
+    , RaycastPipeline{nullptr}
     , ClearTexturePipeline{nullptr}
     , SampleTexturePipeline{nullptr}
     , ClearGroupsPipeline{nullptr}
@@ -127,6 +141,7 @@ World::World()
 
 bool World::Init(SDL_GPUDevice* device)
 {
+    Profile();
     Device = device;
     // https://en.cppreference.com/cpp/17
     // Somehow Apple Clang doesn't support execution policies yet (even with -fexperimental-library)
@@ -198,6 +213,12 @@ bool World::Init(SDL_GPUDevice* device)
             SDL_Log("Failed to load raytrace pipeline");
             return false;
         }
+        RaycastPipeline = CreateRaycastPipeline(Device);
+        if (!RaycastPipeline)
+        {
+            SDL_Log("Failed to create raycast pipeline: %s", SDL_GetError());
+            return false;
+        }
         ClearTexturePipeline = LoadComputePipeline(Device, "clear_texture.comp");
         if (!ClearTexturePipeline)
         {
@@ -234,9 +255,16 @@ bool World::Init(SDL_GPUDevice* device)
             SDL_Log("Failed to initialize block state");
             return false;
         }
+        if (!LightBuffer.Init(Device))
+        {
+            SDL_Log("Failed to initialize light buffer");
+            return false;
+        }
         BlockStateBuffer.Get() = BlockGetState();
-        WorldStateBuffer.Get().X = 0;
-        WorldStateBuffer.Get().Z = 0;
+        WorldState& state = WorldStateBuffer.Get();
+        state.X = 0;
+        state.Z = 0;
+        state.Options = Options;
         for (int x = 0; x < kWidth; x++)
         for (int z = 0; z < kWidth; z++)
         {
@@ -258,8 +286,10 @@ bool World::Init(SDL_GPUDevice* device)
 
 void World::Destroy()
 {
+    Profile();
     BlockStateBuffer.Destroy(Device);
     WorldStateBuffer.Destroy(Device);
+    LightBuffer.Destroy(Device);
     SetChunksBuffer.Destroy(Device);
     for (int i = 0; i < SetBlocksBuffers.size(); i++)
     {
@@ -268,6 +298,7 @@ void World::Destroy()
     SDL_ReleaseGPUComputePipeline(Device, SampleTexturePipeline);
     SDL_ReleaseGPUComputePipeline(Device, ClearTexturePipeline);
     SDL_ReleaseGPUComputePipeline(Device, RaytracePipeline);
+    SDL_ReleaseGPUGraphicsPipeline(Device, RaycastPipeline);
     SDL_ReleaseGPUComputePipeline(Device, SetBlocksPipeline);
     SDL_ReleaseGPUComputePipeline(Device, SetChunksPipeline);
     SDL_ReleaseGPUComputePipeline(Device, ClearBlocksPipeline);
@@ -281,6 +312,7 @@ void World::Destroy()
 
 void World::Update(Camera& camera)
 {
+    Profile();
     int cameraX = camera.GetPosition().x / Chunk::kWidth - kWidth / 2;
     int cameraZ = camera.GetPosition().z / Chunk::kWidth - kWidth / 2;
     int offsetX = cameraX - WorldStateBuffer->X;
@@ -331,6 +363,11 @@ void World::Update(Camera& camera)
             UpdateGroups.insert(position);
         }
         SDL_assert(outOfBoundsChunks.empty());
+        int minX = cameraX * Chunk::kWidth;
+        int minZ = cameraZ * Chunk::kWidth;
+        int maxX = minX + kWidth * Chunk::kWidth;
+        int maxZ = minZ + kWidth * Chunk::kWidth;
+        LightBuffer.Resize({minX, minZ}, {maxX, maxZ});
     }
     std::vector<glm::ivec2> jobs;
     for (int inX = 0; inX < kWidth; inX++)
@@ -346,6 +383,7 @@ void World::Update(Camera& camera)
     }
     if (!jobs.empty())
     {
+        ProfileBlock("World::Update::GenerateChunks");
         int maxJobs = std::min(jobs.size(), SetBlocksBuffers.size() - SetBlocksBufferCount);
         std::vector<int> jobIndices(maxJobs);
         std::iota(jobIndices.begin(), jobIndices.end(), 0);
@@ -384,8 +422,15 @@ void World::Update(Camera& camera)
 
 void World::Dispatch(SDL_GPUCommandBuffer* commandBuffer)
 {
+    Profile();
+    if (WorldStateBuffer.GetDirty())
+    {
+        float theta = (Options.TimeOfDay - 6.0f) / 12.0f * glm::pi<float>();
+        WorldStateBuffer.Get().SunDirection = glm::vec3(std::cos(theta), std::sin(theta), 0.0f);
+    }
     {
         DebugGroupBlock(commandBuffer, "World::Render::Upload");
+        ProfileBlock("World::Dispatch::Upload");
         SDL_GPUCopyPass* copyPass = SDL_BeginGPUCopyPass(commandBuffer);
         if (!copyPass)
         {
@@ -404,6 +449,7 @@ void World::Dispatch(SDL_GPUCommandBuffer* commandBuffer)
     if (SetChunksBuffer.GetSize())
     {
         DebugGroupBlock(commandBuffer, "World::Render::SetChunks");
+        ProfileBlock("World::Dispatch::SetChunks");
         SDL_GPUStorageTextureReadWriteBinding writeTexture{};
         writeTexture.texture = ChunkTexture;
         SDL_GPUComputePass* computePass = SDL_BeginGPUComputePass(commandBuffer, &writeTexture, 1, nullptr, 0);
@@ -425,6 +471,7 @@ void World::Dispatch(SDL_GPUCommandBuffer* commandBuffer)
     if (!ClearChunks.empty())
     {
         DebugGroupBlock(commandBuffer, "World::Render::ClearBlocks");
+        ProfileBlock("World::Dispatch::ClearBlocks");
         SDL_GPUStorageTextureReadWriteBinding writeTexture{};
         writeTexture.texture = BlockTexture;
         SDL_GPUComputePass* computePass = SDL_BeginGPUComputePass(commandBuffer, &writeTexture, 1, nullptr, 0);
@@ -447,6 +494,7 @@ void World::Dispatch(SDL_GPUCommandBuffer* commandBuffer)
     if (SetBlocksBufferCount > 0)
     {
         DebugGroupBlock(commandBuffer, "World::Render::SetBlocks");
+        ProfileBlock("World::Dispatch::SetBlocks");
         SDL_GPUStorageTextureReadWriteBinding writeTexture{};
         writeTexture.texture = BlockTexture;
         SDL_GPUComputePass* computePass = SDL_BeginGPUComputePass(commandBuffer, &writeTexture, 1, nullptr, 0);
@@ -475,6 +523,7 @@ void World::Dispatch(SDL_GPUCommandBuffer* commandBuffer)
     if (!UpdateGroups.empty())
     {
         DebugGroupBlock(commandBuffer, "World::Render::ClearGroups");
+        ProfileBlock("World::Dispatch::ClearGroups");
         SDL_GPUStorageTextureReadWriteBinding writeTexture{};
         writeTexture.texture = GroupTexture;
         SDL_GPUComputePass* computePass = SDL_BeginGPUComputePass(commandBuffer, &writeTexture, 1, nullptr, 0);
@@ -497,6 +546,7 @@ void World::Dispatch(SDL_GPUCommandBuffer* commandBuffer)
     if (!UpdateGroups.empty())
     {
         DebugGroupBlock(commandBuffer, "World::Render::UpdateGroups");
+        ProfileBlock("World::Dispatch::UpdateGroups");
         SDL_GPUStorageTextureReadWriteBinding writeTexture{};
         writeTexture.texture = GroupTexture;
         SDL_GPUComputePass* computePass = SDL_BeginGPUComputePass(commandBuffer, &writeTexture, 1, nullptr, 0);
@@ -520,19 +570,21 @@ void World::Dispatch(SDL_GPUCommandBuffer* commandBuffer)
         SDL_EndGPUComputePass(computePass);
     }
     UpdateGroups.clear();
+    LightBuffer.Update(Device, commandBuffer);
 }
 
 void World::Render(SDL_GPUCommandBuffer* commandBuffer, SDL_GPUTexture* colorTexture, Camera& camera)
 {
+    Profile();
     if (Width != camera.GetWidth() || Height != camera.GetHeight())
     {
         DebugGroupBlock(commandBuffer, "World::Render::Resize");
+        ProfileBlock("World::Render::Resize");
         SDL_ReleaseGPUTexture(Device, ColorTexture);
         SDL_GPUTextureCreateInfo info{};
         info.format = SDL_GPU_TEXTUREFORMAT_R32G32B32A32_FLOAT;
         info.type = SDL_GPU_TEXTURETYPE_2D;
-        info.usage = SDL_GPU_TEXTUREUSAGE_COMPUTE_STORAGE_READ |
-            SDL_GPU_TEXTUREUSAGE_COMPUTE_STORAGE_SIMULTANEOUS_READ_WRITE;
+        info.usage = SDL_GPU_TEXTUREUSAGE_COMPUTE_STORAGE_READ | SDL_GPU_TEXTUREUSAGE_COMPUTE_STORAGE_SIMULTANEOUS_READ_WRITE;
         info.width = camera.GetWidth();
         info.height = camera.GetHeight();
         info.layer_count_or_depth = 1;
@@ -551,6 +603,7 @@ void World::Render(SDL_GPUCommandBuffer* commandBuffer, SDL_GPUTexture* colorTex
     {
         Sample = 0;
         DebugGroupBlock(commandBuffer, "World::Render::ClearTexture");
+        ProfileBlock("World::Render::ClearTexture");
         SDL_GPUStorageTextureReadWriteBinding writeTexture{};
         writeTexture.texture = ColorTexture;
         SDL_GPUComputePass* computePass = SDL_BeginGPUComputePass(commandBuffer, &writeTexture, 1, nullptr, 0);
@@ -579,6 +632,7 @@ void World::Render(SDL_GPUCommandBuffer* commandBuffer, SDL_GPUTexture* colorTex
     }
     {
         DebugGroupBlock(commandBuffer, "World::Render::Raytrace");
+        ProfileBlock("World::Render::Raytrace");
         SDL_GPUStorageTextureReadWriteBinding writeTexture{};
         writeTexture.texture = ColorTexture;
         SDL_GPUComputePass* computePass = SDL_BeginGPUComputePass(commandBuffer, &writeTexture, 1, nullptr, 0);
@@ -590,22 +644,25 @@ void World::Render(SDL_GPUCommandBuffer* commandBuffer, SDL_GPUTexture* colorTex
         int groupsX = (Width + RAYTRACE_THREADS_X - 1) / RAYTRACE_THREADS_X;
         int groupsY = (Height + RAYTRACE_THREADS_Y - 1) / RAYTRACE_THREADS_Y;
         SDL_GPUTexture* readTextures[3]{};
-        SDL_GPUBuffer* readBuffers[3]{};
+        SDL_GPUBuffer* readBuffers[4]{};
         readTextures[0] = BlockTexture;
         readTextures[1] = GroupTexture;
         readTextures[2] = ChunkTexture;
         readBuffers[0] = camera.GetBuffer();
         readBuffers[1] = WorldStateBuffer.GetBuffer();
         readBuffers[2] = BlockStateBuffer.GetBuffer();
+        readBuffers[3] = LightBuffer.GetBuffer();
+        glm::ivec2 raytraceParameters{Sample, static_cast<int32_t>(LightBuffer.GetSize())};
         SDL_BindGPUComputePipeline(computePass, RaytracePipeline);
-        SDL_PushGPUComputeUniformData(commandBuffer, 0, &Sample, sizeof(Sample));
+        SDL_PushGPUComputeUniformData(commandBuffer, 0, &raytraceParameters, sizeof(raytraceParameters));
         SDL_BindGPUComputeStorageTextures(computePass, 0, readTextures, 3);
-        SDL_BindGPUComputeStorageBuffers(computePass, 0, readBuffers, 3);
+        SDL_BindGPUComputeStorageBuffers(computePass, 0, readBuffers, 4);
         SDL_DispatchGPUCompute(computePass, groupsX, groupsY, 1);
         SDL_EndGPUComputePass(computePass);
     }
     {
         DebugGroupBlock(commandBuffer, "World::Render::SampleTexture");
+        ProfileBlock("World::Render::SampleTexture");
         SDL_GPUStorageTextureReadWriteBinding writeTexture{};
         writeTexture.texture = colorTexture;
         SDL_GPUComputePass* computePass = SDL_BeginGPUComputePass(commandBuffer, &writeTexture, 1, nullptr, 0);
@@ -624,15 +681,38 @@ void World::Render(SDL_GPUCommandBuffer* commandBuffer, SDL_GPUTexture* colorTex
         SDL_DispatchGPUCompute(computePass, groupsX, groupsY, 1);
         SDL_EndGPUComputePass(computePass);
     }
+    if (camera.GetHitBlock() != BlockAir)
+    {
+        DebugGroupBlock(commandBuffer, "World::Render::Raycast");
+        ProfileBlock("World::Render::Raycast");
+        SDL_GPUColorTargetInfo colorInfo{};
+        colorInfo.texture = colorTexture;
+        colorInfo.load_op = SDL_GPU_LOADOP_LOAD;
+        colorInfo.store_op = SDL_GPU_STOREOP_STORE;
+        SDL_GPURenderPass* renderPass = SDL_BeginGPURenderPass(commandBuffer, &colorInfo, 1, nullptr);
+        if (!renderPass)
+        {
+            SDL_Log("Failed to begin render pass: %s", SDL_GetError());
+            return;
+        }
+        glm::ivec4 position = {camera.GetHitPosition(), 1};
+        SDL_GPUBuffer* cameraBuffer = camera.GetBuffer();
+        SDL_BindGPUGraphicsPipeline(renderPass, RaycastPipeline);
+        SDL_BindGPUVertexStorageBuffers(renderPass, 0, &cameraBuffer, 1);
+        SDL_PushGPUVertexUniformData(commandBuffer, 0, &position, sizeof(position));
+        SDL_DrawGPUPrimitives(renderPass, 36, 1, 0, 0);
+        SDL_EndGPURenderPass(renderPass);
+    }
 }
 
 bool World::WorldToLocalPosition(glm::ivec3& position) const
 {
+    Profile();
     position.x -= WorldStateBuffer->X * Chunk::kWidth;
     position.z -= WorldStateBuffer->Z * Chunk::kWidth;
     glm::ivec2 chunk;
-    chunk.x = FloorChunkIndex(position.x);
-    chunk.y = FloorChunkIndex(position.z);
+    chunk.x = int(std::floor(position.x / Chunk::kWidth));
+    chunk.y = int(std::floor(position.z / Chunk::kWidth));
     position.x -= chunk.x * Chunk::kWidth;
     position.z -= chunk.y * Chunk::kWidth;
     chunk = ChunkMap[chunk.x][chunk.y];
@@ -646,8 +726,20 @@ bool World::WorldToLocalPosition(glm::ivec3& position) const
 
 void World::SetBlock(glm::ivec3 position, Block block)
 {
+    Profile();
+    glm::ivec3 worldPosition = position;
     if (WorldToLocalPosition(position))
     {
+        Block previous = Blocks[position.x][position.y][position.z];
+        const BlockState& state = BlockGetState();
+        if (state[previous].Light > 0.0f)
+        {
+            LightBuffer.Remove(worldPosition);
+        }
+        if (state[block].Light > 0.0f)
+        {
+            LightBuffer.Add(worldPosition, LightTraits::Create(worldPosition, block));
+        }
         int chunkX = position.x / Chunk::kWidth;
         int chunkZ = position.z / Chunk::kWidth;
         // TODO: While I don't know if it can ever happen in game, this is technically not safe. We reserve the first
@@ -668,6 +760,7 @@ void World::SetBlock(glm::ivec3 position, Block block)
 
 Block World::GetBlock(glm::ivec3 position) const
 {
+    Profile();
     if (WorldToLocalPosition(position))
     {
         return Blocks[position.x][position.y][position.z];
@@ -678,8 +771,9 @@ Block World::GetBlock(glm::ivec3 position) const
     }
 }
 
-WorldQuery World::Raycast(const glm::vec3& position, const glm::vec3& direction, float length)
+WorldQuery World::Raycast(const glm::vec3& position, const glm::vec3& direction, float length) const
 {
+    Profile();
     WorldQuery query;
     query.Position = glm::floor(position);
     query.PreviousPosition = query.Position;
@@ -744,14 +838,20 @@ WorldQuery World::Raycast(const glm::vec3& position, const glm::vec3& direction,
     return query;
 }
 
-void World::SetOptions(const WorldOptions& options)
+void World::RenderImGui()
 {
-    WorldState& state = WorldStateBuffer.Get();
-    state.Options = options;
-    state.Options.SkyBottom = glm::convertSRGBToLinear(options.SkyBottom);
-    state.Options.SkyTop = glm::convertSRGBToLinear(options.SkyTop);
-    state.Options.SunColor = glm::convertSRGBToLinear(options.SunColor);
-    float theta = (options.TimeOfDay - 6.0f) / 12.0f * glm::pi<float>();
-    state.Options.SunDirection = glm::normalize(glm::vec3(std::cos(theta), std::sin(theta), 0.0f));
-    Dirty = true;
+    Profile();
+    bool modified = false;
+    modified |= ImGui::SliderInt("Max Steps", &Options.MaxSteps, 0, 2500);
+    modified |= ImGui::SliderInt("Max Bounces", &Options.MaxBounces, 0, 100);
+    modified |= ImGui::ColorEdit3("Sky Bottom", glm::value_ptr(Options.SkyBottom));
+    modified |= ImGui::ColorEdit3("Sky Top", glm::value_ptr(Options.SkyTop));
+    modified |= ImGui::SliderFloat("Time of Day", &Options.TimeOfDay, 0.0f, 24.0f, "%.2f h");
+    modified |= ImGui::ColorEdit3("Sun Color", glm::value_ptr(Options.SunColor));
+    modified |= ImGui::SliderFloat("Sun Intensity", &Options.SunIntensity, 0.0f, 20.0f);
+    if (modified)
+    {
+        WorldStateBuffer.Get().Options = Options;
+        Dirty = true;
+    }
 }

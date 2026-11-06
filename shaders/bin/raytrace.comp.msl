@@ -11,6 +11,7 @@ void spvImageFence(ImageT img) { img.fence(); }
 struct type_UniformBuffer
 {
     int Sample;
+    int LightCount;
 };
 
 struct CameraState
@@ -18,11 +19,12 @@ struct CameraState
     packed_float3 Position;
     float AspectRatio;
     packed_float3 Forward;
-    float TanHalfFov;
+    float Fov;
     packed_float3 Right;
-    float Padding1;
+    float TanHalfFov;
     packed_float3 Up;
-    float Padding2;
+    float Padding;
+    float4x4 ViewProjection;
 };
 
 struct type_StructuredBuffer_CameraState
@@ -30,7 +32,7 @@ struct type_StructuredBuffer_CameraState
     CameraState _m0[1];
 };
 
-struct WorldState
+struct WorldOptions
 {
     packed_float3 SkyBottom;
     int MaxSteps;
@@ -38,8 +40,17 @@ struct WorldState
     int MaxBounces;
     packed_float3 SunColor;
     float SunIntensity;
-    packed_float3 SunDirection;
     float TimeOfDay;
+    float Padding0;
+    float Padding1;
+    float Padding2;
+};
+
+struct WorldState
+{
+    WorldOptions Options;
+    packed_float3 SunDirection;
+    float Padding;
     int2 Position;
     char _m0_final_padding[8];
 };
@@ -62,1038 +73,1791 @@ struct type_StructuredBuffer_BlockState
     BlockState _m0[1];
 };
 
-constant float3 _108 = {};
-constant uint _109 = {};
-constant bool _110 = {};
+struct type_StructuredBuffer_v4int
+{
+    int4 _m0[1];
+};
 
-kernel void main0(constant type_UniformBuffer& UniformBuffer [[buffer(0)]], const device type_StructuredBuffer_CameraState& cameraState [[buffer(1)]], const device type_StructuredBuffer_WorldState& worldState [[buffer(2)]], const device type_StructuredBuffer_BlockState& blockState [[buffer(3)]], texture3d<uint> blockTexture [[texture(0)]], texture3d<uint> groupTexture [[texture(1)]], texture2d<uint> chunkTexture [[texture(2)]], texture2d<float, access::read_write> outTexture [[texture(3)]], uint3 gl_GlobalInvocationID [[thread_position_in_grid]])
+constant float3 _117 = {};
+constant int3 _118 = {};
+constant uint _119 = {};
+constant bool _120 = {};
+
+kernel void main0(constant type_UniformBuffer& UniformBuffer [[buffer(0)]], const device type_StructuredBuffer_CameraState& cameraState [[buffer(1)]], const device type_StructuredBuffer_WorldState& worldState [[buffer(2)]], const device type_StructuredBuffer_BlockState& blockState [[buffer(3)]], const device type_StructuredBuffer_v4int& lights [[buffer(4)]], texture3d<uint> blockTexture [[texture(0)]], texture3d<uint> groupTexture [[texture(1)]], texture2d<uint> chunkTexture [[texture(2)]], texture2d<float, access::read_write> outTexture [[texture(3)]], uint3 gl_GlobalInvocationID [[thread_position_in_grid]])
 {
     do
     {
-        uint2 _149 = uint2(outTexture.get_width(), outTexture.get_height());
-        uint _150 = _149.x;
-        uint _151 = _149.y;
-        bool _160;
-        if (gl_GlobalInvocationID.x < _150)
+        uint2 _176 = uint2(outTexture.get_width(), outTexture.get_height());
+        uint _177 = _176.x;
+        uint _178 = _176.y;
+        bool _187;
+        if (gl_GlobalInvocationID.x < _177)
         {
-            _160 = gl_GlobalInvocationID.y >= _151;
+            _187 = gl_GlobalInvocationID.y >= _178;
         }
         else
         {
-            _160 = true;
+            _187 = true;
         }
-        if (_160)
+        if (_187)
         {
             break;
         }
-        uint _175 = ((((gl_GlobalInvocationID.x + (gl_GlobalInvocationID.y * _150)) + ((uint(UniformBuffer.Sample) * _150) * _151)) + 1u) * 747796405u) + 2891336453u;
-        uint _181 = ((_175 >> (((_175 >> 28u) + 4u) & 31u)) ^ _175) * 277803737u;
-        uint _187 = (_175 * 747796405u) + 2891336453u;
-        uint _193 = ((_187 >> (((_187 >> 28u) + 4u) & 31u)) ^ _187) * 277803737u;
-        float3 _228 = fast::normalize(((float3(cameraState._m0[0u].Right) * (((((2.0 * (float(gl_GlobalInvocationID.x) + (float((_181 >> 22u) ^ _181) * 2.3283064365386962890625e-10))) / float(_150)) - 1.0) * cameraState._m0[0u].AspectRatio) * cameraState._m0[0u].TanHalfFov)) - (float3(cameraState._m0[0u].Up) * ((1.0 - ((2.0 * (float(gl_GlobalInvocationID.y) + (float((_193 >> 22u) ^ _193) * 2.3283064365386962890625e-10))) / float(_151))) * cameraState._m0[0u].TanHalfFov))) + float3(cameraState._m0[0u].Forward));
-        float3 _251;
-        float3 _258;
-        float3 _262;
-        float3 _268;
-        float3 _270;
-        float3 _274;
-        float3 _276;
-        _251 = float3(1.0);
-        _258 = _108;
-        _262 = float3(0.0);
-        _268 = _108;
-        _270 = _108;
-        _274 = _228;
-        _276 = float3(cameraState._m0[0u].Position);
-        int3 _128;
-        float3 _129;
-        int3 _131;
-        float3 _132;
-        int3 _135;
-        float3 _136;
-        int3 _138;
-        float3 _139;
-        float3 _252;
-        bool _255;
-        uint _257;
-        float3 _259;
-        uint _261;
-        float3 _263;
-        bool _265;
-        uint _267;
-        float3 _269;
-        float3 _271;
-        float _273;
-        float3 _275;
-        float3 _277;
-        float _281;
-        float _1287;
-        float3 _1288;
-        bool _254;
-        uint _256;
-        uint _260 = _187;
-        bool _264;
-        uint _266;
-        float _272 = 0.0;
-        int _278 = 0;
-        float _280 = 0.0;
+        uint _202 = ((((gl_GlobalInvocationID.x + (gl_GlobalInvocationID.y * _177)) + ((uint(UniformBuffer.Sample) * _177) * _178)) + 1u) * 747796405u) + 2891336453u;
+        uint _208 = ((_202 >> (((_202 >> 28u) + 4u) & 31u)) ^ _202) * 277803737u;
+        uint _214 = (_202 * 747796405u) + 2891336453u;
+        uint _220 = ((_214 >> (((_214 >> 28u) + 4u) & 31u)) ^ _214) * 277803737u;
+        float3 _255 = fast::normalize(((float3(cameraState._m0[0u].Right) * (((((2.0 * (float(gl_GlobalInvocationID.x) + (float((_208 >> 22u) ^ _208) * 2.3283064365386962890625e-10))) / float(_177)) - 1.0) * cameraState._m0[0u].AspectRatio) * cameraState._m0[0u].TanHalfFov)) + (float3(cameraState._m0[0u].Up) * ((1.0 - ((2.0 * (float(gl_GlobalInvocationID.y) + (float((_220 >> 22u) ^ _220) * 2.3283064365386962890625e-10))) / float(_178))) * cameraState._m0[0u].TanHalfFov))) + float3(cameraState._m0[0u].Forward));
+        float3 _288;
+        float3 _295;
+        int3 _297;
+        float3 _299;
+        float3 _305;
+        float3 _307;
+        float3 _311;
+        float3 _315;
+        float3 _322;
+        float3 _323;
+        float3 _327;
+        float3 _329;
+        _288 = float3(1.0);
+        _295 = _117;
+        _297 = _118;
+        _299 = _117;
+        _305 = _117;
+        _307 = _117;
+        _311 = float3(0.0);
+        _315 = float3(0.0);
+        _322 = _117;
+        _323 = _117;
+        _327 = _255;
+        _329 = float3(cameraState._m0[0u].Position);
+        int3 _144;
+        float3 _145;
+        int3 _147;
+        float3 _148;
+        int3 _154;
+        float3 _155;
+        int3 _157;
+        float3 _158;
+        int3 _164;
+        float3 _165;
+        int3 _167;
+        float3 _168;
+        float3 _289;
+        bool _292;
+        uint _294;
+        float3 _296;
+        int3 _298;
+        float3 _300;
+        bool _302;
+        uint _304;
+        float3 _306;
+        float3 _308;
+        uint _310;
+        float3 _312;
+        bool _314;
+        float3 _316;
+        bool _318;
+        uint _321;
+        float3 _324;
+        float _326;
+        float3 _328;
+        float3 _330;
+        float _334;
+        float _1974;
+        float3 _1975;
+        bool _291;
+        uint _293;
+        bool _301;
+        uint _303;
+        uint _309 = _214;
+        bool _313 = false;
+        bool _317 = false;
+        bool _319;
+        uint _320;
+        float _325 = 0.0;
+        int _331 = 0;
+        float _333 = 0.0;
         for (;;)
         {
-            if (_278 < worldState._m0[0u].MaxBounces)
+            if (_331 < worldState._m0[0u].Options.MaxBounces)
             {
-                float3 _141 = _276;
-                float3 _142 = _274;
+                float3 _170 = _329;
+                float3 _171 = _327;
                 do
                 {
-                    int3 _133 = int3(floor(_276));
-                    float3 _134 = abs(float3(1.0) / _274);
-                    for (int _292 = 0; _292 < 3; _292++)
+                    int3 _162 = int3(floor(_329));
+                    float3 _163 = abs(float3(1.0) / _327);
+                    for (int _347 = 0; _347 < 3; _347++)
                     {
-                        uint _298 = uint(_292);
-                        if (_142[_298] < 0.0)
+                        uint _353 = uint(_347);
+                        if (_171[_353] < 0.0)
                         {
-                            _135[_298] = -1;
-                            _136[_298] = (_141[_298] - float(_133[_298])) * _134[_298];
+                            _164[_353] = -1;
+                            _165[_353] = (_170[_353] - float(_162[_353])) * _163[_353];
                         }
                         else
                         {
-                            _135[_298] = 1;
-                            _136[_298] = ((float(_133[_298]) + 1.0) - _141[_298]) * _134[_298];
+                            _164[_353] = 1;
+                            _165[_353] = ((float(_162[_353]) + 1.0) - _170[_353]) * _163[_353];
                         }
                     }
-                    int _332 = ((device int*)&worldState._m0[0u].Position)[0] * 32;
-                    int _335 = ((device int*)&worldState._m0[0u].Position)[1] * 32;
-                    int _338;
-                    bool _636;
-                    uint _637;
-                    float3 _638;
-                    float3 _639;
-                    bool _640;
-                    int _337 = -1;
-                    int _340 = 0;
+                    int _387 = ((device int*)&worldState._m0[0u].Position)[0] * 32;
+                    int _390 = ((device int*)&worldState._m0[0u].Position)[1] * 32;
+                    int _393;
+                    bool _691;
+                    uint _692;
+                    float3 _693;
+                    float3 _694;
+                    bool _695;
+                    int _392 = -1;
+                    int _395 = 0;
                     for (;;)
                     {
-                        if (_340 < worldState._m0[0u].MaxSteps)
+                        if (_395 < worldState._m0[0u].Options.MaxSteps)
                         {
-                            int3 _345 = _133;
-                            int _347 = _345.x - _332;
-                            int3 _348 = _345;
-                            _348.x = _347;
-                            int _350 = _345.z - _335;
-                            _348.z = _350;
-                            bool _356;
-                            if (_347 >= 0)
+                            int3 _400 = _162;
+                            int _402 = _400.x - _387;
+                            int3 _403 = _400;
+                            _403.x = _402;
+                            int _405 = _400.z - _390;
+                            _403.z = _405;
+                            bool _411;
+                            if (_402 >= 0)
                             {
-                                _356 = _350 < 0;
+                                _411 = _405 < 0;
                             }
                             else
                             {
-                                _356 = true;
+                                _411 = true;
                             }
-                            bool _361;
-                            if (!_356)
+                            bool _416;
+                            if (!_411)
                             {
-                                _361 = _347 >= 2048;
-                            }
-                            else
-                            {
-                                _361 = true;
-                            }
-                            bool _366;
-                            if (!_361)
-                            {
-                                _366 = _350 >= 2048;
+                                _416 = _402 >= 2048;
                             }
                             else
                             {
-                                _366 = true;
+                                _416 = true;
                             }
-                            bool _378;
-                            if (!_366)
+                            bool _421;
+                            if (!_416)
                             {
-                                bool _377;
-                                if (_135.y > 0)
+                                _421 = _405 >= 2048;
+                            }
+                            else
+                            {
+                                _421 = true;
+                            }
+                            bool _433;
+                            if (!_421)
+                            {
+                                bool _432;
+                                if (_164.y > 0)
                                 {
-                                    _377 = _345.y > 128;
+                                    _432 = _400.y > 128;
                                 }
                                 else
                                 {
-                                    _377 = false;
+                                    _432 = false;
                                 }
-                                _378 = _377;
+                                _433 = _432;
                             }
                             else
                             {
-                                _378 = true;
+                                _433 = true;
                             }
-                            if (_378)
+                            if (_433)
                             {
-                                _636 = _264;
-                                _637 = _266;
-                                _638 = _268;
-                                _639 = _270;
-                                _640 = false;
+                                _691 = _319;
+                                _692 = _320;
+                                _693 = _322;
+                                _694 = _323;
+                                _695 = false;
                                 break;
                             }
-                            uint2 _383 = uint2(_348.xz) >> uint2(5u);
-                            uint4 _393 = chunkTexture.read(uint2(_383), 0u);
-                            int3 _398 = _348;
-                            _398.x = int((uint(_347) - (_383.x * 32u)) + (_393.x * 32u));
-                            _398.z = int((uint(_350) - (_383.y * 32u)) + (_393.y * 32u));
-                            if (groupTexture.read(uint3(uint3(_398 >> int3(3))), 0u).x == 0u)
+                            uint2 _438 = uint2(_403.xz) >> uint2(5u);
+                            uint4 _448 = chunkTexture.read(uint2(_438), 0u);
+                            int3 _453 = _403;
+                            _453.x = int((uint(_402) - (_438.x * 32u)) + (_448.x * 32u));
+                            _453.z = int((uint(_405) - (_438.y * 32u)) + (_448.y * 32u));
+                            if (groupTexture.read(uint3(uint3(_453 >> int3(3))), 0u).x == 0u)
                             {
-                                int3 _137 = _133 >> int3(3);
-                                for (int _415 = 0; _415 < 3; _415++)
+                                int3 _166 = _162 >> int3(3);
+                                for (int _470 = 0; _470 < 3; _470++)
                                 {
-                                    uint _421 = uint(_415);
-                                    if (_135[_421] > 0)
+                                    uint _476 = uint(_470);
+                                    if (_164[_476] > 0)
                                     {
-                                        _138[_421] = (_137[_421] + 1) * 8;
+                                        _167[_476] = (_166[_476] + 1) * 8;
                                     }
                                     else
                                     {
-                                        _138[_421] = _137[_421] * 8;
+                                        _167[_476] = _166[_476] * 8;
                                     }
                                 }
-                                for (int _438 = 0; _438 < 3; _438++)
+                                for (int _493 = 0; _493 < 3; _493++)
                                 {
-                                    uint _444 = uint(_438);
-                                    if (_135[_444] > 0)
+                                    uint _499 = uint(_493);
+                                    if (_164[_499] > 0)
                                     {
-                                        _139[_444] = _136[_444] + (float((_138[_444] - _133[_444]) - 1) * _134[_444]);
+                                        _168[_499] = _165[_499] + (float((_167[_499] - _162[_499]) - 1) * _163[_499]);
                                     }
                                     else
                                     {
-                                        _139[_444] = _136[_444] + (float(_133[_444] - _138[_444]) * _134[_444]);
+                                        _168[_499] = _165[_499] + (float(_162[_499] - _167[_499]) * _163[_499]);
                                     }
                                 }
-                                int _497;
+                                int _552;
                                 do
                                 {
-                                    if (_139.x < _139.y)
+                                    if (_168.x < _168.y)
                                     {
-                                        if (_139.x < _139.z)
+                                        if (_168.x < _168.z)
                                         {
-                                            _497 = 0;
+                                            _552 = 0;
                                             break;
                                         }
                                         else
                                         {
-                                            _497 = 2;
+                                            _552 = 2;
                                             break;
                                         }
                                         break; // unreachable workaround
                                     }
                                     else
                                     {
-                                        if (_139.y < _139.z)
+                                        if (_168.y < _168.z)
                                         {
-                                            _497 = 1;
+                                            _552 = 1;
                                             break;
                                         }
                                         else
                                         {
-                                            _497 = 2;
+                                            _552 = 2;
                                             break;
                                         }
                                         break; // unreachable workaround
                                     }
                                     break; // unreachable workaround
                                 } while(false);
-                                uint _498 = uint(_497);
-                                _137[_498] += _135[_498];
-                                _133 = int3(floor(_276 + (_274 * _139[_498])));
-                                _133[_498] = (_137[_498] * 8) + ((_135[_498] > 0) ? 0 : 7);
-                                int3 _519 = _137 * int3(8);
-                                _133 = clamp(_133, _519, _519 + int3(7));
-                                for (int _523 = 0; _523 < 3; _523++)
+                                uint _553 = uint(_552);
+                                _166[_553] += _164[_553];
+                                _162 = int3(floor(_329 + (_327 * _168[_553])));
+                                _162[_553] = (_166[_553] * 8) + ((_164[_553] > 0) ? 0 : 7);
+                                int3 _574 = _166 * int3(8);
+                                _162 = clamp(_162, _574, _574 + int3(7));
+                                for (int _578 = 0; _578 < 3; _578++)
                                 {
-                                    uint _529 = uint(_523);
-                                    if (_135[_529] > 0)
+                                    uint _584 = uint(_578);
+                                    if (_164[_584] > 0)
                                     {
-                                        _136[_529] = ((float(_133[_529]) + 1.0) - _141[_529]) * _134[_529];
+                                        _165[_584] = ((float(_162[_584]) + 1.0) - _170[_584]) * _163[_584];
                                     }
                                     else
                                     {
-                                        _136[_529] = (_141[_529] - float(_133[_529])) * _134[_529];
+                                        _165[_584] = (_170[_584] - float(_162[_584])) * _163[_584];
                                     }
                                 }
-                                _338 = _497;
-                                int _341 = _340 + 1;
-                                _337 = _338;
-                                _340 = _341;
+                                _393 = _552;
+                                int _396 = _395 + 1;
+                                _392 = _393;
+                                _395 = _396;
                                 continue;
                             }
-                            uint4 _559 = blockTexture.read(uint3(uint3(_398)), 0u);
-                            uint _560 = _559.x;
-                            bool _561 = (isunordered(_272, 0.001000000047497451305389404296875) || _272 <= 0.001000000047497451305389404296875);
-                            bool _565;
-                            if (_561)
+                            uint4 _614 = blockTexture.read(uint3(uint3(_453)), 0u);
+                            uint _615 = _614.x;
+                            bool _616 = (isunordered(_325, 0.001000000047497451305389404296875) || _325 <= 0.001000000047497451305389404296875);
+                            bool _620;
+                            if (_616)
                             {
-                                _565 = _560 != 0u;
+                                _620 = _615 != 0u;
                             }
                             else
                             {
-                                _565 = true;
+                                _620 = true;
                             }
-                            if (_565)
+                            if (_620)
                             {
-                                bool _573;
-                                if (_561)
+                                bool _628;
+                                if (_616)
                                 {
-                                    _573 = blockState._m0[_560].IOR > 0.001000000047497451305389404296875;
+                                    _628 = blockState._m0[_615].IOR > 0.001000000047497451305389404296875;
                                 }
                                 else
                                 {
-                                    _573 = true;
+                                    _628 = true;
                                 }
-                                bool _578;
-                                if (!_573)
+                                bool _633;
+                                if (!_628)
                                 {
-                                    _578 = _560 != 0u;
+                                    _633 = _615 != 0u;
                                 }
                                 else
                                 {
-                                    _578 = false;
+                                    _633 = false;
                                 }
-                                bool _588;
-                                if (!_578)
+                                bool _643;
+                                if (!_633)
                                 {
-                                    bool _587;
-                                    if (_573)
+                                    bool _642;
+                                    if (_628)
                                     {
-                                        _587 = abs(blockState._m0[_560].IOR - _272) > 0.001000000047497451305389404296875;
+                                        _642 = abs(blockState._m0[_615].IOR - _325) > 0.001000000047497451305389404296875;
                                     }
                                     else
                                     {
-                                        _587 = false;
+                                        _642 = false;
                                     }
-                                    _588 = _587;
+                                    _643 = _642;
                                 }
                                 else
                                 {
-                                    _588 = true;
+                                    _643 = true;
                                 }
-                                if (_588)
+                                if (_643)
                                 {
-                                    float3 _140 = float3(0.0);
-                                    uint _591 = uint(_337);
-                                    _140[_591] = float(-_135[_591]);
-                                    _636 = true;
-                                    _637 = _560;
-                                    _638 = _276 + (_274 * (_136[_591] - _134[_591]));
-                                    _639 = _140;
-                                    _640 = true;
+                                    float3 _169 = float3(0.0);
+                                    uint _646 = uint(_392);
+                                    _169[_646] = float(-_164[_646]);
+                                    _691 = true;
+                                    _692 = _615;
+                                    _693 = _329 + (_327 * (_165[_646] - _163[_646]));
+                                    _694 = _169;
+                                    _695 = true;
                                     break;
                                 }
                             }
-                            int _624;
+                            int _679;
                             do
                             {
-                                if (_136.x < _136.y)
+                                if (_165.x < _165.y)
                                 {
-                                    if (_136.x < _136.z)
+                                    if (_165.x < _165.z)
                                     {
-                                        _624 = 0;
+                                        _679 = 0;
                                         break;
                                     }
                                     else
                                     {
-                                        _624 = 2;
+                                        _679 = 2;
                                         break;
                                     }
                                     break; // unreachable workaround
                                 }
                                 else
                                 {
-                                    if (_136.y < _136.z)
+                                    if (_165.y < _165.z)
                                     {
-                                        _624 = 1;
+                                        _679 = 1;
                                         break;
                                     }
                                     else
                                     {
-                                        _624 = 2;
+                                        _679 = 2;
                                         break;
                                     }
                                     break; // unreachable workaround
                                 }
                                 break; // unreachable workaround
                             } while(false);
-                            uint _625 = uint(_624);
-                            _136[_625] += _134[_625];
-                            _133[_625] += _135[_625];
-                            _338 = _624;
-                            int _341 = _340 + 1;
-                            _337 = _338;
-                            _340 = _341;
+                            uint _680 = uint(_679);
+                            _165[_680] += _163[_680];
+                            _162[_680] += _164[_680];
+                            _393 = _679;
+                            int _396 = _395 + 1;
+                            _392 = _393;
+                            _395 = _396;
                             continue;
                         }
                         else
                         {
-                            _636 = _264;
-                            _637 = _266;
-                            _638 = _268;
-                            _639 = _270;
-                            _640 = false;
+                            _691 = _319;
+                            _692 = _320;
+                            _693 = _322;
+                            _694 = _323;
+                            _695 = false;
                             break;
                         }
                     }
-                    if (_640)
+                    if (_695)
                     {
-                        _265 = _636;
-                        _267 = _637;
-                        _269 = _638;
-                        _271 = _639;
+                        _318 = _691;
+                        _321 = _692;
+                        _316 = _693;
+                        _324 = _694;
                         break;
                     }
-                    _265 = false;
-                    _267 = _109;
-                    _269 = _108;
-                    _271 = _108;
+                    _318 = false;
+                    _321 = _119;
+                    _316 = _117;
+                    _324 = _117;
                     break;
                 } while(false);
-                if (!_265)
+                if (!_318)
                 {
-                    _1287 = _280;
-                    _1288 = _262 + (_251 * ((mix(float3(worldState._m0[0u].SkyBottom), float3(worldState._m0[0u].SkyTop), float3(fast::clamp((_274.y + 1.0) * 0.5, 0.0, 1.0))) * fast::clamp((worldState._m0[0u].SunDirection[1] * 4.0) + 0.1500000059604644775390625, 0.0, 1.0)) + (((float3(worldState._m0[0u].SunColor) * worldState._m0[0u].SunIntensity) * ((smoothstep(0.99919998645782470703125, 0.999599993228912353515625, dot(_274, float3(worldState._m0[0u].SunDirection))) * 4.0) + powr(fast::clamp(dot(_274, float3(worldState._m0[0u].SunDirection)), 0.0, 1.0), 512.0))) * fast::clamp(worldState._m0[0u].SunDirection[1] + 0.100000001490116119384765625, 0.0, 1.0))));
+                    _1974 = _333;
+                    _1975 = _311 + (_288 * ((mix(mix(powr((float3(worldState._m0[0u].Options.SkyBottom) + float3(0.054999999701976776123046875)) * float3(0.947867333889007568359375), float3(2.400000095367431640625)), float3(worldState._m0[0u].Options.SkyBottom) * float3(0.077399380505084991455078125), step(float3(worldState._m0[0u].Options.SkyBottom), float3(0.040449999272823333740234375))), mix(powr((float3(worldState._m0[0u].Options.SkyTop) + float3(0.054999999701976776123046875)) * float3(0.947867333889007568359375), float3(2.400000095367431640625)), float3(worldState._m0[0u].Options.SkyTop) * float3(0.077399380505084991455078125), step(float3(worldState._m0[0u].Options.SkyTop), float3(0.040449999272823333740234375))), float3(fast::clamp((_327.y + 1.0) * 0.5, 0.0, 1.0))) * fast::clamp((worldState._m0[0u].SunDirection[1] * 4.0) + 0.1500000059604644775390625, 0.0, 1.0)) + (((mix(powr((float3(worldState._m0[0u].Options.SunColor) + float3(0.054999999701976776123046875)) * float3(0.947867333889007568359375), float3(2.400000095367431640625)), float3(worldState._m0[0u].Options.SunColor) * float3(0.077399380505084991455078125), step(float3(worldState._m0[0u].Options.SunColor), float3(0.040449999272823333740234375))) * worldState._m0[0u].Options.SunIntensity) * ((smoothstep(0.99919998645782470703125, 0.999599993228912353515625, dot(_327, float3(worldState._m0[0u].SunDirection))) * 4.0) + powr(fast::clamp(dot(_327, float3(worldState._m0[0u].SunDirection)), 0.0, 1.0), 512.0))) * fast::clamp(worldState._m0[0u].SunDirection[1] + 0.100000001490116119384765625, 0.0, 1.0))));
                     break;
                 }
-                bool _680 = _278 == 0;
-                if (_680)
+                bool _753 = _331 == 0;
+                if (_753)
                 {
-                    _281 = exp2((-12.0) * (1.0 - fast::clamp(distance(_269, float3(cameraState._m0[0u].Position)) / float(worldState._m0[0u].MaxSteps), 0.0, 1.0)));
+                    _334 = exp2((-12.0) * (1.0 - fast::clamp(distance(_316, float3(cameraState._m0[0u].Position)) / float(worldState._m0[0u].Options.MaxSteps), 0.0, 1.0)));
                 }
                 else
                 {
-                    _281 = _280;
+                    _334 = _333;
                 }
-                bool _702;
-                if (_680)
+                bool _774;
+                if (_317)
                 {
-                    _702 = length(_271) < 0.001000000047497451305389404296875;
-                }
-                else
-                {
-                    _702 = false;
-                }
-                if (_702)
-                {
-                    _252 = _251;
-                    _255 = _254;
-                    _257 = _256;
-                    _259 = _258;
-                    _261 = _260;
-                    _263 = _262;
-                    _273 = blockState._m0[_267].IOR;
-                    _275 = _274;
-                    _277 = _276;
-                    int _279 = _278 + 1;
-                    _251 = _252;
-                    _254 = _255;
-                    _256 = _257;
-                    _258 = _259;
-                    _260 = _261;
-                    _262 = _263;
-                    _264 = _265;
-                    _266 = _267;
-                    _268 = _269;
-                    _270 = _271;
-                    _272 = _273;
-                    _274 = _275;
-                    _276 = _277;
-                    _278 = _279;
-                    _280 = _281;
-                    continue;
-                }
-                bool _705 = _267 != 0u;
-                float3 _731;
-                float3 _732;
-                if (_705)
-                {
-                    float3 _720 = float3(float((blockState._m0[_267].Color >> 24u) & 255u) * 0.0039215688593685626983642578125, float((blockState._m0[_267].Color >> 16u) & 255u) * 0.0039215688593685626983642578125, float((blockState._m0[_267].Color >> 8u) & 255u) * 0.0039215688593685626983642578125);
-                    float3 _726 = mix(powr((_720 + float3(0.054999999701976776123046875)) * float3(0.947867333889007568359375), float3(2.400000095367431640625)), _720 * float3(0.077399380505084991455078125), step(_720, float3(0.040449999272823333740234375)));
-                    _731 = _251 * _726;
-                    _732 = _262 + (_251 * (_726 * blockState._m0[_267].Light));
+                    _774 = blockState._m0[_321].Light > 0.001000000047497451305389404296875;
                 }
                 else
                 {
-                    _731 = _251;
-                    _732 = _262;
+                    _774 = false;
                 }
-                bool _741;
-                if ((isunordered(blockState._m0[_267].IOR, 0.001000000047497451305389404296875) || blockState._m0[_267].IOR <= 0.001000000047497451305389404296875))
+                float3 _782;
+                if (_774)
                 {
-                    bool _740;
-                    if (_272 > 0.001000000047497451305389404296875)
-                    {
-                        _740 = _267 == 0u;
-                    }
-                    else
-                    {
-                        _740 = false;
-                    }
-                    _741 = _740;
+                    float3 _777 = _316 - _315;
+                    _782 = _288 * (1.0 / precise::max(dot(_777, _777), 1.0));
                 }
                 else
                 {
-                    _741 = true;
-                }
-                uint _781;
-                if (_741)
-                {
-                    uint _744 = _260 * 747796405u;
-                    uint _745 = _744 + 2891336453u;
-                    uint _751 = ((_745 >> (((_745 >> 28u) + 4u) & 31u)) ^ _745) * 277803737u;
-                    float _756 = _272 + 1.0;
-                    float _757 = blockState._m0[_267].IOR + 1.0;
-                    float _761 = powr((_756 - _757) / (_756 + _757), 2.0);
-                    if ((float((_751 >> 22u) ^ _751) * 2.3283064365386962890625e-10) > (_761 + ((1.0 - _761) * powr(1.0 - fast::clamp(dot(-_274, _271), 0.0, 1.0), 5.0))))
-                    {
-                        float3 _774 = refract(_274, _271, _756 / _757);
-                        if (length(_774) > 0.001000000047497451305389404296875)
-                        {
-                            _252 = _731;
-                            _255 = _254;
-                            _257 = _256;
-                            _259 = _258;
-                            _261 = _745;
-                            _263 = _732;
-                            _273 = blockState._m0[_267].IOR;
-                            _275 = _774;
-                            _277 = _269 + (_774 * 0.001000000047497451305389404296875);
-                            int _279 = _278 + 1;
-                            _251 = _252;
-                            _254 = _255;
-                            _256 = _257;
-                            _258 = _259;
-                            _260 = _261;
-                            _262 = _263;
-                            _264 = _265;
-                            _266 = _267;
-                            _268 = _269;
-                            _270 = _271;
-                            _272 = _273;
-                            _274 = _275;
-                            _276 = _277;
-                            _278 = _279;
-                            _280 = _281;
-                            continue;
-                        }
-                    }
-                    _781 = _745;
-                }
-                else
-                {
-                    _781 = _260;
+                    _782 = _288;
                 }
                 bool _787;
-                if (_680 ? _705 : false)
+                if (_753)
                 {
-                    _787 = worldState._m0[0u].SunDirection[1] > 0.0;
+                    _787 = length(_324) < 0.001000000047497451305389404296875;
                 }
                 else
                 {
                     _787 = false;
                 }
-                bool _1197;
-                uint _1198;
-                float3 _1199;
-                float3 _1200;
                 if (_787)
                 {
-                    float _792 = fast::clamp(dot(_271, float3(worldState._m0[0u].SunDirection)), 0.0, 1.0);
-                    bool _1193;
-                    uint _1194;
-                    float3 _1195;
-                    float3 _1196;
-                    if (_792 > 0.0)
+                    _289 = _782;
+                    _292 = _291;
+                    _294 = _293;
+                    _296 = _295;
+                    _298 = _297;
+                    _300 = _299;
+                    _302 = _301;
+                    _304 = _303;
+                    _306 = _305;
+                    _308 = _307;
+                    _310 = _309;
+                    _312 = _311;
+                    _314 = _313;
+                    _326 = blockState._m0[_321].IOR;
+                    _328 = _327;
+                    _330 = _329;
+                    int _332 = _331 + 1;
+                    _288 = _289;
+                    _291 = _292;
+                    _293 = _294;
+                    _295 = _296;
+                    _297 = _298;
+                    _299 = _300;
+                    _301 = _302;
+                    _303 = _304;
+                    _305 = _306;
+                    _307 = _308;
+                    _309 = _310;
+                    _311 = _312;
+                    _313 = _314;
+                    _315 = _316;
+                    _317 = _318;
+                    _319 = _318;
+                    _320 = _321;
+                    _322 = _316;
+                    _323 = _324;
+                    _325 = _326;
+                    _327 = _328;
+                    _329 = _330;
+                    _331 = _332;
+                    _333 = _334;
+                    continue;
+                }
+                bool _790 = _321 != 0u;
+                float3 _821;
+                float3 _822;
+                if (_790)
+                {
+                    float3 _802 = float3(float((blockState._m0[_321].Color >> 24u) & 255u), float((blockState._m0[_321].Color >> 16u) & 255u), float((blockState._m0[_321].Color >> 8u) & 255u));
+                    float3 _803 = _802 * float3(0.0039215688593685626983642578125);
+                    float3 _809 = mix(powr((_803 + float3(0.054999999701976776123046875)) * float3(0.947867333889007568359375), float3(2.400000095367431640625)), _802 * float3(0.000303526991046965122222900390625), step(_803, float3(0.040449999272823333740234375)));
+                    float3 _816;
+                    if (!_313)
                     {
-                        float3 _804;
-                        float3 _808;
-                        _804 = _258;
-                        _808 = _269 + (_271 * 0.001000000047497451305389404296875);
-                        float _807;
-                        float3 _809;
-                        bool _800;
-                        uint _803;
-                        float3 _805;
-                        bool _1176;
-                        uint _1177;
-                        float3 _1178;
-                        bool _1179;
-                        bool _799 = _254;
-                        uint _802 = _256;
-                        float _806 = 0.0;
-                        int _810 = 0;
+                        _816 = _311 + (_782 * (_809 * blockState._m0[_321].Light));
+                    }
+                    else
+                    {
+                        _816 = _311;
+                    }
+                    if (blockState._m0[_321].Light > 0.001000000047497451305389404296875)
+                    {
+                        _1974 = _334;
+                        _1975 = _816;
+                        break;
+                    }
+                    _821 = _782 * _809;
+                    _822 = _816;
+                }
+                else
+                {
+                    _821 = _782;
+                    _822 = _311;
+                }
+                bool _831;
+                if ((isunordered(blockState._m0[_321].IOR, 0.001000000047497451305389404296875) || blockState._m0[_321].IOR <= 0.001000000047497451305389404296875))
+                {
+                    bool _830;
+                    if (_325 > 0.001000000047497451305389404296875)
+                    {
+                        _830 = _321 == 0u;
+                    }
+                    else
+                    {
+                        _830 = false;
+                    }
+                    _831 = _830;
+                }
+                else
+                {
+                    _831 = true;
+                }
+                uint _871;
+                if (_831)
+                {
+                    uint _834 = _309 * 747796405u;
+                    uint _835 = _834 + 2891336453u;
+                    uint _841 = ((_835 >> (((_835 >> 28u) + 4u) & 31u)) ^ _835) * 277803737u;
+                    float _846 = _325 + 1.0;
+                    float _847 = blockState._m0[_321].IOR + 1.0;
+                    float _851 = powr((_846 - _847) / (_846 + _847), 2.0);
+                    if ((float((_841 >> 22u) ^ _841) * 2.3283064365386962890625e-10) > (_851 + ((1.0 - _851) * powr(1.0 - fast::clamp(dot(-_327, _324), 0.0, 1.0), 5.0))))
+                    {
+                        float3 _864 = refract(_327, _324, _846 / _847);
+                        if (length(_864) > 0.001000000047497451305389404296875)
+                        {
+                            _289 = _821;
+                            _292 = _291;
+                            _294 = _293;
+                            _296 = _295;
+                            _298 = _297;
+                            _300 = _299;
+                            _302 = _301;
+                            _304 = _303;
+                            _306 = _305;
+                            _308 = _307;
+                            _310 = _835;
+                            _312 = _822;
+                            _314 = false;
+                            _326 = blockState._m0[_321].IOR;
+                            _328 = _864;
+                            _330 = _316 + (_864 * 0.001000000047497451305389404296875);
+                            int _332 = _331 + 1;
+                            _288 = _289;
+                            _291 = _292;
+                            _293 = _294;
+                            _295 = _296;
+                            _297 = _298;
+                            _299 = _300;
+                            _301 = _302;
+                            _303 = _304;
+                            _305 = _306;
+                            _307 = _308;
+                            _309 = _310;
+                            _311 = _312;
+                            _313 = _314;
+                            _315 = _316;
+                            _317 = _318;
+                            _319 = _318;
+                            _320 = _321;
+                            _322 = _316;
+                            _323 = _324;
+                            _325 = _326;
+                            _327 = _328;
+                            _329 = _330;
+                            _331 = _332;
+                            _333 = _334;
+                            continue;
+                        }
+                    }
+                    _871 = _835;
+                }
+                else
+                {
+                    _871 = _309;
+                }
+                bool _876;
+                if (_790)
+                {
+                    _876 = worldState._m0[0u].SunDirection[1] > 0.0;
+                }
+                else
+                {
+                    _876 = false;
+                }
+                bool _1319;
+                uint _1320;
+                float3 _1321;
+                float3 _1322;
+                float3 _1323;
+                if (_876)
+                {
+                    float _881 = fast::clamp(dot(_324, float3(worldState._m0[0u].SunDirection)), 0.0, 1.0);
+                    bool _1314;
+                    uint _1315;
+                    float3 _1316;
+                    float3 _1317;
+                    float3 _1318;
+                    if (_881 > 0.0)
+                    {
+                        float3 _894;
+                        float3 _896;
+                        float3 _900;
+                        float3 _902;
+                        _894 = _305;
+                        _896 = _307;
+                        _900 = float3(worldState._m0[0u].SunDirection);
+                        _902 = _316 + (_324 * 0.001000000047497451305389404296875);
+                        float _899;
+                        float3 _901;
+                        float3 _903;
+                        bool _890;
+                        uint _893;
+                        float3 _895;
+                        float3 _897;
+                        bool _1284;
+                        uint _1285;
+                        float3 _1286;
+                        float3 _1287;
+                        bool _1288;
+                        uint _1289;
+                        bool _889 = _301;
+                        uint _892 = _303;
+                        float _898 = 0.0;
+                        int _904 = 0;
+                        bool _906 = false;
+                        uint _907 = 0u;
                         for (;;)
                         {
-                            if (_810 < 4)
+                            if (_904 < 4)
                             {
-                                float3 _143 = _808;
-                                float3 _144 = float3(worldState._m0[0u].SunDirection);
+                                float3 _160 = _902;
+                                float3 _161 = _900;
                                 do
                                 {
-                                    int3 _126 = int3(floor(_808));
-                                    float3 _127 = abs(float3(1.0) / float3(worldState._m0[0u].SunDirection));
-                                    for (int _823 = 0; _823 < 3; _823++)
+                                    int3 _152 = int3(floor(_902));
+                                    float3 _153 = abs(float3(1.0) / _900);
+                                    for (int _918 = 0; _918 < 3; _918++)
                                     {
-                                        uint _829 = uint(_823);
-                                        if (_144[_829] < 0.0)
+                                        uint _924 = uint(_918);
+                                        if (_161[_924] < 0.0)
                                         {
-                                            _128[_829] = -1;
-                                            _129[_829] = (_143[_829] - float(_126[_829])) * _127[_829];
+                                            _154[_924] = -1;
+                                            _155[_924] = (_160[_924] - float(_152[_924])) * _153[_924];
                                         }
                                         else
                                         {
-                                            _128[_829] = 1;
-                                            _129[_829] = ((float(_126[_829]) + 1.0) - _143[_829]) * _127[_829];
+                                            _154[_924] = 1;
+                                            _155[_924] = ((float(_152[_924]) + 1.0) - _160[_924]) * _153[_924];
                                         }
                                     }
-                                    int _861 = ((device int*)&worldState._m0[0u].Position)[0] * 32;
-                                    int _863 = ((device int*)&worldState._m0[0u].Position)[1] * 32;
-                                    int _866;
-                                    bool _1158;
-                                    uint _1159;
-                                    float3 _1160;
-                                    bool _1161;
-                                    int _865 = -1;
-                                    int _868 = 0;
+                                    int _956 = ((device int*)&worldState._m0[0u].Position)[0] * 32;
+                                    int _958 = ((device int*)&worldState._m0[0u].Position)[1] * 32;
+                                    int _961;
+                                    bool _1259;
+                                    uint _1260;
+                                    float3 _1261;
+                                    float3 _1262;
+                                    bool _1263;
+                                    int _960 = -1;
+                                    int _963 = 0;
                                     for (;;)
                                     {
-                                        if (_868 < worldState._m0[0u].MaxSteps)
+                                        if (_963 < worldState._m0[0u].Options.MaxSteps)
                                         {
-                                            int3 _873 = _126;
-                                            int _875 = _873.x - _861;
-                                            int3 _876 = _873;
-                                            _876.x = _875;
-                                            int _878 = _873.z - _863;
-                                            _876.z = _878;
-                                            bool _884;
-                                            if (_875 >= 0)
+                                            int3 _968 = _152;
+                                            int _970 = _968.x - _956;
+                                            int3 _971 = _968;
+                                            _971.x = _970;
+                                            int _973 = _968.z - _958;
+                                            _971.z = _973;
+                                            bool _979;
+                                            if (_970 >= 0)
                                             {
-                                                _884 = _878 < 0;
+                                                _979 = _973 < 0;
                                             }
                                             else
                                             {
-                                                _884 = true;
+                                                _979 = true;
                                             }
-                                            bool _889;
-                                            if (!_884)
+                                            bool _984;
+                                            if (!_979)
                                             {
-                                                _889 = _875 >= 2048;
-                                            }
-                                            else
-                                            {
-                                                _889 = true;
-                                            }
-                                            bool _894;
-                                            if (!_889)
-                                            {
-                                                _894 = _878 >= 2048;
+                                                _984 = _970 >= 2048;
                                             }
                                             else
                                             {
-                                                _894 = true;
+                                                _984 = true;
                                             }
-                                            bool _906;
-                                            if (!_894)
+                                            bool _989;
+                                            if (!_984)
                                             {
-                                                bool _905;
-                                                if (_128.y > 0)
+                                                _989 = _973 >= 2048;
+                                            }
+                                            else
+                                            {
+                                                _989 = true;
+                                            }
+                                            bool _1001;
+                                            if (!_989)
+                                            {
+                                                bool _1000;
+                                                if (_154.y > 0)
                                                 {
-                                                    _905 = _873.y > 128;
+                                                    _1000 = _968.y > 128;
                                                 }
                                                 else
                                                 {
-                                                    _905 = false;
+                                                    _1000 = false;
                                                 }
-                                                _906 = _905;
+                                                _1001 = _1000;
                                             }
                                             else
                                             {
-                                                _906 = true;
+                                                _1001 = true;
                                             }
-                                            if (_906)
+                                            if (_1001)
                                             {
-                                                _1158 = _799;
-                                                _1159 = _802;
-                                                _1160 = _804;
-                                                _1161 = false;
+                                                _1259 = _889;
+                                                _1260 = _892;
+                                                _1261 = _894;
+                                                _1262 = _896;
+                                                _1263 = false;
                                                 break;
                                             }
-                                            uint2 _911 = uint2(_876.xz) >> uint2(5u);
-                                            uint4 _921 = chunkTexture.read(uint2(_911), 0u);
-                                            int3 _926 = _876;
-                                            _926.x = int((uint(_875) - (_911.x * 32u)) + (_921.x * 32u));
-                                            _926.z = int((uint(_878) - (_911.y * 32u)) + (_921.y * 32u));
-                                            if (groupTexture.read(uint3(uint3(_926 >> int3(3))), 0u).x == 0u)
+                                            uint2 _1006 = uint2(_971.xz) >> uint2(5u);
+                                            uint4 _1016 = chunkTexture.read(uint2(_1006), 0u);
+                                            int3 _1021 = _971;
+                                            _1021.x = int((uint(_970) - (_1006.x * 32u)) + (_1016.x * 32u));
+                                            _1021.z = int((uint(_973) - (_1006.y * 32u)) + (_1016.y * 32u));
+                                            if (groupTexture.read(uint3(uint3(_1021 >> int3(3))), 0u).x == 0u)
                                             {
-                                                int3 _130 = _126 >> int3(3);
-                                                for (int _943 = 0; _943 < 3; _943++)
+                                                int3 _156 = _152 >> int3(3);
+                                                for (int _1038 = 0; _1038 < 3; _1038++)
                                                 {
-                                                    uint _949 = uint(_943);
-                                                    if (_128[_949] > 0)
+                                                    uint _1044 = uint(_1038);
+                                                    if (_154[_1044] > 0)
                                                     {
-                                                        _131[_949] = (_130[_949] + 1) * 8;
+                                                        _157[_1044] = (_156[_1044] + 1) * 8;
                                                     }
                                                     else
                                                     {
-                                                        _131[_949] = _130[_949] * 8;
+                                                        _157[_1044] = _156[_1044] * 8;
                                                     }
                                                 }
-                                                for (int _966 = 0; _966 < 3; _966++)
+                                                for (int _1061 = 0; _1061 < 3; _1061++)
                                                 {
-                                                    uint _972 = uint(_966);
-                                                    if (_128[_972] > 0)
+                                                    uint _1067 = uint(_1061);
+                                                    if (_154[_1067] > 0)
                                                     {
-                                                        _132[_972] = _129[_972] + (float((_131[_972] - _126[_972]) - 1) * _127[_972]);
+                                                        _158[_1067] = _155[_1067] + (float((_157[_1067] - _152[_1067]) - 1) * _153[_1067]);
                                                     }
                                                     else
                                                     {
-                                                        _132[_972] = _129[_972] + (float(_126[_972] - _131[_972]) * _127[_972]);
+                                                        _158[_1067] = _155[_1067] + (float(_152[_1067] - _157[_1067]) * _153[_1067]);
                                                     }
                                                 }
-                                                int _1025;
+                                                int _1120;
                                                 do
                                                 {
-                                                    if (_132.x < _132.y)
+                                                    if (_158.x < _158.y)
                                                     {
-                                                        if (_132.x < _132.z)
+                                                        if (_158.x < _158.z)
                                                         {
-                                                            _1025 = 0;
+                                                            _1120 = 0;
                                                             break;
                                                         }
                                                         else
                                                         {
-                                                            _1025 = 2;
+                                                            _1120 = 2;
                                                             break;
                                                         }
                                                         break; // unreachable workaround
                                                     }
                                                     else
                                                     {
-                                                        if (_132.y < _132.z)
+                                                        if (_158.y < _158.z)
                                                         {
-                                                            _1025 = 1;
+                                                            _1120 = 1;
                                                             break;
                                                         }
                                                         else
                                                         {
-                                                            _1025 = 2;
+                                                            _1120 = 2;
                                                             break;
                                                         }
                                                         break; // unreachable workaround
                                                     }
                                                     break; // unreachable workaround
                                                 } while(false);
-                                                uint _1026 = uint(_1025);
-                                                _130[_1026] += _128[_1026];
-                                                _126 = int3(floor(_808 + (float3(worldState._m0[0u].SunDirection) * _132[_1026])));
-                                                _126[_1026] = (_130[_1026] * 8) + ((_128[_1026] > 0) ? 0 : 7);
-                                                int3 _1047 = _130 * int3(8);
-                                                _126 = clamp(_126, _1047, _1047 + int3(7));
-                                                for (int _1051 = 0; _1051 < 3; _1051++)
+                                                uint _1121 = uint(_1120);
+                                                _156[_1121] += _154[_1121];
+                                                _152 = int3(floor(_902 + (_900 * _158[_1121])));
+                                                _152[_1121] = (_156[_1121] * 8) + ((_154[_1121] > 0) ? 0 : 7);
+                                                int3 _1142 = _156 * int3(8);
+                                                _152 = clamp(_152, _1142, _1142 + int3(7));
+                                                for (int _1146 = 0; _1146 < 3; _1146++)
                                                 {
-                                                    uint _1057 = uint(_1051);
-                                                    if (_128[_1057] > 0)
+                                                    uint _1152 = uint(_1146);
+                                                    if (_154[_1152] > 0)
                                                     {
-                                                        _129[_1057] = ((float(_126[_1057]) + 1.0) - _143[_1057]) * _127[_1057];
+                                                        _155[_1152] = ((float(_152[_1152]) + 1.0) - _160[_1152]) * _153[_1152];
                                                     }
                                                     else
                                                     {
-                                                        _129[_1057] = (_143[_1057] - float(_126[_1057])) * _127[_1057];
+                                                        _155[_1152] = (_160[_1152] - float(_152[_1152])) * _153[_1152];
                                                     }
                                                 }
-                                                _866 = _1025;
-                                                int _869 = _868 + 1;
-                                                _865 = _866;
-                                                _868 = _869;
+                                                _961 = _1120;
+                                                int _964 = _963 + 1;
+                                                _960 = _961;
+                                                _963 = _964;
                                                 continue;
                                             }
-                                            uint4 _1087 = blockTexture.read(uint3(uint3(_926)), 0u);
-                                            uint _1088 = _1087.x;
-                                            bool _1089 = (isunordered(_806, 0.001000000047497451305389404296875) || _806 <= 0.001000000047497451305389404296875);
-                                            bool _1093;
-                                            if (_1089)
+                                            uint4 _1182 = blockTexture.read(uint3(uint3(_1021)), 0u);
+                                            uint _1183 = _1182.x;
+                                            bool _1184 = (isunordered(_898, 0.001000000047497451305389404296875) || _898 <= 0.001000000047497451305389404296875);
+                                            bool _1188;
+                                            if (_1184)
                                             {
-                                                _1093 = _1088 != 0u;
+                                                _1188 = _1183 != 0u;
                                             }
                                             else
                                             {
-                                                _1093 = true;
+                                                _1188 = true;
                                             }
-                                            if (_1093)
+                                            if (_1188)
                                             {
-                                                bool _1101;
-                                                if (_1089)
+                                                bool _1196;
+                                                if (_1184)
                                                 {
-                                                    _1101 = blockState._m0[_1088].IOR > 0.001000000047497451305389404296875;
+                                                    _1196 = blockState._m0[_1183].IOR > 0.001000000047497451305389404296875;
                                                 }
                                                 else
                                                 {
-                                                    _1101 = true;
+                                                    _1196 = true;
                                                 }
-                                                bool _1106;
-                                                if (!_1101)
+                                                bool _1201;
+                                                if (!_1196)
                                                 {
-                                                    _1106 = _1088 != 0u;
+                                                    _1201 = _1183 != 0u;
                                                 }
                                                 else
                                                 {
-                                                    _1106 = false;
+                                                    _1201 = false;
                                                 }
-                                                bool _1116;
-                                                if (!_1106)
+                                                bool _1211;
+                                                if (!_1201)
                                                 {
-                                                    bool _1115;
-                                                    if (_1101)
+                                                    bool _1210;
+                                                    if (_1196)
                                                     {
-                                                        _1115 = abs(blockState._m0[_1088].IOR - _806) > 0.001000000047497451305389404296875;
+                                                        _1210 = abs(blockState._m0[_1183].IOR - _898) > 0.001000000047497451305389404296875;
                                                     }
                                                     else
                                                     {
-                                                        _1115 = false;
+                                                        _1210 = false;
                                                     }
-                                                    _1116 = _1115;
+                                                    _1211 = _1210;
                                                 }
                                                 else
                                                 {
-                                                    _1116 = true;
+                                                    _1211 = true;
                                                 }
-                                                if (_1116)
+                                                if (_1211)
                                                 {
-                                                    uint _1119 = uint(_865);
-                                                    _1158 = true;
-                                                    _1159 = _1088;
-                                                    _1160 = _808 + (float3(worldState._m0[0u].SunDirection) * (_129[_1119] - _127[_1119]));
-                                                    _1161 = true;
+                                                    float3 _159 = float3(0.0);
+                                                    uint _1214 = uint(_960);
+                                                    _159[_1214] = float(-_154[_1214]);
+                                                    _1259 = true;
+                                                    _1260 = _1183;
+                                                    _1261 = _902 + (_900 * (_155[_1214] - _153[_1214]));
+                                                    _1262 = _159;
+                                                    _1263 = true;
                                                     break;
                                                 }
                                             }
-                                            int _1146;
+                                            int _1247;
                                             do
                                             {
-                                                if (_129.x < _129.y)
+                                                if (_155.x < _155.y)
                                                 {
-                                                    if (_129.x < _129.z)
+                                                    if (_155.x < _155.z)
                                                     {
-                                                        _1146 = 0;
+                                                        _1247 = 0;
                                                         break;
                                                     }
                                                     else
                                                     {
-                                                        _1146 = 2;
+                                                        _1247 = 2;
                                                         break;
                                                     }
                                                     break; // unreachable workaround
                                                 }
                                                 else
                                                 {
-                                                    if (_129.y < _129.z)
+                                                    if (_155.y < _155.z)
                                                     {
-                                                        _1146 = 1;
+                                                        _1247 = 1;
                                                         break;
                                                     }
                                                     else
                                                     {
-                                                        _1146 = 2;
+                                                        _1247 = 2;
                                                         break;
                                                     }
                                                     break; // unreachable workaround
                                                 }
                                                 break; // unreachable workaround
                                             } while(false);
-                                            uint _1147 = uint(_1146);
-                                            _129[_1147] += _127[_1147];
-                                            _126[_1147] += _128[_1147];
-                                            _866 = _1146;
-                                            int _869 = _868 + 1;
-                                            _865 = _866;
-                                            _868 = _869;
+                                            uint _1248 = uint(_1247);
+                                            _155[_1248] += _153[_1248];
+                                            _152[_1248] += _154[_1248];
+                                            _961 = _1247;
+                                            int _964 = _963 + 1;
+                                            _960 = _961;
+                                            _963 = _964;
                                             continue;
                                         }
                                         else
                                         {
-                                            _1158 = _799;
-                                            _1159 = _802;
-                                            _1160 = _804;
-                                            _1161 = false;
+                                            _1259 = _889;
+                                            _1260 = _892;
+                                            _1261 = _894;
+                                            _1262 = _896;
+                                            _1263 = false;
                                             break;
                                         }
                                     }
-                                    if (_1161)
+                                    if (_1263)
                                     {
-                                        _800 = _1158;
-                                        _803 = _1159;
-                                        _805 = _1160;
+                                        _890 = _1259;
+                                        _893 = _1260;
+                                        _895 = _1261;
+                                        _897 = _1262;
                                         break;
                                     }
-                                    _800 = false;
-                                    _803 = _109;
-                                    _805 = _108;
+                                    _890 = false;
+                                    _893 = _119;
+                                    _895 = _117;
+                                    _897 = _117;
                                     break;
                                 } while(false);
-                                if (!_800)
+                                if (!_890)
                                 {
-                                    _1176 = _800;
-                                    _1177 = _803;
-                                    _1178 = _805;
-                                    _1179 = false;
+                                    _1284 = _890;
+                                    _1285 = _893;
+                                    _1286 = _895;
+                                    _1287 = _897;
+                                    _1288 = _890;
+                                    _1289 = _893;
                                     break;
                                 }
-                                _807 = blockState._m0[_803].IOR;
-                                bool _1171;
-                                if (_803 != 0u)
+                                _899 = blockState._m0[_893].IOR;
+                                bool _1273;
+                                if (_893 != 0u)
                                 {
-                                    _1171 = _807 <= 0.001000000047497451305389404296875;
+                                    _1273 = _899 <= 0.001000000047497451305389404296875;
                                 }
                                 else
                                 {
-                                    _1171 = false;
+                                    _1273 = false;
                                 }
-                                if (_1171)
+                                if (_1273)
                                 {
-                                    _1176 = _800;
-                                    _1177 = _803;
-                                    _1178 = _805;
-                                    _1179 = true;
+                                    _1284 = _890;
+                                    _1285 = _893;
+                                    _1286 = _895;
+                                    _1287 = _897;
+                                    _1288 = _890;
+                                    _1289 = _893;
                                     break;
                                 }
-                                _809 = _805 + (float3(worldState._m0[0u].SunDirection) * 0.001000000047497451305389404296875);
-                                _799 = _800;
-                                _802 = _803;
-                                _804 = _805;
-                                _806 = _807;
-                                _808 = _809;
-                                _810++;
+                                _901 = refract(_900, _897, (1.0 + _898) / (1.0 + _899));
+                                if (length(_901) <= 0.001000000047497451305389404296875)
+                                {
+                                    _1284 = _890;
+                                    _1285 = _893;
+                                    _1286 = _895;
+                                    _1287 = _897;
+                                    _1288 = _890;
+                                    _1289 = _893;
+                                    break;
+                                }
+                                _903 = _895 + (_901 * 0.001000000047497451305389404296875);
+                                _889 = _890;
+                                _892 = _893;
+                                _894 = _895;
+                                _896 = _897;
+                                _898 = _899;
+                                _900 = _901;
+                                _902 = _903;
+                                _904++;
+                                _906 = _890;
+                                _907 = _893;
                                 continue;
                             }
                             else
                             {
-                                _1176 = _799;
-                                _1177 = _802;
-                                _1178 = _804;
-                                _1179 = false;
+                                _1284 = _889;
+                                _1285 = _892;
+                                _1286 = _894;
+                                _1287 = _896;
+                                _1288 = _906;
+                                _1289 = _907;
                                 break;
                             }
                         }
-                        float3 _1192;
-                        if (!_1179)
+                        bool _1295;
+                        if (_1288)
                         {
-                            _1192 = _732 + ((((_731 * blockState._m0[_267].Roughness) * _792) * float3(worldState._m0[0u].SunColor)) * worldState._m0[0u].SunIntensity);
+                            _1295 = blockState._m0[_1289].IOR > 0.001000000047497451305389404296875;
                         }
                         else
                         {
-                            _1192 = _732;
+                            _1295 = true;
                         }
-                        _1193 = _1176;
-                        _1194 = _1177;
-                        _1195 = _1178;
-                        _1196 = _1192;
+                        float3 _1313;
+                        if (_1295)
+                        {
+                            _1313 = _822 + ((((_821 * blockState._m0[_321].Roughness) * _881) * mix(powr((float3(worldState._m0[0u].Options.SunColor) + float3(0.054999999701976776123046875)) * float3(0.947867333889007568359375), float3(2.400000095367431640625)), float3(worldState._m0[0u].Options.SunColor) * float3(0.077399380505084991455078125), step(float3(worldState._m0[0u].Options.SunColor), float3(0.040449999272823333740234375)))) * worldState._m0[0u].Options.SunIntensity);
+                        }
+                        else
+                        {
+                            _1313 = _822;
+                        }
+                        _1314 = _1284;
+                        _1315 = _1285;
+                        _1316 = _1286;
+                        _1317 = _1287;
+                        _1318 = _1313;
                     }
                     else
                     {
-                        _1193 = _254;
-                        _1194 = _256;
-                        _1195 = _258;
-                        _1196 = _732;
+                        _1314 = _301;
+                        _1315 = _303;
+                        _1316 = _305;
+                        _1317 = _307;
+                        _1318 = _822;
                     }
-                    _1197 = _1193;
-                    _1198 = _1194;
-                    _1199 = _1195;
-                    _1200 = _1196;
+                    _1319 = _1314;
+                    _1320 = _1315;
+                    _1321 = _1316;
+                    _1322 = _1317;
+                    _1323 = _1318;
                 }
                 else
                 {
-                    _1197 = _254;
-                    _1198 = _256;
-                    _1199 = _258;
-                    _1200 = _732;
+                    _1319 = _301;
+                    _1320 = _303;
+                    _1321 = _305;
+                    _1322 = _307;
+                    _1323 = _822;
                 }
-                uint _1203 = (_781 * 747796405u) + 2891336453u;
-                uint _1209 = ((_1203 >> (((_1203 >> 28u) + 4u) & 31u)) ^ _1203) * 277803737u;
-                float _1213 = float((_1209 >> 22u) ^ _1209) * 2.3283064365386962890625e-10;
-                float _1214 = sqrt(_1213);
-                uint _1218 = (_1203 * 747796405u) + 2891336453u;
-                uint _1224 = ((_1218 >> (((_1218 >> 28u) + 4u) & 31u)) ^ _1218) * 277803737u;
-                float _1228 = float((_1224 >> 22u) ^ _1224) * 1.4629181199765639576071407645941e-09;
-                float3 _1239 = fast::normalize(cross(select(float3(1.0, 0.0, 0.0), float3(0.0, 1.0, 0.0), bool3(abs(_271.y) < 0.999000012874603271484375)), _271));
-                if (blockState._m0[_267].Light > 0.001000000047497451305389404296875)
+                bool _1330;
+                if (UniformBuffer.LightCount > 0)
                 {
-                    _1287 = _281;
-                    _1288 = _1200;
-                    break;
+                    _1330 = blockState._m0[_321].Roughness > 0.001000000047497451305389404296875;
                 }
-                float3 _1285;
-                uint _1286;
-                if (_278 >= 2)
+                else
                 {
-                    float _1262 = fast::clamp(precise::max(_731.x, precise::max(_731.y, _731.z)), 0.0, 1.0);
-                    uint _1279;
-                    bool _1280;
-                    if ((isunordered(_1262, 0.001000000047497451305389404296875) || _1262 >= 0.001000000047497451305389404296875))
+                    _1330 = false;
+                }
+                bool _1876;
+                uint _1877;
+                float3 _1878;
+                int3 _1879;
+                float3 _1880;
+                bool _1881;
+                float3 _1882;
+                uint _1883;
+                if (_1330)
+                {
+                    uint _1334 = (_871 * 747796405u) + 2891336453u;
+                    uint _1340 = ((_1334 >> (((_1334 >> 28u) + 4u) & 31u)) ^ _1334) * 277803737u;
+                    float _1345 = float(UniformBuffer.LightCount);
+                    uint _1348 = uint(int((float((_1340 >> 22u) ^ _1340) * 2.3283064365386962890625e-10) * _1345));
+                    uint _1352 = uint(((device int*)&lights._m0[_1348])[3]);
+                    bool _1868;
+                    uint _1869;
+                    float3 _1870;
+                    int3 _1871;
+                    float3 _1872;
+                    bool _1873;
+                    float3 _1874;
+                    uint _1875;
+                    if (blockState._m0[_1352].Light > 0.001000000047497451305389404296875)
                     {
-                        uint _1267 = (_1218 * 747796405u) + 2891336453u;
-                        uint _1273 = ((_1267 >> (((_1267 >> 28u) + 4u) & 31u)) ^ _1267) * 277803737u;
-                        _1279 = _1267;
-                        _1280 = (float((_1273 >> 22u) ^ _1273) * 2.3283064365386962890625e-10) > _1262;
+                        uint _1365 = (_1334 * 747796405u) + 2891336453u;
+                        uint _1371 = ((_1365 >> (((_1365 >> 28u) + 4u) & 31u)) ^ _1365) * 277803737u;
+                        uint _1377 = (_1365 * 747796405u) + 2891336453u;
+                        uint _1383 = ((_1377 >> (((_1377 >> 28u) + 4u) & 31u)) ^ _1377) * 277803737u;
+                        uint _1389 = (_1377 * 747796405u) + 2891336453u;
+                        uint _1395 = ((_1389 >> (((_1389 >> 28u) + 4u) & 31u)) ^ _1389) * 277803737u;
+                        float3 _1403 = ((float3(lights._m0[_1348].xyz) + float3(0.5)) + (float3(float((_1371 >> 22u) ^ _1371) * 2.3283064365386962890625e-10, float((_1383 >> 22u) ^ _1383) * 2.3283064365386962890625e-10, float((_1395 >> 22u) ^ _1395) * 2.3283064365386962890625e-10) - float3(0.5))) - _316;
+                        float _1405 = precise::max(dot(_1403, _1403), 1.0);
+                        float3 _1407 = _1403 * rsqrt(_1405);
+                        float _1409 = fast::clamp(dot(_324, _1407), 0.0, 1.0);
+                        bool _1414;
+                        if (_1409 > 0.001000000047497451305389404296875)
+                        {
+                            _1414 = _1405 < 1024.0;
+                        }
+                        else
+                        {
+                            _1414 = false;
+                        }
+                        bool _1861;
+                        uint _1862;
+                        float3 _1863;
+                        int3 _1864;
+                        float3 _1865;
+                        bool _1866;
+                        float3 _1867;
+                        if (_1414)
+                        {
+                            float3 _1425;
+                            int3 _1427;
+                            float3 _1429;
+                            float3 _1433;
+                            float3 _1435;
+                            int3 _1440;
+                            _1425 = _295;
+                            _1427 = _297;
+                            _1429 = _299;
+                            _1433 = _1407;
+                            _1435 = _316 + (_324 * 0.001000000047497451305389404296875);
+                            _1440 = int3(0);
+                            float _1432;
+                            float3 _1434;
+                            float3 _1436;
+                            bool _1421;
+                            uint _1424;
+                            float3 _1426;
+                            int3 _1428;
+                            float3 _1430;
+                            bool _1819;
+                            uint _1820;
+                            float3 _1821;
+                            int3 _1822;
+                            float3 _1823;
+                            bool _1824;
+                            int3 _1825;
+                            bool _1420 = _291;
+                            uint _1423 = _293;
+                            float _1431 = 0.0;
+                            int _1437 = 0;
+                            bool _1439 = false;
+                            for (;;)
+                            {
+                                if (_1437 < 4)
+                                {
+                                    float3 _150 = _1435;
+                                    float3 _151 = _1433;
+                                    do
+                                    {
+                                        int3 _142 = int3(floor(_1435));
+                                        float3 _143 = abs(float3(1.0) / _1433);
+                                        for (int _1451 = 0; _1451 < 3; _1451++)
+                                        {
+                                            uint _1457 = uint(_1451);
+                                            if (_151[_1457] < 0.0)
+                                            {
+                                                _144[_1457] = -1;
+                                                _145[_1457] = (_150[_1457] - float(_142[_1457])) * _143[_1457];
+                                            }
+                                            else
+                                            {
+                                                _144[_1457] = 1;
+                                                _145[_1457] = ((float(_142[_1457]) + 1.0) - _150[_1457]) * _143[_1457];
+                                            }
+                                        }
+                                        int _1489 = ((device int*)&worldState._m0[0u].Position)[0] * 32;
+                                        int _1491 = ((device int*)&worldState._m0[0u].Position)[1] * 32;
+                                        int _1494;
+                                        bool _1793;
+                                        uint _1794;
+                                        float3 _1795;
+                                        int3 _1796;
+                                        float3 _1797;
+                                        bool _1798;
+                                        int _1493 = -1;
+                                        int _1496 = 0;
+                                        for (;;)
+                                        {
+                                            if (_1496 < worldState._m0[0u].Options.MaxSteps)
+                                            {
+                                                int3 _1501 = _142;
+                                                int _1503 = _1501.x - _1489;
+                                                int3 _1504 = _1501;
+                                                _1504.x = _1503;
+                                                int _1506 = _1501.z - _1491;
+                                                _1504.z = _1506;
+                                                bool _1512;
+                                                if (_1503 >= 0)
+                                                {
+                                                    _1512 = _1506 < 0;
+                                                }
+                                                else
+                                                {
+                                                    _1512 = true;
+                                                }
+                                                bool _1517;
+                                                if (!_1512)
+                                                {
+                                                    _1517 = _1503 >= 2048;
+                                                }
+                                                else
+                                                {
+                                                    _1517 = true;
+                                                }
+                                                bool _1522;
+                                                if (!_1517)
+                                                {
+                                                    _1522 = _1506 >= 2048;
+                                                }
+                                                else
+                                                {
+                                                    _1522 = true;
+                                                }
+                                                bool _1534;
+                                                if (!_1522)
+                                                {
+                                                    bool _1533;
+                                                    if (_144.y > 0)
+                                                    {
+                                                        _1533 = _1501.y > 128;
+                                                    }
+                                                    else
+                                                    {
+                                                        _1533 = false;
+                                                    }
+                                                    _1534 = _1533;
+                                                }
+                                                else
+                                                {
+                                                    _1534 = true;
+                                                }
+                                                if (_1534)
+                                                {
+                                                    _1793 = _1420;
+                                                    _1794 = _1423;
+                                                    _1795 = _1425;
+                                                    _1796 = _1427;
+                                                    _1797 = _1429;
+                                                    _1798 = false;
+                                                    break;
+                                                }
+                                                uint2 _1539 = uint2(_1504.xz) >> uint2(5u);
+                                                uint4 _1549 = chunkTexture.read(uint2(_1539), 0u);
+                                                int3 _1554 = _1504;
+                                                _1554.x = int((uint(_1503) - (_1539.x * 32u)) + (_1549.x * 32u));
+                                                _1554.z = int((uint(_1506) - (_1539.y * 32u)) + (_1549.y * 32u));
+                                                if (groupTexture.read(uint3(uint3(_1554 >> int3(3))), 0u).x == 0u)
+                                                {
+                                                    int3 _146 = _142 >> int3(3);
+                                                    for (int _1571 = 0; _1571 < 3; _1571++)
+                                                    {
+                                                        uint _1577 = uint(_1571);
+                                                        if (_144[_1577] > 0)
+                                                        {
+                                                            _147[_1577] = (_146[_1577] + 1) * 8;
+                                                        }
+                                                        else
+                                                        {
+                                                            _147[_1577] = _146[_1577] * 8;
+                                                        }
+                                                    }
+                                                    for (int _1594 = 0; _1594 < 3; _1594++)
+                                                    {
+                                                        uint _1600 = uint(_1594);
+                                                        if (_144[_1600] > 0)
+                                                        {
+                                                            _148[_1600] = _145[_1600] + (float((_147[_1600] - _142[_1600]) - 1) * _143[_1600]);
+                                                        }
+                                                        else
+                                                        {
+                                                            _148[_1600] = _145[_1600] + (float(_142[_1600] - _147[_1600]) * _143[_1600]);
+                                                        }
+                                                    }
+                                                    int _1653;
+                                                    do
+                                                    {
+                                                        if (_148.x < _148.y)
+                                                        {
+                                                            if (_148.x < _148.z)
+                                                            {
+                                                                _1653 = 0;
+                                                                break;
+                                                            }
+                                                            else
+                                                            {
+                                                                _1653 = 2;
+                                                                break;
+                                                            }
+                                                            break; // unreachable workaround
+                                                        }
+                                                        else
+                                                        {
+                                                            if (_148.y < _148.z)
+                                                            {
+                                                                _1653 = 1;
+                                                                break;
+                                                            }
+                                                            else
+                                                            {
+                                                                _1653 = 2;
+                                                                break;
+                                                            }
+                                                            break; // unreachable workaround
+                                                        }
+                                                        break; // unreachable workaround
+                                                    } while(false);
+                                                    uint _1654 = uint(_1653);
+                                                    _146[_1654] += _144[_1654];
+                                                    _142 = int3(floor(_1435 + (_1433 * _148[_1654])));
+                                                    _142[_1654] = (_146[_1654] * 8) + ((_144[_1654] > 0) ? 0 : 7);
+                                                    int3 _1675 = _146 * int3(8);
+                                                    _142 = clamp(_142, _1675, _1675 + int3(7));
+                                                    for (int _1679 = 0; _1679 < 3; _1679++)
+                                                    {
+                                                        uint _1685 = uint(_1679);
+                                                        if (_144[_1685] > 0)
+                                                        {
+                                                            _145[_1685] = ((float(_142[_1685]) + 1.0) - _150[_1685]) * _143[_1685];
+                                                        }
+                                                        else
+                                                        {
+                                                            _145[_1685] = (_150[_1685] - float(_142[_1685])) * _143[_1685];
+                                                        }
+                                                    }
+                                                    _1494 = _1653;
+                                                    int _1497 = _1496 + 1;
+                                                    _1493 = _1494;
+                                                    _1496 = _1497;
+                                                    continue;
+                                                }
+                                                uint4 _1715 = blockTexture.read(uint3(uint3(_1554)), 0u);
+                                                uint _1716 = _1715.x;
+                                                bool _1717 = (isunordered(_1431, 0.001000000047497451305389404296875) || _1431 <= 0.001000000047497451305389404296875);
+                                                bool _1721;
+                                                if (_1717)
+                                                {
+                                                    _1721 = _1716 != 0u;
+                                                }
+                                                else
+                                                {
+                                                    _1721 = true;
+                                                }
+                                                if (_1721)
+                                                {
+                                                    bool _1729;
+                                                    if (_1717)
+                                                    {
+                                                        _1729 = blockState._m0[_1716].IOR > 0.001000000047497451305389404296875;
+                                                    }
+                                                    else
+                                                    {
+                                                        _1729 = true;
+                                                    }
+                                                    bool _1734;
+                                                    if (!_1729)
+                                                    {
+                                                        _1734 = _1716 != 0u;
+                                                    }
+                                                    else
+                                                    {
+                                                        _1734 = false;
+                                                    }
+                                                    bool _1744;
+                                                    if (!_1734)
+                                                    {
+                                                        bool _1743;
+                                                        if (_1729)
+                                                        {
+                                                            _1743 = abs(blockState._m0[_1716].IOR - _1431) > 0.001000000047497451305389404296875;
+                                                        }
+                                                        else
+                                                        {
+                                                            _1743 = false;
+                                                        }
+                                                        _1744 = _1743;
+                                                    }
+                                                    else
+                                                    {
+                                                        _1744 = true;
+                                                    }
+                                                    if (_1744)
+                                                    {
+                                                        float3 _149 = float3(0.0);
+                                                        uint _1747 = uint(_1493);
+                                                        _149[_1747] = float(-_144[_1747]);
+                                                        _1793 = true;
+                                                        _1794 = _1716;
+                                                        _1795 = _1435 + (_1433 * (_145[_1747] - _143[_1747]));
+                                                        _1796 = _142;
+                                                        _1797 = _149;
+                                                        _1798 = true;
+                                                        break;
+                                                    }
+                                                }
+                                                int _1781;
+                                                do
+                                                {
+                                                    if (_145.x < _145.y)
+                                                    {
+                                                        if (_145.x < _145.z)
+                                                        {
+                                                            _1781 = 0;
+                                                            break;
+                                                        }
+                                                        else
+                                                        {
+                                                            _1781 = 2;
+                                                            break;
+                                                        }
+                                                        break; // unreachable workaround
+                                                    }
+                                                    else
+                                                    {
+                                                        if (_145.y < _145.z)
+                                                        {
+                                                            _1781 = 1;
+                                                            break;
+                                                        }
+                                                        else
+                                                        {
+                                                            _1781 = 2;
+                                                            break;
+                                                        }
+                                                        break; // unreachable workaround
+                                                    }
+                                                    break; // unreachable workaround
+                                                } while(false);
+                                                uint _1782 = uint(_1781);
+                                                _145[_1782] += _143[_1782];
+                                                _142[_1782] += _144[_1782];
+                                                _1494 = _1781;
+                                                int _1497 = _1496 + 1;
+                                                _1493 = _1494;
+                                                _1496 = _1497;
+                                                continue;
+                                            }
+                                            else
+                                            {
+                                                _1793 = _1420;
+                                                _1794 = _1423;
+                                                _1795 = _1425;
+                                                _1796 = _1427;
+                                                _1797 = _1429;
+                                                _1798 = false;
+                                                break;
+                                            }
+                                        }
+                                        if (_1798)
+                                        {
+                                            _1421 = _1793;
+                                            _1424 = _1794;
+                                            _1426 = _1795;
+                                            _1428 = _1796;
+                                            _1430 = _1797;
+                                            break;
+                                        }
+                                        _1421 = false;
+                                        _1424 = _119;
+                                        _1426 = _117;
+                                        _1428 = _118;
+                                        _1430 = _117;
+                                        break;
+                                    } while(false);
+                                    if (!_1421)
+                                    {
+                                        _1819 = _1421;
+                                        _1820 = _1424;
+                                        _1821 = _1426;
+                                        _1822 = _1428;
+                                        _1823 = _1430;
+                                        _1824 = _1421;
+                                        _1825 = _1428;
+                                        break;
+                                    }
+                                    _1432 = blockState._m0[_1424].IOR;
+                                    bool _1808;
+                                    if (_1424 != 0u)
+                                    {
+                                        _1808 = _1432 <= 0.001000000047497451305389404296875;
+                                    }
+                                    else
+                                    {
+                                        _1808 = false;
+                                    }
+                                    if (_1808)
+                                    {
+                                        _1819 = _1421;
+                                        _1820 = _1424;
+                                        _1821 = _1426;
+                                        _1822 = _1428;
+                                        _1823 = _1430;
+                                        _1824 = _1421;
+                                        _1825 = _1428;
+                                        break;
+                                    }
+                                    _1434 = refract(_1433, _1430, (1.0 + _1431) / (1.0 + _1432));
+                                    if (length(_1434) <= 0.001000000047497451305389404296875)
+                                    {
+                                        _1819 = _1421;
+                                        _1820 = _1424;
+                                        _1821 = _1426;
+                                        _1822 = _1428;
+                                        _1823 = _1430;
+                                        _1824 = _1421;
+                                        _1825 = _1428;
+                                        break;
+                                    }
+                                    _1436 = _1426 + (_1434 * 0.001000000047497451305389404296875);
+                                    _1420 = _1421;
+                                    _1423 = _1424;
+                                    _1425 = _1426;
+                                    _1427 = _1428;
+                                    _1429 = _1430;
+                                    _1431 = _1432;
+                                    _1433 = _1434;
+                                    _1435 = _1436;
+                                    _1437++;
+                                    _1439 = _1421;
+                                    _1440 = _1428;
+                                    continue;
+                                }
+                                else
+                                {
+                                    _1819 = _1420;
+                                    _1820 = _1423;
+                                    _1821 = _1425;
+                                    _1822 = _1427;
+                                    _1823 = _1429;
+                                    _1824 = _1439;
+                                    _1825 = _1440;
+                                    break;
+                                }
+                            }
+                            bool _1832;
+                            if (_1824)
+                            {
+                                _1832 = all(_1825 == lights._m0[_1348].xyz);
+                            }
+                            else
+                            {
+                                _1832 = false;
+                            }
+                            float3 _1860;
+                            if (_1832)
+                            {
+                                float3 _1844 = float3(float((blockState._m0[_1352].Color >> 24u) & 255u), float((blockState._m0[_1352].Color >> 16u) & 255u), float((blockState._m0[_1352].Color >> 8u) & 255u));
+                                float3 _1845 = _1844 * float3(0.0039215688593685626983642578125);
+                                _1860 = _1323 + ((((((_821 * blockState._m0[_321].Roughness) * blockState._m0[_1352].Light) * mix(powr((_1845 + float3(0.054999999701976776123046875)) * float3(0.947867333889007568359375), float3(2.400000095367431640625)), _1844 * float3(0.000303526991046965122222900390625), step(_1845, float3(0.040449999272823333740234375)))) * _1409) * _1345) / float3(_1405));
+                            }
+                            else
+                            {
+                                _1860 = _1323;
+                            }
+                            _1861 = _1819;
+                            _1862 = _1820;
+                            _1863 = _1821;
+                            _1864 = _1822;
+                            _1865 = _1823;
+                            _1866 = _1832;
+                            _1867 = _1860;
+                        }
+                        else
+                        {
+                            _1861 = _291;
+                            _1862 = _293;
+                            _1863 = _295;
+                            _1864 = _297;
+                            _1865 = _299;
+                            _1866 = false;
+                            _1867 = _1323;
+                        }
+                        _1868 = _1861;
+                        _1869 = _1862;
+                        _1870 = _1863;
+                        _1871 = _1864;
+                        _1872 = _1865;
+                        _1873 = _1866;
+                        _1874 = _1867;
+                        _1875 = _1389;
                     }
                     else
                     {
-                        _1279 = _1218;
-                        _1280 = true;
+                        _1868 = _291;
+                        _1869 = _293;
+                        _1870 = _295;
+                        _1871 = _297;
+                        _1872 = _299;
+                        _1873 = false;
+                        _1874 = _1323;
+                        _1875 = _1334;
                     }
-                    if (_1280)
+                    _1876 = _1868;
+                    _1877 = _1869;
+                    _1878 = _1870;
+                    _1879 = _1871;
+                    _1880 = _1872;
+                    _1881 = _1873;
+                    _1882 = _1874;
+                    _1883 = _1875;
+                }
+                else
+                {
+                    _1876 = _291;
+                    _1877 = _293;
+                    _1878 = _295;
+                    _1879 = _297;
+                    _1880 = _299;
+                    _1881 = false;
+                    _1882 = _1323;
+                    _1883 = _871;
+                }
+                uint _1900;
+                float3 _1935;
+                do
+                {
+                    uint _1888 = (_1883 * 747796405u) + 2891336453u;
+                    uint _1894 = ((_1888 >> (((_1888 >> 28u) + 4u) & 31u)) ^ _1888) * 277803737u;
+                    float _1898 = float((_1894 >> 22u) ^ _1894) * 2.3283064365386962890625e-10;
+                    _1900 = (_1888 * 747796405u) + 2891336453u;
+                    uint _1906 = ((_1900 >> (((_1900 >> 28u) + 4u) & 31u)) ^ _1900) * 277803737u;
+                    float _1910 = float((_1906 >> 22u) ^ _1906) * 1.4629181199765639576071407645941e-09;
+                    float _1911 = sqrt(_1898);
+                    float _1913 = _1911 * cos(_1910);
+                    float _1915 = _1911 * sin(_1910);
+                    float _1917 = sqrt(1.0 - _1898);
+                    if (_324.x != 0.0)
                     {
-                        _1287 = _281;
-                        _1288 = _1200;
+                        _1935 = float3(_1917 * _324.x, _1913, _1915);
                         break;
                     }
-                    _1285 = _731 / float3(_1262);
-                    _1286 = _1279;
+                    else
+                    {
+                        if (_324.y != 0.0)
+                        {
+                            _1935 = float3(_1913, _1917 * _324.y, _1915);
+                            break;
+                        }
+                        else
+                        {
+                            _1935 = float3(_1913, _1915, _1917 * _324.z);
+                            break;
+                        }
+                        break; // unreachable workaround
+                    }
+                    break; // unreachable workaround
+                } while(false);
+                float3 _1972;
+                uint _1973;
+                if (_331 >= 2)
+                {
+                    float _1949 = fast::clamp(precise::max(_821.x, precise::max(_821.y, _821.z)), 0.0, 1.0);
+                    uint _1966;
+                    bool _1967;
+                    if ((isunordered(_1949, 0.001000000047497451305389404296875) || _1949 >= 0.001000000047497451305389404296875))
+                    {
+                        uint _1954 = (_1900 * 747796405u) + 2891336453u;
+                        uint _1960 = ((_1954 >> (((_1954 >> 28u) + 4u) & 31u)) ^ _1954) * 277803737u;
+                        _1966 = _1954;
+                        _1967 = (float((_1960 >> 22u) ^ _1960) * 2.3283064365386962890625e-10) > _1949;
+                    }
+                    else
+                    {
+                        _1966 = _1900;
+                        _1967 = true;
+                    }
+                    if (_1967)
+                    {
+                        _1974 = _334;
+                        _1975 = _1882;
+                        break;
+                    }
+                    _1972 = _821 / float3(_1949);
+                    _1973 = _1966;
                 }
                 else
                 {
-                    _1285 = _731;
-                    _1286 = _1218;
+                    _1972 = _821;
+                    _1973 = _1900;
                 }
-                _252 = _1285;
-                _255 = _1197;
-                _257 = _1198;
-                _259 = _1199;
-                _261 = _1286;
-                _263 = _1200;
-                _273 = _272;
-                _275 = fast::normalize(mix(reflect(_274, _271), ((_1239 * (_1214 * cos(_1228))) + (_271 * sqrt(1.0 - _1213))) + (cross(_271, _1239) * (_1214 * sin(_1228))), float3(blockState._m0[_267].Roughness)));
-                _277 = _269 + (_271 * 0.001000000047497451305389404296875);
-                int _279 = _278 + 1;
-                _251 = _252;
-                _254 = _255;
-                _256 = _257;
-                _258 = _259;
-                _260 = _261;
-                _262 = _263;
-                _264 = _265;
-                _266 = _267;
-                _268 = _269;
-                _270 = _271;
-                _272 = _273;
-                _274 = _275;
-                _276 = _277;
-                _278 = _279;
-                _280 = _281;
+                _289 = _1972;
+                _292 = _1876;
+                _294 = _1877;
+                _296 = _1878;
+                _298 = _1879;
+                _300 = _1880;
+                _302 = _1319;
+                _304 = _1320;
+                _306 = _1321;
+                _308 = _1322;
+                _310 = _1973;
+                _312 = _1882;
+                _314 = _1881;
+                _326 = _325;
+                _328 = fast::normalize(mix(reflect(_327, _324), _1935, float3(blockState._m0[_321].Roughness)));
+                _330 = _316 + (_324 * 0.001000000047497451305389404296875);
+                int _332 = _331 + 1;
+                _288 = _289;
+                _291 = _292;
+                _293 = _294;
+                _295 = _296;
+                _297 = _298;
+                _299 = _300;
+                _301 = _302;
+                _303 = _304;
+                _305 = _306;
+                _307 = _308;
+                _309 = _310;
+                _311 = _312;
+                _313 = _314;
+                _315 = _316;
+                _317 = _318;
+                _319 = _318;
+                _320 = _321;
+                _322 = _316;
+                _323 = _324;
+                _325 = _326;
+                _327 = _328;
+                _329 = _330;
+                _331 = _332;
+                _333 = _334;
                 continue;
             }
             else
             {
-                _1287 = _280;
-                _1288 = _262;
+                _1974 = _333;
+                _1975 = _311;
                 break;
             }
         }
         spvImageFence(outTexture);
-        outTexture.write(outTexture.read(uint2(gl_GlobalInvocationID.xy)) + float4(mix(_1288, mix(float3(worldState._m0[0u].SkyBottom), float3(worldState._m0[0u].SkyTop), float3(fast::clamp((_228.y + 1.0) * 0.5, 0.0, 1.0))) * fast::clamp((worldState._m0[0u].SunDirection[1] * 4.0) + 0.1500000059604644775390625, 0.0, 1.0), float3(_1287)), 1.0), uint2(gl_GlobalInvocationID.xy));
+        outTexture.write(outTexture.read(uint2(gl_GlobalInvocationID.xy)) + float4(mix(_1975, mix(mix(powr((float3(worldState._m0[0u].Options.SkyBottom) + float3(0.054999999701976776123046875)) * float3(0.947867333889007568359375), float3(2.400000095367431640625)), float3(worldState._m0[0u].Options.SkyBottom) * float3(0.077399380505084991455078125), step(float3(worldState._m0[0u].Options.SkyBottom), float3(0.040449999272823333740234375))), mix(powr((float3(worldState._m0[0u].Options.SkyTop) + float3(0.054999999701976776123046875)) * float3(0.947867333889007568359375), float3(2.400000095367431640625)), float3(worldState._m0[0u].Options.SkyTop) * float3(0.077399380505084991455078125), step(float3(worldState._m0[0u].Options.SkyTop), float3(0.040449999272823333740234375))), float3(fast::clamp((_255.y + 1.0) * 0.5, 0.0, 1.0))) * fast::clamp((worldState._m0[0u].SunDirection[1] * 4.0) + 0.1500000059604644775390625, 0.0, 1.0), float3(_1974)), 1.0), uint2(gl_GlobalInvocationID.xy));
         break;
     } while(false);
 }

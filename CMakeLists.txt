@@ -13,11 +13,15 @@ make_directory(${BINARY_DIR})
 configure_file(LICENSE.txt ${BINARY_DIR} COPYONLY)
 configure_file(README.md ${BINARY_DIR} COPYONLY)
 
+set(TRACY_ENABLE ON)
+set(TRACY_ON_DEMAND ON)
+
 add_subdirectory(lib/FastNoiseLite)
 add_subdirectory(lib/SDL)
 add_subdirectory(lib/glm)
 add_subdirectory(lib/imgui)
 add_subdirectory(lib/json)
+add_subdirectory(lib/tracy)
 add_executable(voxel_raytracer WIN32
     src/block.cpp
     src/camera.cpp
@@ -27,7 +31,9 @@ add_executable(voxel_raytracer WIN32
     src/shader.cpp
     src/world.cpp
 )
-target_link_libraries(voxel_raytracer SDL3::SDL3 FastNoiseLite glm imgui nlohmann_json)
+target_link_libraries(voxel_raytracer SDL3::SDL3 FastNoiseLite Tracy::TracyClient glm imgui nlohmann_json)
+target_compile_definitions(voxel_raytracer PRIVATE GLM_FORCE_DEPTH_ZERO_TO_ONE)
+target_compile_definitions(voxel_raytracer PRIVATE GLM_ENABLE_EXPERIMENTAL)
 set_target_properties(voxel_raytracer PROPERTIES CXX_STANDARD 23)
 target_precompile_headers(voxel_raytracer PRIVATE
     <array>
@@ -108,6 +114,8 @@ add_shader(clear_blocks.comp shaders/shader.hlsl src/config.h)
 add_shader(clear_groups.comp shaders/shader.hlsl src/config.h)
 add_shader(clear_texture.comp shaders/shader.hlsl src/config.h)
 add_shader(raytrace.comp shaders/shader.hlsl src/config.h)
+add_shader(raycast.vert shaders/shader.hlsl)
+add_shader(raycast.frag)
 add_shader(sample_texture.comp shaders/shader.hlsl src/config.h)
 add_shader(set_blocks.comp shaders/shader.hlsl src/config.h)
 add_shader(set_chunks.comp shaders/shader.hlsl src/config.h)

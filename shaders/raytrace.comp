@@ -5,6 +5,7 @@ struct Query
     bool Hit;
     uint Block;
     float3 Position;
+    int3 VoxelPosition;
     float3 Normal;
 };
 
@@ -13,12 +14,15 @@ static const float kSunDiskOuter = 0.9996f;
 static const float kSunGlowFalloff = 512.0f;
 static const float kSunDiskBrightness = 4.0f;
 static const float kFogAlpha = 12.0f;
+static const float kMaxLightDistance = 32.0f;
+static const float kMaxLightDistanceSquared = kMaxLightDistance * kMaxLightDistance;
+static const int kMaxTransparentSteps = 4;
 static const int kRouletteBounce = 2;
-static const int kMaxShadowSteps = 4;
 
 cbuffer UniformBuffer : register(b0, space2)
 {
     int Sample;
+    int LightCount;
 };
 
 Texture3D<uint> blockTexture : register(t0, space0);
@@ -27,6 +31,7 @@ Texture2D<uint2> chunkTexture : register(t2, space0);
 StructuredBuffer<CameraState> cameraState : register(t3, space0);
 StructuredBuffer<WorldState> worldState : register(t4, space0);
 StructuredBuffer<BlockState> blockState : register(t5, space0);
+StructuredBuffer<int4> lights : register(t6, space0);
 [[vk::image_format("rgba32f")]]
 RWTexture2D<float4> outTexture : register(u0, space1);
 
@@ -43,25 +48,22 @@ float Random()
 float3 RandomHemisphere(float3 normal)
 {
     float r = Random();
-    float sinTheta = sqrt(r);
-    float cosTheta = sqrt(1.0f - r);
-    float phi = 2.0f * 3.14159265f * Random();
-    float3 direction;
-    direction.x = sinTheta * cos(phi);
-    direction.y = cosTheta;
-    direction.z = sinTheta * sin(phi);
-    float3 up;
-    if (abs(normal.y) < 0.999f)
+    float phi = 6.2831853f * Random();
+    float u = sqrt(r) * cos(phi);
+    float v = sqrt(r) * sin(phi);
+    float w = sqrt(1.0f - r);
+    if (normal.x != 0.0f)
     {
-        up = float3(0.0f, 1.0f, 0.0f);
+        return float3(w * normal.x, u, v);
+    }
+    else if (normal.y != 0.0f)
+    {
+        return float3(u, w * normal.y, v);
     }
     else
     {
-        up = float3(1.0f, 0.0f, 0.0f);
+        return float3(u, v, w * normal.z);
     }
-    float3 tangent = normalize(cross(up, normal));
-    float3 bitangent = cross(normal, tangent);
-    return tangent * direction.x + normal * direction.y + bitangent * direction.z;
 }
 
 int GetStepAxis(float3 distance)
@@ -110,7 +112,7 @@ Query Raycast(float3 origin, float3 direction, float ior)
             distance[i] = (voxel[i] + 1.0f - origin[i]) * delta[i];
         }
     }
-    int maxSteps = worldState[0].MaxSteps;
+    int maxSteps = worldState[0].Options.MaxSteps;
     int offsetX = worldState[0].Position.x * CHUNK_WIDTH;
     int offsetZ = worldState[0].Position.y * CHUNK_WIDTH;
     for (int i = 0; i < maxSteps; i++)
@@ -195,6 +197,7 @@ Query Raycast(float3 origin, float3 direction, float ior)
                 query.Hit = true;
                 query.Block = hitBlock;
                 query.Position = origin + direction * t;
+                query.VoxelPosition = voxel;
                 query.Normal = normal;
                 return query;
             }
@@ -205,6 +208,35 @@ Query Raycast(float3 origin, float3 direction, float ior)
     }
     Query query;
     query.Hit = false;
+    return query;
+}
+
+Query TransparentRaycast(float3 origin, float3 normal, float3 direction)
+{
+    float ior = 0.0f;
+    origin = origin + normal * kEpsilon;
+    Query query = (Query) 0;
+    for (int step = 0; step < kMaxTransparentSteps; step++)
+    {
+        query = Raycast(origin, direction, ior);
+        if (!query.Hit)
+        {
+            break;
+        }
+        BlockState block = blockState[query.Block];
+        if (query.Block != kBlockAir && block.IOR <= kEpsilon)
+        {
+            break;
+        }
+        float3 refracted = refract(direction, query.Normal, (1.0f + ior) / (1.0f + block.IOR));
+        if (length(refracted) <= kEpsilon)
+        {
+            break;
+        }
+        direction = refracted;
+        ior = block.IOR;
+        origin = query.Position + direction * kEpsilon;
+    }
     return query;
 }
 
@@ -219,7 +251,7 @@ float FresnelSchlick(float3 direction, float3 normal, float iorFrom, float iorTo
 float3 GetSkyColor(float3 direction)
 {
     float alpha = saturate((direction.y + 1.0f) / 2.0f);
-    float3 sky = lerp(worldState[0].SkyBottom, worldState[0].SkyTop, alpha);
+    float3 sky = lerp(SRGBToLinear(worldState[0].Options.SkyBottom), SRGBToLinear(worldState[0].Options.SkyTop), alpha);
     float ambient = saturate(worldState[0].SunDirection.y * 4.0f + 0.15f);
     return sky * ambient;
 }
@@ -228,7 +260,7 @@ float3 GetSunColor(float3 direction)
 {
     float disk = smoothstep(kSunDiskInner, kSunDiskOuter, dot(direction, worldState[0].SunDirection));
     float glow = pow(saturate(dot(direction, worldState[0].SunDirection)), kSunGlowFalloff);
-    float3 emission = worldState[0].SunColor * worldState[0].SunIntensity * (disk * kSunDiskBrightness + glow);
+    float3 emission = SRGBToLinear(worldState[0].Options.SunColor) * worldState[0].Options.SunIntensity * (disk * kSunDiskBrightness + glow);
     return emission * saturate(worldState[0].SunDirection.y + 0.1f);
 }
 
@@ -247,15 +279,16 @@ void main(uint3 id : SV_DispatchThreadID)
     float j = Random();
     float u = (2.0f * (id.x + i) / width - 1.0f) * cameraState[0].AspectRatio * cameraState[0].TanHalfFov;
     float v = (1.0f - 2.0f * (id.y + j) / height) * cameraState[0].TanHalfFov;
-    float3 direction = normalize(u * cameraState[0].Right - v * cameraState[0].Up + cameraState[0].Forward);
+    float3 direction = normalize(u * cameraState[0].Right + v * cameraState[0].Up + cameraState[0].Forward);
     float3 skyColor = GetSkyColor(direction);
     float3 origin = cameraState[0].Position;
     float ior = 0.0f;
     float3 radiance = 0.0f;
     float3 throughput = 1.0f;
-    float fogAlpha = 0.0f;
-    int maxBounces = worldState[0].MaxBounces;
-    for (int bounce = 0; bounce < maxBounces; bounce++)
+    float fog = 0.0f;
+    bool previousNee = false;
+    Query previous = (Query) 0;
+    for (int bounce = 0; bounce < worldState[0].Options.MaxBounces; bounce++)
     {
         Query query = Raycast(origin, direction, ior);
         if (!query.Hit)
@@ -266,10 +299,17 @@ void main(uint3 id : SV_DispatchThreadID)
         if (bounce == 0)
         {
             float travelled = distance(query.Position, cameraState[0].Position);
-            float ratio = saturate(travelled / worldState[0].MaxSteps);
-            fogAlpha = exp2(-kFogAlpha * (1.0f - ratio));
+            float ratio = saturate(travelled / worldState[0].Options.MaxSteps);
+            fog = exp2(-kFogAlpha * (1.0f - ratio));
         }
         BlockState block = blockState[query.Block];
+        if (previous.Hit && block.Light > kEpsilon)
+        {
+            float3 lightPath = query.Position - previous.Position;
+            float distanceSquared = max(dot(lightPath, lightPath), 1.0f);
+            throughput *= 1.0f / distanceSquared;
+        }
+        previous = query;
         if (bounce == 0 && length(query.Normal) < kEpsilon)
         {
             ior = block.IOR;
@@ -277,15 +317,19 @@ void main(uint3 id : SV_DispatchThreadID)
         }
         if (query.Block != kBlockAir)
         {
-            float3 albedo;
-            albedo.r = float((block.Color >> 24) & 0xFFu) / 255.0f;
-            albedo.g = float((block.Color >> 16) & 0xFFu) / 255.0f;
-            albedo.b = float((block.Color >> 8) & 0xFFu) / 255.0f;
-            albedo = SRGBToLinear(albedo);
+            float3 albedo = SRGBToLinear(GetColor(block.Color));
             float3 emission = albedo * block.Light;
-            radiance += throughput * emission;
+            if (!previousNee)
+            {
+                radiance += throughput * emission;
+            }
+            if (block.Light > kEpsilon)
+            {
+                break;
+            }
             throughput *= albedo;
         }
+        previousNee = false;
         if (block.IOR > kEpsilon || (ior > kEpsilon && query.Block == kBlockAir))
         {
             if (Random() > FresnelSchlick(direction, query.Normal, ior, block.IOR))
@@ -300,33 +344,40 @@ void main(uint3 id : SV_DispatchThreadID)
                 }
             }
         }
-        if (bounce == 0 && query.Block != kBlockAir && worldState[0].SunDirection.y > 0.0f)
+        if (query.Block != kBlockAir && worldState[0].SunDirection.y > 0.0f)
         {
-            float shadowIOR = 0.0f;
             float sunFactor = saturate(dot(query.Normal, worldState[0].SunDirection));
             if (sunFactor > 0.0f)
             {
-                float3 shadowOrigin = query.Position + query.Normal * 0.001f;
-                bool isInShadow = false;
-                for (int shadowStep = 0; shadowStep < kMaxShadowSteps; shadowStep++)
+                Query sunQuery = TransparentRaycast(query.Position, query.Normal, worldState[0].SunDirection);
+                if (!sunQuery.Hit || blockState[sunQuery.Block].IOR > kEpsilon)
                 {
-                    Query shadow = Raycast(shadowOrigin, worldState[0].SunDirection, shadowIOR);
-                    if (!shadow.Hit)
-                    {
-                        break;
-                    }
-                    BlockState shadowBlock = blockState[shadow.Block];
-                    if (shadow.Block != kBlockAir && shadowBlock.IOR <= kEpsilon)
-                    {
-                        isInShadow = true;
-                        break;
-                    }
-                    shadowIOR = shadowBlock.IOR;
-                    shadowOrigin = shadow.Position + worldState[0].SunDirection * 0.001f;
+                    float3 sunColor = SRGBToLinear(worldState[0].Options.SunColor);
+                    radiance += throughput * block.Roughness * sunFactor * sunColor * worldState[0].Options.SunIntensity;
                 }
-                if (!isInShadow)
+            }
+        }
+        if (LightCount > 0 && block.Roughness > kEpsilon)
+        {
+            int light = Random() * LightCount;
+            BlockState lightState = blockState[lights[light].w];
+            if (lightState.Light > kEpsilon)
+            {
+                float3 lightPosition = lights[light].xyz + 0.5f;
+                lightPosition += float3(Random(), Random(), Random()) - 0.5f;
+                float3 lightPath = lightPosition - query.Position;
+                float distanceSquared = max(dot(lightPath, lightPath), 1.0f);
+                float3 lightDirection = lightPath * rsqrt(distanceSquared);
+                float angle = saturate(dot(query.Normal, lightDirection));
+                if (angle > kEpsilon && distanceSquared < kMaxLightDistanceSquared)
                 {
-                    radiance += throughput * block.Roughness * sunFactor * worldState[0].SunColor * worldState[0].SunIntensity;
+                    Query neeQuery = TransparentRaycast(query.Position, query.Normal, lightDirection);
+                    if (neeQuery.Hit && all(neeQuery.VoxelPosition == lights[light].xyz))
+                    {
+                        previousNee = true;
+                        float3 lightColor = SRGBToLinear(GetColor(lightState.Color));
+                        radiance += throughput * block.Roughness * lightState.Light * lightColor * angle * LightCount / distanceSquared;
+                    }
                 }
             }
         }
@@ -334,10 +385,6 @@ void main(uint3 id : SV_DispatchThreadID)
         float3 diffuse = RandomHemisphere(query.Normal);
         direction = normalize(lerp(reflected, diffuse, block.Roughness));
         origin = query.Position + query.Normal * 0.001f;
-        if (block.Light > kEpsilon)
-        {
-            break;
-        }
         if (bounce >= kRouletteBounce)
         {
             float probability = saturate(max(throughput.r, max(throughput.g, throughput.b)));
@@ -348,6 +395,6 @@ void main(uint3 id : SV_DispatchThreadID)
             throughput /= probability;
         }
     }
-    radiance = lerp(radiance, skyColor, fogAlpha);
+    radiance = lerp(radiance, skyColor, fog);
     outTexture[id.xy] += float4(radiance, 1.0f);
 }

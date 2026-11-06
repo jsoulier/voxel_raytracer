@@ -3,6 +3,7 @@
 
 #include "block.hpp"
 #include "chunk.hpp"
+#include "profile.hpp"
 #include "world.hpp"
 
 static constexpr int kWaterLevel = 8;
@@ -25,6 +26,7 @@ enum Biome
 
 static void GenerateTree(WorldProxy& proxy, int x, int y, int z, Block wood, Block leaves, float detail)
 {
+    Profile();
     int offset = 3 + detail * 2.0f;
     for (int i = 1; i <= offset; i++)
     {
@@ -61,6 +63,7 @@ Chunk::Chunk()
 
 void Chunk::Generate(WorldProxy& proxy, int chunkX, int chunkZ)
 {
+    Profile();
     SDL_assert(Flags & ChunkFlagsGenerate);
     FastNoiseLite baseNoise;
     FastNoiseLite detailNoise;

@@ -4,7 +4,7 @@
 // https://github.com/libsdl-org/SDL_shadercross/issues/211
 #include "../src/config.h"
 
-struct WorldState
+struct WorldOptions
 {
     float3 SkyBottom;
     int MaxSteps;
@@ -12,8 +12,17 @@ struct WorldState
     int MaxBounces;
     float3 SunColor;
     float SunIntensity;
-    float3 SunDirection;
     float TimeOfDay;
+    float Padding0;
+    float Padding1;
+    float Padding2;
+};
+
+struct WorldState
+{
+    WorldOptions Options;
+    float3 SunDirection;
+    float Padding;
     int2 Position;
 };
 
@@ -22,11 +31,12 @@ struct CameraState
     float3 Position;
     float AspectRatio;
     float3 Forward;
-    float TanHalfFov;
+    float Fov;
     float3 Right;
-    float Padding1;
+    float TanHalfFov;
     float3 Up;
-    float Padding2;
+    float Padding;
+    float4x4 ViewProjection;
 };
 
 struct BlockState
@@ -40,6 +50,14 @@ struct BlockState
 static const uint kBlockAir = 0;
 static const uint kBlockWater = 9;
 static const float kEpsilon = 0.001f;
+
+float3 GetColor(uint color)
+{
+    float red = (color >> 24) & 0xFFu;
+    float green = (color >> 16) & 0xFFu;
+    float blue = (color >> 8) & 0xFFu;
+    return float3(red, green, blue) / 255.0f;
+}
 
 // https://gamedev.stackexchange.com/questions/92015/optimized-linear-to-srgb-glsl
 float3 SRGBToLinear(float3 color)

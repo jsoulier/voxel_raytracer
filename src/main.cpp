@@ -1,7 +1,6 @@
 #include <SDL3/SDL.h>
 #include <SDL3/SDL_main.h>
 #include <glm/glm.hpp>
-#include <glm/gtc/type_ptr.hpp>
 #include <imgui.h>
 #include <imgui_impl_sdl3.h>
 #include <imgui_impl_sdlgpu3.h>
@@ -10,12 +9,12 @@
 
 #include "camera.hpp"
 #include "debug_group.hpp"
+#include "profile.hpp"
 #include "world.hpp"
 
 static constexpr float kSpeed = 0.000000035f;
 static constexpr float kSensitivity = 0.001f;
 static constexpr float kWidth = 1280.0f;
-static constexpr float kRaycast = 10.0f;
 
 static SDL_Window* window;
 static SDL_GPUDevice* device;
@@ -27,12 +26,11 @@ static World world;
 static uint64_t time1;
 static uint64_t time2;
 static float dt;
-static WorldQuery worldQuery;
-static WorldOptions worldOptions;
 static Block block = BlockWhiteLight;
 
 static bool Init()
 {
+    Profile();
 #ifndef NDEBUG
     SDL_SetLogPriorities(SDL_LOG_PRIORITY_VERBOSE);
 #endif
@@ -68,7 +66,6 @@ static bool Init()
         SDL_Log("Failed to initialize world");
         return false;
     }
-    world.SetOptions(worldOptions);
     if (!camera.Init(device))
     {
         SDL_Log("Failed to initialize camera");
@@ -90,6 +87,7 @@ static bool Init()
 
 static void Quit()
 {
+    Profile();
     SDL_HideWindow(window);
     ImGui_ImplSDLGPU3_Shutdown();
     ImGui_ImplSDL3_Shutdown();
@@ -105,6 +103,7 @@ static void Quit()
 
 static bool Poll()
 {
+    Profile();
     SDL_Event event;
     while (SDL_PollEvent(&event))
     {
@@ -125,10 +124,9 @@ static bool Poll()
             {
                 if (SDL_GetWindowRelativeMouseMode(window))
                 {
-                    WorldQuery query = world.Raycast(camera.GetPosition(), camera.GetDirection(), kRaycast);
-                    if (query.HitBlock != BlockAir)
+                    if (camera.GetHitBlock() != BlockAir)
                     {
-                        world.SetBlock(query.Position, BlockAir);
+                        world.SetBlock(camera.GetHitPosition(), BlockAir);
                     }
                 }
                 else
@@ -140,10 +138,9 @@ static bool Poll()
             {
                 if (SDL_GetWindowRelativeMouseMode(window))
                 {
-                    WorldQuery query = world.Raycast(camera.GetPosition(), camera.GetDirection(), kRaycast);
-                    if (query.HitBlock != BlockAir)
+                    if (camera.GetHitBlock() != BlockAir)
                     {
-                        world.SetBlock(query.PreviousPosition, block);
+                        world.SetBlock(camera.GetPreviousHitPosition(), block);
                     }
                 }
             }
@@ -151,10 +148,9 @@ static bool Poll()
             {
                 if (SDL_GetWindowRelativeMouseMode(window))
                 {
-                    WorldQuery query = world.Raycast(camera.GetPosition(), camera.GetDirection(), kRaycast);
-                    if (query.HitBlock != BlockAir)
+                    if (camera.GetHitBlock() != BlockAir)
                     {
-                        block = query.HitBlock;
+                        block = camera.GetHitBlock();
                     }
                 }
             }
@@ -215,6 +211,7 @@ static bool Poll()
 
 static void Update()
 {
+    Profile();
     if (SDL_GetWindowRelativeMouseMode(window))
     {
         float dx = 0.0f;
@@ -240,20 +237,21 @@ static void Update()
         dy *= speed;
         dz *= speed;
         camera.Move(dx, dy, dz);
-        worldQuery = world.Raycast(camera.GetPosition(), camera.GetDirection(), kRaycast);
     }
+    camera.Update(world);
     world.Update(camera);
 }
 
 static bool Resize(uint32_t width, uint32_t height)
 {
+    Profile();
     float aspectRatio = float(width) / float(height);
     camera.Resize(kWidth, kWidth / aspectRatio);
     SDL_ReleaseGPUTexture(device, colorTexture);
     SDL_GPUTextureCreateInfo info{};
     info.format = SDL_GPU_TEXTUREFORMAT_R8G8B8A8_UNORM;
     info.type = SDL_GPU_TEXTURETYPE_2D;
-    info.usage = SDL_GPU_TEXTUREUSAGE_COMPUTE_STORAGE_WRITE | SDL_GPU_TEXTUREUSAGE_SAMPLER;
+    info.usage = SDL_GPU_TEXTUREUSAGE_COMPUTE_STORAGE_WRITE | SDL_GPU_TEXTUREUSAGE_SAMPLER | SDL_GPU_TEXTUREUSAGE_COLOR_TARGET;
     info.width = camera.GetWidth();
     info.height = camera.GetHeight();
     info.layer_count_or_depth = 1;
@@ -271,6 +269,7 @@ static bool Resize(uint32_t width, uint32_t height)
 
 static void Render()
 {
+    Profile();
     SDL_GPUCommandBuffer* commandBuffer = SDL_AcquireGPUCommandBuffer(device);
     if (!commandBuffer)
     {
@@ -300,6 +299,7 @@ static void Render()
     }
     {
         DebugGroupBlock(commandBuffer, "Render::PrepareImGui");
+        ProfileBlock("Render::PrepareImGui");
         ImGuiIO& io = ImGui::GetIO();
         io.DisplaySize.x = width;
         io.DisplaySize.y = height;
@@ -328,24 +328,10 @@ static void Render()
         {
             block = Block(value + BlockFirst);
         }
-        ImGui::Text("Raycast Block: %s", BlockToString(worldQuery.HitBlock));
-        ImGui::Text("Raycast Position: %d, %d, %d", worldQuery.Position.x, worldQuery.Position.y, worldQuery.Position.z);
-        bool setOptions = false;
-        int maxSteps = worldOptions.MaxSteps;
-        int maxBounces = worldOptions.MaxBounces;
-        setOptions |= ImGui::SliderInt("Max Steps", &maxSteps, 0, 2500);
-        setOptions |= ImGui::SliderInt("Max Bounces", &maxBounces, 0, 100);
-        setOptions |= ImGui::ColorEdit3("Sky Bottom", glm::value_ptr(worldOptions.SkyBottom));
-        setOptions |= ImGui::ColorEdit3("Sky Top", glm::value_ptr(worldOptions.SkyTop));
-        setOptions |= ImGui::SliderFloat("Time of Day", &worldOptions.TimeOfDay, 0.0f, 24.0f, "%.2f h");
-        setOptions |= ImGui::ColorEdit3("Sun Color", glm::value_ptr(worldOptions.SunColor));
-        setOptions |= ImGui::SliderFloat("Sun Intensity", &worldOptions.SunIntensity, 0.0f, 20.0f);
-        worldOptions.MaxSteps = maxSteps;
-        worldOptions.MaxBounces = maxBounces;
-        if (setOptions)
-        {
-            world.SetOptions(worldOptions);
-        }
+        ImGui::Text("Raycast Block: %s", BlockToString(camera.GetHitBlock()));
+        const glm::ivec3& hitPosition = camera.GetHitPosition();
+        ImGui::Text("Raycast Position: %d, %d, %d", hitPosition.x, hitPosition.y, hitPosition.z);
+        world.RenderImGui();
         ImGui::EndDisabled();
         ImGui::Render();
         ImGui_ImplSDLGPU3_PrepareDrawData(ImGui::GetDrawData(), commandBuffer);
@@ -354,6 +340,7 @@ static void Render()
     world.Render(commandBuffer, colorTexture, camera);
     {
         DebugGroupBlock(commandBuffer, "Render::Blit");
+        ProfileBlock("Render::Blit");
         SDL_GPUBlitInfo info{};
         info.source.texture = colorTexture;
         info.source.w = camera.GetWidth();
@@ -365,6 +352,7 @@ static void Render()
     }
     {
         DebugGroupBlock(commandBuffer, "Render::RenderImGui");
+        ProfileBlock("Render::RenderImGui");
         SDL_GPUColorTargetInfo info{};
         info.texture = swapchainTexture;
         info.load_op = SDL_GPU_LOADOP_LOAD;
@@ -392,6 +380,7 @@ int main(int argc, char** argv)
     time1 = time2;
     while (true)
     {
+        ProfileBlock("Main::Frame");
         time2 = SDL_GetTicksNS();
         dt = time2 - time1;
         time1 = time2;
@@ -401,6 +390,7 @@ int main(int argc, char** argv)
         }
         Update();
         Render();
+        ProfileFrame();
     }
     Quit();
     return 0;

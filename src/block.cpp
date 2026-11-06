@@ -1,6 +1,7 @@
 #include <SDL3/SDL.h>
 
 #include "block.hpp"
+#include "profile.hpp"
 
 static constexpr BlockState kBlocks =
 {
@@ -262,13 +263,14 @@ static constexpr BlockState kBlocks =
 static_assert(BlockAir == 0);
 static_assert(SDL_arraysize(kBlocks) == BlockCount);
 
-BlockState BlockGetState()
+const BlockState& BlockGetState()
 {
     return kBlocks;
 }
 
 const char* BlockToString(Block block)
 {
+    Profile();
     switch (block)
     {
 #define X(block) case Block##block: return #block;
@@ -280,6 +282,7 @@ const char* BlockToString(Block block)
 
 const char** BlockGetStrings()
 {
+    Profile();
     static const char* kStrings[] =
     {
 #define X(block) #block,

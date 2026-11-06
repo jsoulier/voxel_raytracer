@@ -10,10 +10,12 @@
 #include <iterator>
 #include <string>
 
+#include "profile.hpp"
 #include "shader.hpp"
 
 static void* Load(SDL_GPUDevice* device, const char* name)
 {
+    Profile();
     SDL_GPUShaderFormat shaderFormat = SDL_GetGPUShaderFormats(device);
     const char* entrypoint;
     const char* fileExtension;

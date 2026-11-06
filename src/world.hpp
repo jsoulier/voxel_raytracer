@@ -1,7 +1,6 @@
 #pragma once
 
 #include <SDL3/SDL.h>
-#define GLM_ENABLE_EXPERIMENTAL
 #include <glm/glm.hpp>
 #include <glm/gtx/hash.hpp>
 
@@ -15,10 +14,10 @@
 
 #include "block.hpp"
 #include "buffer.hpp"
-#include "camera.hpp"
 #include "chunk.hpp"
 #include "config.h"
 
+class Camera;
 class World;
 
 struct WorldSetBlockJob
@@ -55,13 +54,37 @@ struct WorldOptions
     int32_t MaxBounces;
     glm::vec3 SunColor;
     float SunIntensity;
-    glm::vec3 SunDirection;
     float TimeOfDay;
+    float Padding0;
+    float Padding1;
+    float Padding2;
+};
+
+struct LightTraits
+{
+    static constexpr glm::ivec4 kInvalid = glm::ivec4(0);
+
+    static bool IsValid(const glm::ivec4& light)
+    {
+        return light.w != BlockAir;
+    }
+
+    static glm::ivec4 Create(const glm::ivec3& position, Block block)
+    {
+        return glm::ivec4(position, block);
+    }
+
+    static glm::ivec3 GetPosition(const glm::ivec4& light)
+    {
+        return glm::ivec3(light);
+    }
 };
 
 struct WorldState
 {
     WorldOptions Options;
+    glm::vec3 SunDirection;
+    float Padding;
     int32_t X;
     int32_t Z;
 };
@@ -104,10 +127,10 @@ public:
     void Update(Camera& camera);
     void Dispatch(SDL_GPUCommandBuffer* commandBuffer);
     void Render(SDL_GPUCommandBuffer* commandBuffer, SDL_GPUTexture* colorTexture, Camera& camera);
+    void RenderImGui();
     void SetBlock(glm::ivec3 position, Block block);
     Block GetBlock(glm::ivec3 position) const;
-    WorldQuery Raycast(const glm::vec3& position, const glm::vec3& direction, float length);
-    void SetOptions(const WorldOptions& options);
+    WorldQuery Raycast(const glm::vec3& position, const glm::vec3& direction, float length) const;
 
 private:
     bool WorldToLocalPosition(glm::ivec3& position) const;
@@ -124,6 +147,8 @@ private:
     std::vector<glm::ivec2> ClearChunks;
     StaticBuffer<WorldState> WorldStateBuffer;
     StaticBuffer<BlockState> BlockStateBuffer;
+    SpatialBuffer<glm::ivec4, LightTraits> LightBuffer;
+    WorldOptions Options;
     SDL_GPUTexture* BlockTexture;
     SDL_GPUTexture* GroupTexture;
     SDL_GPUTexture* ChunkTexture;
@@ -132,6 +157,7 @@ private:
     SDL_GPUComputePipeline* SetChunksPipeline;
     SDL_GPUComputePipeline* ClearBlocksPipeline;
     SDL_GPUComputePipeline* RaytracePipeline;
+    SDL_GPUGraphicsPipeline* RaycastPipeline;
     SDL_GPUComputePipeline* ClearTexturePipeline;
     SDL_GPUComputePipeline* SampleTexturePipeline;
     SDL_GPUComputePipeline* ClearGroupsPipeline;

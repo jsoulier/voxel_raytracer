@@ -63,6 +63,6 @@ struct BlockProperty
 
 using BlockState = std::array<BlockProperty, BlockCount>;
 
-BlockState BlockGetState();
+const BlockState& BlockGetState();
 const char* BlockToString(Block block);
 const char** BlockGetStrings();
