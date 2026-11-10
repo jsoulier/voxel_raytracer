@@ -1,6 +1,7 @@
 #pragma once
 
 #include <array>
+#include <cstddef>
 #include <cstdint>
 
 #include "buffer.hpp"
@@ -59,7 +60,13 @@ struct BlockProperty
     float Light;
     float Roughness;
     float IOR;
+    glm::vec3 Absorption;
+    float Padding;
 };
+
+static_assert(sizeof(BlockProperty) == 32);
+static_assert(offsetof(BlockProperty, Absorption) == 16);
+static_assert(offsetof(BlockProperty, Padding) == 28);
 
 using BlockState = std::array<BlockProperty, BlockCount>;
 

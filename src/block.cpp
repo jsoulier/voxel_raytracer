@@ -71,10 +71,11 @@ static constexpr BlockState kBlocks =
     },
     // water
     {
-        .Color = 0x0055FFFF,
+        .Color = 0x3A9FC4FF,
         .Light = 0.0f,
         .Roughness = 0.01f,
         .IOR = 0.33f,
+        .Absorption = glm::vec3(0.4f, 0.08f, 0.02f),
     },
     // glass
     {

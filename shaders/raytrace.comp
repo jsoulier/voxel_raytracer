@@ -92,7 +92,7 @@ int GetStepAxis(float3 distance)
     }
 }
 
-Query Raycast(float3 origin, float3 direction, float ior)
+Query Raycast(float3 origin, float3 direction, float ior, int maxSteps)
 {
     int3 voxel = int3(floor(origin));
     float3 delta = abs(1.0f / direction);
@@ -112,10 +112,9 @@ Query Raycast(float3 origin, float3 direction, float ior)
             distance[i] = (voxel[i] + 1.0f - origin[i]) * delta[i];
         }
     }
-    int maxSteps = worldState[0].Options.MaxSteps;
     int offsetX = worldState[0].Position.x * CHUNK_WIDTH;
     int offsetZ = worldState[0].Position.y * CHUNK_WIDTH;
-    for (int i = 0; i < maxSteps; i++)
+    for (int i = 0; i < max(1, maxSteps); i++)
     {
         int3 position = voxel;
         position.x -= offsetX;
@@ -133,6 +132,17 @@ Query Raycast(float3 origin, float3 direction, float ior)
         chunk = chunkTexture[chunk];
         position.x += chunk.x * CHUNK_WIDTH;
         position.z += chunk.y * CHUNK_WIDTH;
+        if (maxSteps == 0)
+        {
+            uint hitBlock = blockTexture[position];
+            Query query;
+            query.Hit = hitBlock != kBlockAir;
+            query.Block = hitBlock;
+            query.Position = origin;
+            query.VoxelPosition = voxel;
+            query.Normal = 0.0f;
+            return query;
+        }
         int3 groupPosition = position >> GROUP_SHIFT;
         uint groupValue = groupTexture[groupPosition];
         if (groupValue == 0)
@@ -211,14 +221,14 @@ Query Raycast(float3 origin, float3 direction, float ior)
     return query;
 }
 
-Query TransparentRaycast(float3 origin, float3 normal, float3 direction)
+Query VisibilityQuery(float3 origin, float3 normal, float3 direction)
 {
     float ior = 0.0f;
     origin = origin + normal * kEpsilon;
     Query query = (Query) 0;
     for (int step = 0; step < kMaxTransparentSteps; step++)
     {
-        query = Raycast(origin, direction, ior);
+        query = Raycast(origin, direction, ior, worldState[0].Options.MaxSteps);
         if (!query.Hit)
         {
             break;
@@ -228,24 +238,10 @@ Query TransparentRaycast(float3 origin, float3 normal, float3 direction)
         {
             break;
         }
-        float3 refracted = refract(direction, query.Normal, (1.0f + ior) / (1.0f + block.IOR));
-        if (length(refracted) <= kEpsilon)
-        {
-            break;
-        }
-        direction = refracted;
         ior = block.IOR;
         origin = query.Position + direction * kEpsilon;
     }
     return query;
-}
-
-float FresnelSchlick(float3 direction, float3 normal, float iorFrom, float iorTo)
-{
-    iorFrom += 1.0f;
-    iorTo += 1.0f;
-    float r0 = pow((iorFrom - iorTo) / (iorFrom + iorTo), 2.0f);
-    return r0 + (1.0f - r0) * pow(1.0f - saturate(dot(-direction, normal)), 5.0f);
 }
 
 float3 GetSkyColor(float3 direction)
@@ -282,15 +278,16 @@ void main(uint3 id : SV_DispatchThreadID)
     float3 direction = normalize(u * cameraState[0].Right + v * cameraState[0].Up + cameraState[0].Forward);
     float3 skyColor = GetSkyColor(direction);
     float3 origin = cameraState[0].Position;
-    float ior = 0.0f;
+    Query previousQuery = Raycast(origin, direction, 0.0f, 0);
+    BlockState previous = blockState[previousQuery.Block];
+    float ior = previous.IOR;
     float3 radiance = 0.0f;
     float3 throughput = 1.0f;
     float fog = 0.0f;
     bool previousNee = false;
-    Query previous = (Query) 0;
     for (int bounce = 0; bounce < worldState[0].Options.MaxBounces; bounce++)
     {
-        Query query = Raycast(origin, direction, ior);
+        Query query = Raycast(origin, direction, ior, worldState[0].Options.MaxSteps);
         if (!query.Hit)
         {
             radiance += throughput * (GetSkyColor(direction) + GetSunColor(direction));
@@ -303,18 +300,17 @@ void main(uint3 id : SV_DispatchThreadID)
             fog = exp2(-kFogAlpha * (1.0f - ratio));
         }
         BlockState block = blockState[query.Block];
-        if (previous.Hit && block.Light > kEpsilon)
+        if (previousQuery.Hit && block.Light > kEpsilon)
         {
-            float3 lightPath = query.Position - previous.Position;
+            float3 lightPath = query.Position - previousQuery.Position;
             float distanceSquared = max(dot(lightPath, lightPath), 1.0f);
             throughput *= 1.0f / distanceSquared;
         }
-        previous = query;
-        if (bounce == 0 && length(query.Normal) < kEpsilon)
+        if (ior > kEpsilon)
         {
-            ior = block.IOR;
-            continue;
+            throughput *= exp(-previous.Absorption * distance(query.Position, origin));
         }
+        previousQuery = query;
         if (query.Block != kBlockAir)
         {
             float3 albedo = SRGBToLinear(GetColor(block.Color));
@@ -327,29 +323,41 @@ void main(uint3 id : SV_DispatchThreadID)
             {
                 break;
             }
-            throughput *= albedo;
+            if (block.IOR <= kEpsilon)
+            {
+                throughput *= albedo;
+            }
         }
         previousNee = false;
         if (block.IOR > kEpsilon || (ior > kEpsilon && query.Block == kBlockAir))
         {
-            if (Random() > FresnelSchlick(direction, query.Normal, ior, block.IOR))
+            float iorFrom = ior + 1.0f;
+            float iorTo = block.IOR + 1.0f;
+            float r0 = pow((iorFrom - iorTo) / (iorFrom + iorTo), 2.0f);
+            float reflectance = r0 + (1.0f - r0) * pow(1.0f - saturate(dot(-direction, query.Normal)), 5.0f);
+            bool reflected = Random() <= reflectance;
+            if (!reflected)
             {
-                float3 refracted = refract(direction, query.Normal, (1.0f + ior) / (1.0f + block.IOR));
+                float3 refracted = refract(direction, query.Normal, iorFrom / iorTo);
                 if (length(refracted) > kEpsilon)
                 {
                     direction = refracted;
                     origin = query.Position + direction * 0.001f;
                     ior = block.IOR;
+                    previous = block;
                     continue;
                 }
             }
+            direction = reflect(direction, query.Normal);
+            origin = query.Position + query.Normal * 0.001f;
+            continue;
         }
         if (query.Block != kBlockAir && worldState[0].SunDirection.y > 0.0f)
         {
             float sunFactor = saturate(dot(query.Normal, worldState[0].SunDirection));
             if (sunFactor > 0.0f)
             {
-                Query sunQuery = TransparentRaycast(query.Position, query.Normal, worldState[0].SunDirection);
+                Query sunQuery = VisibilityQuery(query.Position, query.Normal, worldState[0].SunDirection);
                 if (!sunQuery.Hit || blockState[sunQuery.Block].IOR > kEpsilon)
                 {
                     float3 sunColor = SRGBToLinear(worldState[0].Options.SunColor);
@@ -371,7 +379,7 @@ void main(uint3 id : SV_DispatchThreadID)
                 float angle = saturate(dot(query.Normal, lightDirection));
                 if (angle > kEpsilon && distanceSquared < kMaxLightDistanceSquared)
                 {
-                    Query neeQuery = TransparentRaycast(query.Position, query.Normal, lightDirection);
+                    Query neeQuery = VisibilityQuery(query.Position, query.Normal, lightDirection);
                     if (neeQuery.Hit && all(neeQuery.VoxelPosition == lights[light].xyz))
                     {
                         previousNee = true;
