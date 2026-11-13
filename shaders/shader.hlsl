@@ -45,8 +45,10 @@ struct BlockState
     float Light;
     float Roughness;
     float IOR;
-    float3 Absorption;
-    float Padding;
+    float Attenuation;
+    float Padding0;
+    float Padding1;
+    float Padding2;
 };
 
 static const uint kBlockAir = 0;

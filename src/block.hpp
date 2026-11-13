@@ -60,13 +60,15 @@ struct BlockProperty
     float Light;
     float Roughness;
     float IOR;
-    glm::vec3 Absorption;
-    float Padding;
+    float Attenuation;
+    float Padding0;
+    float Padding1;
+    float Padding2;
+
+    bool RenderImGui(const char* name);
 };
 
 static_assert(sizeof(BlockProperty) == 32);
-static_assert(offsetof(BlockProperty, Absorption) == 16);
-static_assert(offsetof(BlockProperty, Padding) == 28);
 
 using BlockState = std::array<BlockProperty, BlockCount>;
 

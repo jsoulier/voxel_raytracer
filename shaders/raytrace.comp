@@ -221,9 +221,8 @@ Query Raycast(float3 origin, float3 direction, float ior, int maxSteps)
     return query;
 }
 
-Query VisibilityQuery(float3 origin, float3 normal, float3 direction)
+Query VisibilityQuery(float3 origin, float3 normal, float3 direction, float ior)
 {
-    float ior = 0.0f;
     origin = origin + normal * kEpsilon;
     Query query = (Query) 0;
     for (int step = 0; step < kMaxTransparentSteps; step++)
@@ -270,7 +269,7 @@ void main(uint3 id : SV_DispatchThreadID)
     {
         return;
     }
-    seed = id.x + id.y * width + uint(Sample) * width * height + 1u; 
+    seed = id.x + id.y * width + uint(Sample) * width * height + 1u;
     float i = Random();
     float j = Random();
     float u = (2.0f * (id.x + i) / width - 1.0f) * cameraState[0].AspectRatio * cameraState[0].TanHalfFov;
@@ -306,9 +305,10 @@ void main(uint3 id : SV_DispatchThreadID)
             float distanceSquared = max(dot(lightPath, lightPath), 1.0f);
             throughput *= 1.0f / distanceSquared;
         }
-        if (ior > kEpsilon)
+        if (ior > kEpsilon && previous.Attenuation > kEpsilon)
         {
-            throughput *= exp(-previous.Absorption * distance(query.Position, origin));
+            float3 albedo = SRGBToLinear(GetColor(previous.Color));
+            throughput *= pow(albedo, distance(query.Position, origin) / previous.Attenuation);
         }
         previousQuery = query;
         if (query.Block != kBlockAir)
@@ -357,7 +357,7 @@ void main(uint3 id : SV_DispatchThreadID)
             float sunFactor = saturate(dot(query.Normal, worldState[0].SunDirection));
             if (sunFactor > 0.0f)
             {
-                Query sunQuery = VisibilityQuery(query.Position, query.Normal, worldState[0].SunDirection);
+                Query sunQuery = VisibilityQuery(query.Position, query.Normal, worldState[0].SunDirection, ior);
                 if (!sunQuery.Hit || blockState[sunQuery.Block].IOR > kEpsilon)
                 {
                     float3 sunColor = SRGBToLinear(worldState[0].Options.SunColor);
@@ -379,7 +379,7 @@ void main(uint3 id : SV_DispatchThreadID)
                 float angle = saturate(dot(query.Normal, lightDirection));
                 if (angle > kEpsilon && distanceSquared < kMaxLightDistanceSquared)
                 {
-                    Query neeQuery = VisibilityQuery(query.Position, query.Normal, lightDirection);
+                    Query neeQuery = VisibilityQuery(query.Position, query.Normal, lightDirection, ior);
                     if (neeQuery.Hit && all(neeQuery.VoxelPosition == lights[light].xyz))
                     {
                         previousNee = true;
@@ -392,7 +392,7 @@ void main(uint3 id : SV_DispatchThreadID)
         float3 reflected = reflect(direction, query.Normal);
         float3 diffuse = RandomHemisphere(query.Normal);
         direction = normalize(lerp(reflected, diffuse, block.Roughness));
-        origin = query.Position + query.Normal * 0.001f;
+        origin = query.Position + query.Normal * kEpsilon;
         if (bounce >= kRouletteBounce)
         {
             float probability = saturate(max(throughput.r, max(throughput.g, throughput.b)));

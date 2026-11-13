@@ -1,4 +1,7 @@
 #include <SDL3/SDL.h>
+#include <imgui.h>
+
+#include <bit>
 
 #include "block.hpp"
 #include "profile.hpp"
@@ -12,6 +15,7 @@ static constexpr BlockState kBlocks =
         .Light = 0.0f,
         .Roughness = 1.0f,
         .IOR = 0.0f,
+        .Attenuation = 0.0f,
     },
     // grass
     {
@@ -19,6 +23,7 @@ static constexpr BlockState kBlocks =
         .Light = 0.0f,
         .Roughness = 0.8f,
         .IOR = 0.0f,
+        .Attenuation = 0.0f,
     },
     // birch grass
     {
@@ -26,6 +31,7 @@ static constexpr BlockState kBlocks =
         .Light = 0.0f,
         .Roughness = 0.8f,
         .IOR = 0.0f,
+        .Attenuation = 0.0f,
     },
     // jungle grass
     {
@@ -33,6 +39,7 @@ static constexpr BlockState kBlocks =
         .Light = 0.0f,
         .Roughness = 0.8f,
         .IOR = 0.0f,
+        .Attenuation = 0.0f,
     },
     // cherry grass
     {
@@ -40,6 +47,7 @@ static constexpr BlockState kBlocks =
         .Light = 0.0f,
         .Roughness = 0.8f,
         .IOR = 0.0f,
+        .Attenuation = 0.0f,
     },
     // Autumn grass
     {
@@ -47,6 +55,7 @@ static constexpr BlockState kBlocks =
         .Light = 0.0f,
         .Roughness = 0.8f,
         .IOR = 0.0f,
+        .Attenuation = 0.0f,
     },
     // blue grass
     {
@@ -54,6 +63,7 @@ static constexpr BlockState kBlocks =
         .Light = 0.0f,
         .Roughness = 0.8f,
         .IOR = 0.0f,
+        .Attenuation = 0.0f,
     },
     // dirt
     {
@@ -61,6 +71,7 @@ static constexpr BlockState kBlocks =
         .Light = 0.0f,
         .Roughness = 1.0f,
         .IOR = 0.0f,
+        .Attenuation = 0.0f,
     },
     // sand
     {
@@ -68,6 +79,7 @@ static constexpr BlockState kBlocks =
         .Light = 0.0f,
         .Roughness = 1.0f,
         .IOR = 0.0f,
+        .Attenuation = 0.0f,
     },
     // water
     {
@@ -75,7 +87,7 @@ static constexpr BlockState kBlocks =
         .Light = 0.0f,
         .Roughness = 0.01f,
         .IOR = 0.33f,
-        .Absorption = glm::vec3(0.4f, 0.08f, 0.02f),
+        .Attenuation = 2.0f,
     },
     // glass
     {
@@ -83,6 +95,7 @@ static constexpr BlockState kBlocks =
         .Light = 0.0f,
         .Roughness = 1.0f,
         .IOR = 0.5f,
+        .Attenuation = 0.0f,
     },
     // stone
     {
@@ -90,6 +103,7 @@ static constexpr BlockState kBlocks =
         .Light = 0.0f,
         .Roughness = 0.9f,
         .IOR = 0.0f,
+        .Attenuation = 0.0f,
     },
     // oak wood
     {
@@ -97,6 +111,7 @@ static constexpr BlockState kBlocks =
         .Light = 0.0f,
         .Roughness = 0.7f,
         .IOR = 0.0f,
+        .Attenuation = 0.0f,
     },
     // oak leaves
     {
@@ -104,6 +119,7 @@ static constexpr BlockState kBlocks =
         .Light = 0.0f,
         .Roughness = 0.9f,
         .IOR = 0.0f,
+        .Attenuation = 0.0f,
     },
     // snow
     {
@@ -111,6 +127,7 @@ static constexpr BlockState kBlocks =
         .Light = 0.0f,
         .Roughness = 0.9f,
         .IOR = 0.0f,
+        .Attenuation = 0.0f,
     },
     // pine wood
     {
@@ -118,6 +135,7 @@ static constexpr BlockState kBlocks =
         .Light = 0.0f,
         .Roughness = 0.7f,
         .IOR = 0.0f,
+        .Attenuation = 0.0f,
     },
     // pine leaves
     {
@@ -125,6 +143,7 @@ static constexpr BlockState kBlocks =
         .Light = 0.0f,
         .Roughness = 0.9f,
         .IOR = 0.0f,
+        .Attenuation = 0.0f,
     },
     // birch wood
     {
@@ -132,6 +151,7 @@ static constexpr BlockState kBlocks =
         .Light = 0.0f,
         .Roughness = 0.7f,
         .IOR = 0.0f,
+        .Attenuation = 0.0f,
     },
     // birch leaves
     {
@@ -139,6 +159,7 @@ static constexpr BlockState kBlocks =
         .Light = 0.0f,
         .Roughness = 0.9f,
         .IOR = 0.0f,
+        .Attenuation = 0.0f,
     },
     // jungle wood
     {
@@ -146,6 +167,7 @@ static constexpr BlockState kBlocks =
         .Light = 0.0f,
         .Roughness = 0.7f,
         .IOR = 0.0f,
+        .Attenuation = 0.0f,
     },
     // jungle leaves
     {
@@ -153,6 +175,7 @@ static constexpr BlockState kBlocks =
         .Light = 0.0f,
         .Roughness = 0.9f,
         .IOR = 0.0f,
+        .Attenuation = 0.0f,
     },
     // cherry wood
     {
@@ -160,6 +183,7 @@ static constexpr BlockState kBlocks =
         .Light = 0.0f,
         .Roughness = 0.7f,
         .IOR = 0.0f,
+        .Attenuation = 0.0f,
     },
     // cherry leaves
     {
@@ -167,6 +191,7 @@ static constexpr BlockState kBlocks =
         .Light = 0.0f,
         .Roughness = 0.9f,
         .IOR = 0.0f,
+        .Attenuation = 0.0f,
     },
     // maple wood
     {
@@ -174,6 +199,7 @@ static constexpr BlockState kBlocks =
         .Light = 0.0f,
         .Roughness = 0.7f,
         .IOR = 0.0f,
+        .Attenuation = 0.0f,
     },
     // maple leaves 
     {
@@ -181,6 +207,7 @@ static constexpr BlockState kBlocks =
         .Light = 0.0f,
         .Roughness = 0.9f,
         .IOR = 0.0f,
+        .Attenuation = 0.0f,
     },
     // blue wood 
     {
@@ -188,6 +215,7 @@ static constexpr BlockState kBlocks =
         .Light = 0.0f,
         .Roughness = 0.7f,
         .IOR = 0.0f,
+        .Attenuation = 0.0f,
     },
     // blue leaves
     {
@@ -195,6 +223,7 @@ static constexpr BlockState kBlocks =
         .Light = 0.0f,
         .Roughness = 0.9f,
         .IOR = 0.0f,
+        .Attenuation = 0.0f,
     },
     // clay
     {
@@ -202,6 +231,7 @@ static constexpr BlockState kBlocks =
         .Light = 0.0f,
         .Roughness = 1.0f,
         .IOR = 0.0f,
+        .Attenuation = 0.0f,
     },
     // steel
     {
@@ -209,6 +239,7 @@ static constexpr BlockState kBlocks =
         .Light = 0.0f,
         .Roughness = 0.0f,
         .IOR = 0.0f,
+        .Attenuation = 0.0f,
     },
     // red light
     {
@@ -216,6 +247,7 @@ static constexpr BlockState kBlocks =
         .Light = 5.0f,
         .Roughness = 0.0f,
         .IOR = 0.0f,
+        .Attenuation = 0.0f,
     },
     // green light
     {
@@ -223,6 +255,7 @@ static constexpr BlockState kBlocks =
         .Light = 5.0f,
         .Roughness = 0.0f,
         .IOR = 0.0f,
+        .Attenuation = 0.0f,
     },
     // blue light
     {
@@ -230,6 +263,7 @@ static constexpr BlockState kBlocks =
         .Light = 5.0f,
         .Roughness = 0.0f,
         .IOR = 0.0f,
+        .Attenuation = 0.0f,
     },
     // cyan light
     {
@@ -237,6 +271,7 @@ static constexpr BlockState kBlocks =
         .Light = 5.0f,
         .Roughness = 0.0f,
         .IOR = 0.0f,
+        .Attenuation = 0.0f,
     },
     // magenta light
     {
@@ -244,6 +279,7 @@ static constexpr BlockState kBlocks =
         .Light = 5.0f,
         .Roughness = 0.0f,
         .IOR = 0.0f,
+        .Attenuation = 0.0f,
     },
     // yellow light
     {
@@ -251,6 +287,7 @@ static constexpr BlockState kBlocks =
         .Light = 5.0f,
         .Roughness = 0.0f,
         .IOR = 0.0f,
+        .Attenuation = 0.0f,
     },
     // white light
     {
@@ -258,11 +295,35 @@ static constexpr BlockState kBlocks =
         .Light = 5.0f,
         .Roughness = 0.0f,
         .IOR = 0.0f,
+        .Attenuation = 0.0f,
     },
 };
 
 static_assert(BlockAir == 0);
 static_assert(SDL_arraysize(kBlocks) == BlockCount);
+
+bool BlockProperty::RenderImGui(const char* name)
+{
+    Profile();
+    bool modified = false;
+    ImGui::PushID(name);
+    if (ImGui::TreeNodeEx(name, ImGuiTreeNodeFlags_SpanAvailWidth))
+    {
+        ImVec4 color = ImGui::ColorConvertU32ToFloat4(std::byteswap(Color));
+        if (ImGui::ColorEdit4("Color", &color.x))
+        {
+            Color = std::byteswap(ImGui::ColorConvertFloat4ToU32(color));
+            modified = true;
+        }
+        modified |= ImGui::SliderFloat("Light", &Light, 0.0f, 20.0f);
+        modified |= ImGui::SliderFloat("Roughness", &Roughness, 0.0f, 1.0f);
+        modified |= ImGui::SliderFloat("IOR", &IOR, 0.0f, 2.0f);
+        modified |= ImGui::SliderFloat("Attenuation", &Attenuation, 0.0f, 32.0f);
+        ImGui::TreePop();
+    }
+    ImGui::PopID();
+    return modified;
+}
 
 const BlockState& BlockGetState()
 {

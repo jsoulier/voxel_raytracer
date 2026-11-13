@@ -849,8 +849,18 @@ void World::RenderImGui()
     modified |= ImGui::SliderFloat("Time of Day", &Options.TimeOfDay, 0.0f, 24.0f, "%.2f h");
     modified |= ImGui::ColorEdit3("Sun Color", glm::value_ptr(Options.SunColor));
     modified |= ImGui::SliderFloat("Sun Intensity", &Options.SunIntensity, 0.0f, 20.0f);
+    BlockState blocks = *BlockStateBuffer;
+    if (ImGui::TreeNode("Blocks"))
+    {
+        for (int i = 0; i < BlockCount; i++)
+        {
+            modified |= blocks[i].RenderImGui(BlockGetStrings()[i]);
+        }
+        ImGui::TreePop();
+    }
     if (modified)
     {
+        BlockStateBuffer.Get() = blocks;
         WorldStateBuffer.Get().Options = Options;
         Dirty = true;
     }
