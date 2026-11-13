@@ -282,6 +282,7 @@ void main(uint3 id : SV_DispatchThreadID)
     float ior = previous.IOR;
     float3 radiance = 0.0f;
     float3 throughput = 1.0f;
+    float traveled = 0.0f;
     float fog = 0.0f;
     bool previousNee = false;
     for (int bounce = 0; bounce < worldState[0].Options.MaxBounces; bounce++)
@@ -292,12 +293,9 @@ void main(uint3 id : SV_DispatchThreadID)
             radiance += throughput * (GetSkyColor(direction) + GetSunColor(direction));
             break;
         }
-        if (bounce == 0)
-        {
-            float travelled = distance(query.Position, cameraState[0].Position);
-            float ratio = saturate(travelled / worldState[0].Options.MaxSteps);
-            fog = exp2(-kFogAlpha * (1.0f - ratio));
-        }
+        traveled += distance(query.Position, origin);
+        float ratio = saturate(traveled / worldState[0].Options.MaxSteps);
+        fog = exp2(-kFogAlpha * (1.0f - ratio));
         BlockState block = blockState[query.Block];
         if (previousQuery.Hit && block.Light > kEpsilon)
         {
